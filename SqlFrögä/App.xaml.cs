@@ -1,23 +1,10 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.UI.Xaml;
+using SqlFroega.Application.Abstractions;
+using SqlFroega.Infrastructure.Persistence.SqlServer;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace SqlFrögä
 {
@@ -27,6 +14,9 @@ namespace SqlFrögä
     public partial class App : Application
     {
         private Window? _window;
+        public static IHost AppHost { get; private set; } = null!;
+        public static IServiceProvider Services { get; private set; } = null!;
+
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -35,6 +25,24 @@ namespace SqlFrögä
         public App()
         {
             InitializeComponent();
+            var services = new ServiceCollection();
+
+            services.AddOptions();
+
+            services.Configure<SqlServerOptions>(cfg =>
+            {
+                cfg.ConnectionString =
+                    "Server=localhost\\SQLEXPRESS;Database=SqlFroega;Trusted_Connection=True;TrustServerCertificate=True;";
+                cfg.ScriptsTable = "dbo.SqlScripts";
+                cfg.CustomersTable = "dbo.Customers";
+                cfg.UseFullTextSearch = false;
+                cfg.JoinCustomers = true;
+            });
+
+            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
+            services.AddScoped<IScriptRepository, ScriptRepository>();
+
+            Services = services.BuildServiceProvider();
         }
 
         /// <summary>
@@ -45,6 +53,7 @@ namespace SqlFrögä
         {
             _window = new MainWindow();
             _window.Activate();
+            
         }
     }
 }

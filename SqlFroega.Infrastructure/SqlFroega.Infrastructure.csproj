@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
@@ -8,12 +8,19 @@
     <WinUISDKReferences>false</WinUISDKReferences>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.3" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260209005" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SqlFroega.Application\SqlFroega.Application.csproj" />
     <ProjectReference Include="..\SqlFroega.Domain\SqlFroega.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Mapping\" />
+    <Folder Include="Parsing\" />
   </ItemGroup>
   
 </Project>
