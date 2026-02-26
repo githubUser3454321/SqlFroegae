@@ -4,6 +4,9 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="SqlFroega.Application/SqlFroega.Application.csproj" />
+  <Project Path="SqlFroega.Domain/SqlFroega.Domain.csproj" />
+  <Project Path="SqlFroega.Infrastructure/SqlFroega.Infrastructure.csproj" />
   <Project Path="SqlFrögä/SqlFrögä.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
