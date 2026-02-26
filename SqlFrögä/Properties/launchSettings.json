@@ -1,0 +1,10 @@
+﻿{
+  "profiles": {
+    "SqlFrögä (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SqlFrögä (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
