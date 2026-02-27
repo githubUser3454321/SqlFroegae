@@ -88,7 +88,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 _ => 0
             };
 
-            await LoadHistoryCoreAsync();
+            await TryLoadHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -113,7 +113,7 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = true;
             Error = null;
-            await LoadHistoryCoreAsync();
+            await TryLoadHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -181,7 +181,7 @@ public partial class ScriptItemViewModel : ObservableObject
             _id = newId;
             Title = "Edit Script";
 
-            await LoadHistoryCoreAsync();
+            await TryLoadHistoryAsync();
         }
         catch (Exception ex)
         {
@@ -201,6 +201,19 @@ public partial class ScriptItemViewModel : ObservableObject
             HistoryItems.Add(item);
 
         OnPropertyChanged(nameof(HistoryCountText));
+    }
+
+    private async Task TryLoadHistoryAsync()
+    {
+        try
+        {
+            await LoadHistoryCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            ClearHistory();
+            Error = $"History could not be loaded ({ex.Message}). Script data is available and can still be edited.";
+        }
     }
 
     private void ClearHistory()
