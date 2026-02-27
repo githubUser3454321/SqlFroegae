@@ -89,9 +89,9 @@
 **Ist:**
 - Historie wird geladen und als Liste angezeigt.
 - Einzelne Historienstände können geöffnet und gelesen werden.
-- Restore-Funktion ist aktuell nicht vorhanden.
+- Historienstand kann direkt in den Editor zurückgeladen und anschließend gespeichert werden (Restore-Flow).
 
-**Status:** 🟡 **Teilweise umgesetzt**
+**Status:** ✅ **Vollständig umgesetzt**
 
 ---
 
@@ -146,10 +146,10 @@
 - UC2 – Script anzeigen (Preview)
 - UC3 – Script bearbeiten
 - UC4 – Neues Script erstellen
+- UC6 – Script-History (inkl. Restore-Flow)
 
 ## Noch **teilweise oder ganz** umzusetzen
 - UC5 – Script löschen (optional Soft Delete)
-- UC6 – Script-History (Restore fehlt)
 - UC7 – Referenzsuche (komplett offen)
 - UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
 - UC9 – Tagging/Metadatenpflege (Grundlagen da, Management-Funktionen offen)
@@ -159,7 +159,6 @@
 
 ## 4) Kurzempfehlung für die nächsten Schritte (priorisiert)
 1. **UC5 vervollständigen:** Optionales Soft-Delete-Flag einführen.
-2. **UC6 abschließen:** Restore aus Historienstand implementieren.
-3. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
-4. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
-5. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
+2. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
+3. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
+4. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
