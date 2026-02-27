@@ -262,7 +262,8 @@ WHERE ss.name = @schemaName AND t.name = @tableName;
 SELECT TOP (@take)
     CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,
     CAST(s.{validToColumn} AS datetime2) AS ValidTo,
-    COALESCE({changedByExpr}, N'') AS ChangedBy
+    COALESCE({changedByExpr}, N'') AS ChangedBy,
+    COALESCE(s.Content, N'') AS Content
 FROM {fullTable} FOR SYSTEM_TIME ALL AS s
 WHERE s.Id = @id
 ORDER BY s.{validFromColumn} DESC;";
@@ -274,7 +275,8 @@ ORDER BY s.{validFromColumn} DESC;";
         {
             ValidFrom = r.ValidFrom,
             ValidTo = r.ValidTo,
-            ChangedBy = r.ChangedBy ?? string.Empty
+            ChangedBy = r.ChangedBy ?? string.Empty,
+            Content = r.Content ?? string.Empty
         }).ToList();
     }
 
@@ -312,7 +314,8 @@ ORDER BY s.{validFromColumn} DESC;";
     private sealed record ScriptHistoryRow(
         DateTime ValidFrom,
         DateTime ValidTo,
-        string? ChangedBy
+        string? ChangedBy,
+        string? Content
     );
 
     private static IReadOnlyList<string> ParseTags(string? tags)

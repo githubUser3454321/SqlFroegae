@@ -108,15 +108,24 @@
                 </Grid>
 
                 <!-- Content -->
-                <StackPanel Grid.Row="2">
-                    <TextBlock Text="SQL Content" Opacity="0.75" Margin="0,0,0,6"/>
-                    <TextBox Text="{Binding Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                <Grid Grid.Row="2" RowSpacing="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="SQL Content" Opacity="0.75"/>
+                    <TextBox Grid.Row="1"
+                             Text="{Binding Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              FontFamily="Consolas"
                              VerticalAlignment="Stretch"
-                             HorizontalAlignment="Stretch"/>
-                </StackPanel>
+                             HorizontalAlignment="Stretch"
+                             MinHeight="260"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                </Grid>
             </Grid>
         </Border>
 
@@ -146,7 +155,7 @@
 
                 <TextBlock Grid.Row="1" Text="{Binding HistoryCountText}" Opacity="0.75"/>
 
-                <ListView Grid.Row="2" ItemsSource="{Binding HistoryItems}">
+                <ListView Grid.Row="2" ItemsSource="{Binding HistoryItems}" IsItemClickEnabled="True" ItemClick="HistoryItems_ItemClick">
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="models:ScriptHistoryItem">
                             <Grid ColumnSpacing="12" Padding="4">
