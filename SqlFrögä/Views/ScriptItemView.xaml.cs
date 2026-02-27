@@ -1,9 +1,15 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace SqlFroega.Views;
 
@@ -36,9 +42,17 @@ public sealed partial class ScriptItemView : Page
         if (e.ClickedItem is not ScriptHistoryItem item)
             return;
 
+        var original = item.Content ?? string.Empty;
+
+
+        // Test 1: CR-only -> CRLF
+        var normalized1 = original.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+
+
+
         var sqlViewer = new TextBox
         {
-            Text = item.Content ?? string.Empty,
+            Text = normalized1,
             IsReadOnly = true,
             IsSpellCheckEnabled = false,
             AcceptsReturn = true,
@@ -47,9 +61,14 @@ public sealed partial class ScriptItemView : Page
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
         };
-
-        ScrollViewer.SetHorizontalScrollBarVisibility(sqlViewer, ScrollBarVisibility.Auto);
-        ScrollViewer.SetVerticalScrollBarVisibility(sqlViewer, ScrollBarVisibility.Auto);
+        sqlViewer.Text = normalized1;
+        // ScrollViewer explizit
+        var scroller = new ScrollViewer
+        {
+            Content = sqlViewer,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
 
         var dialogContent = new Grid
         {
@@ -69,17 +88,16 @@ public sealed partial class ScriptItemView : Page
             Margin = new Thickness(0, 0, 0, 8)
         });
 
-        Grid.SetRow(sqlViewer, 1);
-        dialogContent.Children.Add(sqlViewer);
+        Grid.SetRow(scroller, 1);
+        dialogContent.Children.Add(scroller);
 
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
             Title = $"SQL snapshot from {item.ValidFrom:G}",
             CloseButtonText = "Close",
-            CloseButtonStyle = Resources["HistoryDialogCloseButtonStyle"] as Style,
-            DefaultButton = ContentDialogButton.Close,
-            Content = dialogContent
+            DefaultButton = ContentDialogButton.None,   // <— wichtig
+            Content = dialogContent,
         };
 
         await dialog.ShowAsync();
