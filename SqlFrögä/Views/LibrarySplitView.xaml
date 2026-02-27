@@ -94,7 +94,7 @@
                         <TextBlock Grid.Column="1" Text="{Binding ResultsCountText}" VerticalAlignment="Center" Opacity="0.8"/>
                     </Grid>
 
-                    <ListView Grid.Row="1"
+                    <ListView x:Name="ResultsList" Grid.Row="1"
                               ItemsSource="{Binding Results}"
                               SelectedItem="{Binding Selected, Mode=TwoWay}">
                         <ListView.ItemTemplate>
@@ -120,10 +120,10 @@
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <!-- Edit/Delete per CommandParameter -->
                                             <Button Content="Edit"
-                                                    Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource Mode=TemplatedParent}}"
+                                                    Command="{Binding DataContext.EditCommand, ElementName=ResultsList}"
                                                     CommandParameter="{Binding Id}"/>
                                             <Button Content="Delete"
-                                                    Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource Mode=TemplatedParent}}"
+                                                    Command="{Binding DataContext.DeleteCommand, ElementName=ResultsList}"
                                                     CommandParameter="{Binding Id}"/>
                                         </StackPanel>
                                     </Grid>
