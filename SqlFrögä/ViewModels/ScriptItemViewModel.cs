@@ -74,7 +74,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Title = "Edit Script";
             Name = detail.Name;
             Key = detail.Key;
-            Content = detail.Content;
+            Content = NormalizeSqlContent(detail.Content);
             Module = detail.Module;
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
@@ -165,11 +165,14 @@ public partial class ScriptItemViewModel : ObservableObject
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            var normalizedContent = NormalizeSqlContent(Content);
+            Content = normalizedContent;
+
             var dto = new ScriptUpsert(
                 Id: _id == Guid.Empty ? null : _id,
                 Name: Name.Trim(),
                 Key: Key.Trim(),
-                Content: Content,
+                Content: normalizedContent,
                 Scope: Scope,
                 CustomerId: customerId,
                 Module: string.IsNullOrWhiteSpace(Module) ? null : Module.Trim(),
@@ -198,7 +201,10 @@ public partial class ScriptItemViewModel : ObservableObject
         var items = await _repo.GetHistoryAsync(_id, take: 50);
         HistoryItems.Clear();
         foreach (var item in items)
+        {
+            item.Content = NormalizeSqlContent(item.Content);
             HistoryItems.Add(item);
+        }
 
         OnPropertyChanged(nameof(HistoryCountText));
     }
@@ -220,5 +226,16 @@ public partial class ScriptItemViewModel : ObservableObject
     {
         HistoryItems.Clear();
         OnPropertyChanged(nameof(HistoryCountText));
+    }
+
+    private static string NormalizeSqlContent(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value
+            .Replace("\\r\\n", "\r\n", StringComparison.Ordinal)
+            .Replace("\\n", "\n", StringComparison.Ordinal)
+            .Replace("\\r", "\r", StringComparison.Ordinal);
     }
 }
