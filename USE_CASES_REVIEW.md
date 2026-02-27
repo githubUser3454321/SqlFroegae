@@ -74,7 +74,7 @@
 
 **Ist:**
 - Hard Delete ist vorhanden.
-- Bestätigungsdialog fehlt.
+- Bestätigungsdialog ist in der UI umgesetzt.
 - Soft-Delete-Logik ist nicht implementiert.
 
 **Status:** 🟡 **Teilweise umgesetzt**
@@ -148,7 +148,7 @@
 - UC4 – Neues Script erstellen
 
 ## Noch **teilweise oder ganz** umzusetzen
-- UC5 – Script löschen (Bestätigung + optional Soft Delete)
+- UC5 – Script löschen (optional Soft Delete)
 - UC6 – Script-History (Restore fehlt)
 - UC7 – Referenzsuche (komplett offen)
 - UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
@@ -158,7 +158,7 @@
 ---
 
 ## 4) Kurzempfehlung für die nächsten Schritte (priorisiert)
-1. **UC5 absichern:** Delete-Confirmation + optional Soft-Delete-Flag einführen.
+1. **UC5 vervollständigen:** Optionales Soft-Delete-Flag einführen.
 2. **UC6 abschließen:** Restore aus Historienstand implementieren.
 3. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
 4. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
