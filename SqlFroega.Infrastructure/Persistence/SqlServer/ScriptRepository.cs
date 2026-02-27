@@ -223,7 +223,7 @@ SELECT @id;
 
         const string metadataSql = """
 SELECT TOP 1
-    t.temporal_type AS TemporalType,
+    CAST(t.temporal_type AS int) AS TemporalType,
     startCol.name AS ValidFromColumn,
     endCol.name AS ValidToColumn,
     CASE
