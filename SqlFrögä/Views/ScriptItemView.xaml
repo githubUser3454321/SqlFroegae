@@ -3,7 +3,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SqlFroega.ViewModels"
-    xmlns:converters="using:SqlFroega.Converters">
+    xmlns:converters="using:SqlFroega.Converters"
+    Background="{ThemeResource AppPageBackgroundBrush}">
 
     <Page.DataContext>
         <vm:ScriptItemViewModel />
@@ -33,7 +34,8 @@
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Button Content="Copy" Command="{Binding CopyCommand}" />
-                <Button Content="Save" Command="{Binding SaveCommand}" Style="{ThemeResource AccentButtonStyle}" />
+                <Button Content="Save" Command="{Binding SaveCommand}" Style="{ThemeResource AccentButtonStyle}"
+                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
             </StackPanel>
         </Grid>
 
