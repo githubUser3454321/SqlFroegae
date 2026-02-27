@@ -30,6 +30,7 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string _tagsText = "";
     [ObservableProperty] private string _customerIdText = "";
+    [ObservableProperty] private bool _isReadOnlyMode;
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
@@ -53,6 +54,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Description = "";
             TagsText = "";
             CustomerIdText = "";
+            IsReadOnlyMode = false;
             Error = null;
             ClearHistory();
             return;
@@ -66,8 +68,19 @@ public partial class ScriptItemViewModel : ObservableObject
             var detail = await _repo.GetByIdAsync(id);
             if (detail is null)
             {
-                Error = "Script not found.";
-                ClearHistory();
+                Title = "Deleted Script (History)";
+                Name = "(deleted)";
+                Key = "(history only)";
+                Scope = 0;
+                Module = "";
+                Description = "Record was deleted. Read-only temporal history is shown.";
+                TagsText = "";
+                CustomerIdText = "";
+                IsReadOnlyMode = true;
+
+                await TryLoadHistoryAsync();
+                Content = HistoryItems.FirstOrDefault()?.Content ?? string.Empty;
+                Error = "Script was deleted. You can inspect history but not save this view.";
                 return;
             }
 
@@ -79,6 +92,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
             CustomerIdText = detail.CustomerId?.ToString() ?? "";
+            IsReadOnlyMode = false;
 
             Scope = detail.ScopeLabel switch
             {
@@ -146,6 +160,8 @@ public partial class ScriptItemViewModel : ObservableObject
 
             if (string.IsNullOrWhiteSpace(Name))
                 throw new InvalidOperationException("Name is required.");
+            if (IsReadOnlyMode)
+                throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
             if (string.IsNullOrWhiteSpace(Key))
                 throw new InvalidOperationException("Key is required.");
             if (string.IsNullOrWhiteSpace(Content))

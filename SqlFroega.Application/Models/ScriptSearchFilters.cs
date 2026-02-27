@@ -7,5 +7,7 @@ public sealed record ScriptSearchFilters(
     int? Scope,              // null = alle; sonst 0/1/2
     Guid? CustomerId,
     string? Module,
-    IReadOnlyList<string>? Tags
+    IReadOnlyList<string>? Tags,
+    bool IncludeDeleted = false,
+    bool SearchHistory = false
 );

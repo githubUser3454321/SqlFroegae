@@ -37,6 +37,13 @@ public sealed class ScriptRepository : IScriptRepository
         p.Add("@take", take);
         p.Add("@skip", skip);
 
+        var temporalInfo = (filters.IncludeDeleted || filters.SearchHistory)
+            ? await TryGetTemporalInfoAsync(ct)
+            : null;
+
+        if (temporalInfo is not null)
+            return await SearchFromTemporalAsync(queryText, filters, temporalInfo.Value, p, ct);
+
         var sb = new StringBuilder();
         sb.AppendLine("SELECT");
         sb.AppendLine("  s.Id,");
@@ -49,7 +56,8 @@ public sealed class ScriptRepository : IScriptRepository
         else
             sb.AppendLine("  CAST(NULL AS nvarchar(256)) AS CustomerName,");
         sb.AppendLine("  s.Description,");
-        sb.AppendLine("  COALESCE(s.Tags, N'') AS Tags");
+        sb.AppendLine("  COALESCE(s.Tags, N'') AS Tags,");
+        sb.AppendLine("  CAST(0 AS bit) AS IsDeleted");
         sb.AppendLine($"FROM {_opt.ScriptsTable} s");
         if (_opt.JoinCustomers)
             sb.AppendLine($"LEFT JOIN {_opt.CustomersTable} c ON c.Id = s.CustomerId");
@@ -112,7 +120,142 @@ public sealed class ScriptRepository : IScriptRepository
             r.Module,
             r.CustomerName,
             r.Description,
-            ParseTags(r.Tags)
+            ParseTags(r.Tags),
+            r.IsDeleted
+        )).ToList();
+    }
+
+    private async Task<IReadOnlyList<ScriptListItem>> SearchFromTemporalAsync(
+        string? queryText,
+        ScriptSearchFilters filters,
+        TemporalInfo temporalInfo,
+        DynamicParameters p,
+        CancellationToken ct)
+    {
+        var fullTable = $"{QuoteIdentifier(temporalInfo.Schema)}.{QuoteIdentifier(temporalInfo.Table)}";
+        var validFromColumn = QuoteIdentifier(temporalInfo.ValidFromColumn);
+        var validToColumn = QuoteIdentifier(temporalInfo.ValidToColumn);
+
+        p.Add("@openEndedValidTo", DateTime.MaxValue);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("WITH version_rows AS (");
+        sb.AppendLine("    SELECT");
+        sb.AppendLine("      s.Id,");
+        sb.AppendLine("      s.Name,");
+        sb.AppendLine("      s.ScriptKey AS [Key],");
+        sb.AppendLine("      s.Scope,");
+        sb.AppendLine("      s.Module,");
+        sb.AppendLine("      s.CustomerId,");
+        sb.AppendLine("      s.Description,");
+        sb.AppendLine("      COALESCE(s.Tags, N'') AS Tags,");
+        sb.AppendLine($"      CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,");
+        sb.AppendLine($"      CAST(s.{validToColumn} AS datetime2) AS ValidTo,");
+        sb.AppendLine("      ROW_NUMBER() OVER (PARTITION BY s.Id ORDER BY");
+        sb.AppendLine($"          CAST(s.{validFromColumn} AS datetime2) DESC,");
+        sb.AppendLine($"          CAST(s.{validToColumn} AS datetime2) DESC) AS rn");
+        sb.AppendLine($"    FROM {fullTable} FOR SYSTEM_TIME ALL AS s");
+        sb.AppendLine("    WHERE 1=1");
+
+        if (filters.Scope is not null)
+        {
+            sb.AppendLine("      AND s.Scope = @scope");
+            p.Add("@scope", filters.Scope.Value);
+        }
+
+        if (filters.CustomerId is not null)
+        {
+            sb.AppendLine("      AND s.CustomerId = @customerId");
+            p.Add("@customerId", filters.CustomerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.Module))
+        {
+            sb.AppendLine("      AND s.Module = @module");
+            p.Add("@module", filters.Module);
+        }
+
+        if (filters.Tags is { Count: > 0 })
+        {
+            for (int i = 0; i < filters.Tags.Count; i++)
+            {
+                var param = $"@tag{i}";
+                sb.AppendLine($"      AND s.Tags LIKE '%' + {param} + '%'");
+                p.Add(param, filters.Tags[i]);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryText))
+        {
+            queryText = queryText.Trim();
+            p.Add("@q", queryText);
+
+            if (_opt.UseFullTextSearch)
+            {
+                sb.AppendLine("      AND (");
+                sb.AppendLine("          CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q)");
+                if (filters.SearchHistory)
+                {
+                    sb.AppendLine("          OR EXISTS (");
+                    sb.AppendLine($"              SELECT 1 FROM {fullTable} FOR SYSTEM_TIME ALL AS hs");
+                    sb.AppendLine("              WHERE hs.Id = s.Id");
+                    sb.AppendLine("                AND (CONTAINS(hs.Content, @q) OR CONTAINS(hs.Name, @q) OR CONTAINS(hs.Description, @q))");
+                    sb.AppendLine("          )");
+                }
+                sb.AppendLine("      )");
+            }
+            else
+            {
+                sb.AppendLine("      AND (");
+                sb.AppendLine("          s.Content LIKE '%' + @q + '%' OR s.Name LIKE '%' + @q + '%' OR s.Description LIKE '%' + @q + '%'");
+                if (filters.SearchHistory)
+                {
+                    sb.AppendLine("          OR EXISTS (");
+                    sb.AppendLine($"              SELECT 1 FROM {fullTable} FOR SYSTEM_TIME ALL AS hs");
+                    sb.AppendLine("              WHERE hs.Id = s.Id");
+                    sb.AppendLine("                AND (hs.Content LIKE '%' + @q + '%' OR hs.Name LIKE '%' + @q + '%' OR hs.Description LIKE '%' + @q + '%')");
+                    sb.AppendLine("          )");
+                }
+                sb.AppendLine("      )");
+            }
+        }
+
+        sb.AppendLine(")");
+        sb.AppendLine("SELECT");
+        sb.AppendLine("  vr.Id,");
+        sb.AppendLine("  vr.Name,");
+        sb.AppendLine("  vr.[Key],");
+        sb.AppendLine("  CASE vr.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
+        sb.AppendLine("  vr.Module,");
+        if (_opt.JoinCustomers)
+            sb.AppendLine("  c.Name AS CustomerName,");
+        else
+            sb.AppendLine("  CAST(NULL AS nvarchar(256)) AS CustomerName,");
+        sb.AppendLine("  vr.Description,");
+        sb.AppendLine("  vr.Tags,");
+        sb.AppendLine("  CAST(CASE WHEN vr.ValidTo < @openEndedValidTo THEN 1 ELSE 0 END AS bit) AS IsDeleted");
+        sb.AppendLine("FROM version_rows vr");
+        if (_opt.JoinCustomers)
+            sb.AppendLine($"LEFT JOIN {_opt.CustomersTable} c ON c.Id = vr.CustomerId");
+        sb.AppendLine("WHERE vr.rn = 1");
+        if (!filters.IncludeDeleted)
+            sb.AppendLine("  AND vr.ValidTo >= @openEndedValidTo");
+        sb.AppendLine("ORDER BY vr.Name ASC");
+        sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
+
+        return rows.Select(r => new ScriptListItem(
+            r.Id,
+            r.Name,
+            r.Key,
+            r.ScopeLabel,
+            r.Module,
+            r.CustomerName,
+            r.Description,
+            ParseTags(r.Tags),
+            r.IsDeleted
         )).ToList();
     }
 
@@ -288,7 +431,8 @@ ORDER BY s.{validFromColumn} DESC;";
         string? Module,
         string? CustomerName,
         string? Description,
-        string Tags
+        string Tags,
+        bool IsDeleted
     );
 
     private sealed record ScriptDetailRow(
@@ -309,6 +453,13 @@ ORDER BY s.{validFromColumn} DESC;";
         string? ValidFromColumn,
         string? ValidToColumn,
         string? ChangedByColumn
+    );
+
+    private readonly record struct TemporalInfo(
+        string Schema,
+        string Table,
+        string ValidFromColumn,
+        string ValidToColumn
     );
 
     private sealed record ScriptHistoryRow(
@@ -381,4 +532,35 @@ ORDER BY s.{validFromColumn} DESC;";
 
     private static string QuoteIdentifier(string name)
         => $"[{(name ?? string.Empty).Replace("]", "]]")}]";
+
+    private async Task<TemporalInfo?> TryGetTemporalInfoAsync(CancellationToken ct)
+    {
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptsTable);
+
+        const string metadataSql = """
+SELECT TOP 1
+    CAST(t.temporal_type AS int) AS TemporalType,
+    startCol.name AS ValidFromColumn,
+    endCol.name AS ValidToColumn,
+    CAST(NULL AS nvarchar(256)) AS ChangedByColumn
+FROM sys.tables t
+INNER JOIN sys.schemas ss ON ss.schema_id = t.schema_id
+LEFT JOIN sys.periods p ON p.object_id = t.object_id
+LEFT JOIN sys.columns startCol ON startCol.object_id = t.object_id AND startCol.column_id = p.start_column_id
+LEFT JOIN sys.columns endCol ON endCol.object_id = t.object_id AND endCol.column_id = p.end_column_id
+WHERE ss.name = @schemaName AND t.name = @tableName;
+""";
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        var metadata = await conn.QuerySingleOrDefaultAsync<TemporalMetadataRow>(
+            new CommandDefinition(metadataSql, new { schemaName, tableName }, cancellationToken: ct));
+
+        if (metadata is null || metadata.TemporalType != 2)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(metadata.ValidFromColumn) || string.IsNullOrWhiteSpace(metadata.ValidToColumn))
+            return null;
+
+        return new TemporalInfo(schemaName, tableName, metadata.ValidFromColumn, metadata.ValidToColumn);
+    }
 }
