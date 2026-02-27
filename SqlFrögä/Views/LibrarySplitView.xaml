@@ -44,9 +44,7 @@
 
                 <Button Grid.Column="1"
                         Content="New"
-                        Command="{Binding NewCommand}"
-                        Style="{ThemeResource AccentButtonStyle}"
-                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                        Command="{Binding NewCommand}"/>
             </Grid>
 
             <!-- Search bar -->
