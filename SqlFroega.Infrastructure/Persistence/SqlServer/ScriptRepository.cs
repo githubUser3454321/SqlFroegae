@@ -270,11 +270,12 @@ ORDER BY s.{validFromColumn} DESC;";
         var rows = await conn.QueryAsync<ScriptHistoryRow>(
             new CommandDefinition(sql, new { id, take }, cancellationToken: ct));
 
-        return rows.Select(r => new ScriptHistoryItem(
-            r.ValidFrom,
-            r.ValidTo,
-            r.ChangedBy ?? string.Empty
-        )).ToList();
+        return rows.Select(r => new ScriptHistoryItem
+        {
+            ValidFrom = r.ValidFrom,
+            ValidTo = r.ValidTo,
+            ChangedBy = r.ChangedBy ?? string.Empty
+        }).ToList();
     }
 
     private sealed record ScriptListItemRow(

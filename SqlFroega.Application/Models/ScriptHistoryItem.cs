@@ -2,8 +2,9 @@ using System;
 
 namespace SqlFroega.Application.Models;
 
-public sealed record ScriptHistoryItem(
-    DateTime ValidFrom,
-    DateTime ValidTo,
-    string ChangedBy
-);
+public sealed class ScriptHistoryItem
+{
+    public DateTime ValidFrom { get; set; }
+    public DateTime ValidTo { get; set; }
+    public string ChangedBy { get; set; } = string.Empty;
+}
