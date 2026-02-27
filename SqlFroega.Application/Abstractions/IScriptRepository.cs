@@ -25,4 +25,8 @@ public interface IScriptRepository
         Guid id,
         int take = 50,
         CancellationToken ct = default);
+
+    Task<ScriptMetadataCatalog> GetMetadataCatalogAsync(
+        bool includeDeleted = false,
+        CancellationToken ct = default);
 }

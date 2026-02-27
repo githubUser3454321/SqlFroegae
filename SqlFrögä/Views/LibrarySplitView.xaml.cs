@@ -19,9 +19,18 @@ public sealed partial class LibrarySplitView : Page
 
         // Startzustand rechts: "New" oder leer
         DetailFrame.Navigate(typeof(ScriptItemView), Guid.Empty);
+
+        Loaded += LibrarySplitView_Loaded;
     }
 
     private LibrarySplitViewModel VM => (LibrarySplitViewModel)DataContext;
+
+
+    private async void LibrarySplitView_Loaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= LibrarySplitView_Loaded;
+        await VM.RefreshCatalogCommand.ExecuteAsync(null);
+    }
 
     private async void QueryTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
     {
