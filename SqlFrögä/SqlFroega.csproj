@@ -49,6 +49,11 @@
     <ProjectReference Include="..\SqlFroega.Application\SqlFroega.Application.csproj" />
     <ProjectReference Include="..\SqlFroega.Infrastructure\SqlFroega.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Page Update="Views\ScriptItemView.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution

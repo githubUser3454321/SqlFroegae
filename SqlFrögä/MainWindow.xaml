@@ -15,6 +15,6 @@
     </Window.SystemBackdrop>
 
     <Grid>
-        <views:LibraryView />
+        <Frame x:Name="RootFrame" />
     </Grid>
 </Window>

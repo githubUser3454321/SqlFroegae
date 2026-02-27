@@ -8,10 +8,8 @@ namespace SqlFroega;
 
 public partial class App : Microsoft.UI.Xaml.Application
 {
-    private Window? _window;
-
     public static IServiceProvider Services { get; private set; } = null!;
-
+    public static Window? MainWindow { get; private set; }
     public App()
     {
         InitializeComponent();
@@ -37,7 +35,7 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
-        _window.Activate();
+        MainWindow = new MainWindow();
+        MainWindow.Activate();
     }
 }

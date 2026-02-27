@@ -226,9 +226,6 @@ SELECT @id;
         return id;
     }
 
-    public Task DeleteAsync(Guid id, CancellationToken ct = default)
-        => throw new NotImplementedException("MVP: Delete not implemented yet.");
-
     public Task<IReadOnlyList<ScriptHistoryItem>> GetHistoryAsync(Guid id, int take = 50, CancellationToken ct = default)
         => throw new NotImplementedException("MVP: History not implemented yet (Temporal can be added later).");
 
@@ -299,6 +296,13 @@ SELECT @id;
             .Select(t => t.Replace("\"", "\\\""));
 
         return "[\"" + string.Join("\",\"", cleaned) + "\"]";
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var sql = $"DELETE FROM {_opt.ScriptsTable} WHERE Id = @id;";
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await conn.ExecuteAsync(new CommandDefinition(sql, new { id }, cancellationToken: ct));
     }
 
     //Task<IReadOnlyList<ScriptHistoryItem>> IScriptRepository.GetHistoryAsync(Guid id, int take, CancellationToken ct)
