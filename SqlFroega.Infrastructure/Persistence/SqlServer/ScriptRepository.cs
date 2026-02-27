@@ -472,6 +472,39 @@ ORDER BY s.{validFromColumn} DESC;";
         }).ToList();
     }
 
+
+    public async Task<ScriptMetadataCatalog> GetMetadataCatalogAsync(bool includeDeleted = false, CancellationToken ct = default)
+    {
+        var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("SELECT DISTINCT LTRIM(RTRIM(s.Module)) AS Value");
+        sb.AppendLine($"FROM {_opt.ScriptsTable} s");
+        sb.AppendLine("WHERE s.Module IS NOT NULL AND LTRIM(RTRIM(s.Module)) <> N''");
+        if (useSoftDelete)
+            sb.AppendLine("  AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
+        sb.AppendLine("ORDER BY Value ASC;");
+
+        sb.AppendLine("SELECT DISTINCT LTRIM(RTRIM(split.value)) AS Value");
+        sb.AppendLine($"FROM {_opt.ScriptsTable} s");
+        sb.AppendLine("CROSS APPLY STRING_SPLIT(REPLACE(REPLACE(REPLACE(COALESCE(s.Tags, N''), '[', N''), ']', N''), CHAR(34), N''), ',') split");
+        sb.AppendLine("WHERE LTRIM(RTRIM(split.value)) <> N''");
+        if (useSoftDelete)
+            sb.AppendLine("  AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
+        sb.AppendLine("ORDER BY Value ASC;");
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        using var multi = await conn.QueryMultipleAsync(new CommandDefinition(
+            sb.ToString(),
+            new { includeDeleted },
+            cancellationToken: ct));
+
+        var modules = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var tags = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        return new ScriptMetadataCatalog(modules, tags);
+    }
+
     private sealed record ScriptListItemRow(
         Guid Id,
         string Name,

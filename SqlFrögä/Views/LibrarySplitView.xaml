@@ -1,5 +1,6 @@
 <Page
     x:Class="SqlFroega.Views.LibrarySplitView"
+    x:Name="RootPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SqlFroega.ViewModels"
@@ -78,6 +79,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -110,6 +112,35 @@
                     <CheckBox Grid.Row="2" Grid.Column="1"
                               Content="Auch in History-Versionen suchen"
                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
+
+
+                    <Expander Grid.Row="3" Grid.ColumnSpan="2" Header="Tag- & Modul-Katalog" IsExpanded="True">
+                        <StackPanel Spacing="8" Padding="0,8,0,0">
+                            <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
+
+                            <TextBlock Text="Module" FontWeight="SemiBold"/>
+                            <ListView ItemsSource="{Binding AvailableModules}" SelectionMode="None" MaxHeight="120">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" HorizontalAlignment="Stretch"
+                                                Command="{Binding DataContext.ApplyModuleFilterCommand, ElementName=RootPage}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+
+                            <TextBlock Text="Tags" FontWeight="SemiBold"/>
+                            <ListView ItemsSource="{Binding AvailableTags}" SelectionMode="None" MaxHeight="160">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" HorizontalAlignment="Stretch"
+                                                Command="{Binding DataContext.ToggleTagFilterCommand, ElementName=RootPage}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </Expander>
                 </Grid>
             </Expander>
 

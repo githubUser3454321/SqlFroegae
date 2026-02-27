@@ -19,6 +19,8 @@ public partial class LibrarySplitViewModel : ObservableObject
     private Frame? _detailFrame;
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
+    public ObservableCollection<string> AvailableModules { get; } = new();
+    public ObservableCollection<string> AvailableTags { get; } = new();
 
     [ObservableProperty] private string _queryText = "";
     [ObservableProperty] private ScriptListItem? _selected;
@@ -89,6 +91,8 @@ public partial class LibrarySplitViewModel : ObservableObject
                 Results.Add(it);
 
             OnPropertyChanged(nameof(ResultsCountText));
+
+            await RefreshMetadataCatalogAsync();
         }
         catch (Exception ex)
         {
@@ -144,6 +148,69 @@ public partial class LibrarySplitViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+
+    [RelayCommand]
+    private async Task RefreshCatalogAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            await RefreshMetadataCatalogAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void ApplyModuleFilter(string? module)
+    {
+        if (string.IsNullOrWhiteSpace(module))
+            return;
+
+        ModuleFilterText = module.Trim();
+    }
+
+    [RelayCommand]
+    private void ToggleTagFilter(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag))
+            return;
+
+        var selected = (TagsFilterText ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var existing = selected.FirstOrDefault(x => string.Equals(x, tag, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+            selected.Add(tag.Trim());
+        else
+            selected.Remove(existing);
+
+        TagsFilterText = string.Join(", ", selected);
+    }
+
+    private async Task RefreshMetadataCatalogAsync()
+    {
+        var metadata = await _repo.GetMetadataCatalogAsync(IncludeDeleted);
+
+        AvailableModules.Clear();
+        foreach (var module in metadata.Modules)
+            AvailableModules.Add(module);
+
+        AvailableTags.Clear();
+        foreach (var tag in metadata.Tags)
+            AvailableTags.Add(tag);
     }
 
     private void NavigateDetail(Guid id)

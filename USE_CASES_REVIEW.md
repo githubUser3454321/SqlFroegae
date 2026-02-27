@@ -122,9 +122,11 @@
 
 **Ist:**
 - Tags, Modul und Scope sind in Suche + Editiermaske integriert.
-- Eigene Verwaltungsoberflächen (z. B. Tag-Katalog/Modul-Registry) fehlen.
+- Es gibt jetzt einen **Tag- & Modul-Katalog** in der Suche, der vorhandene Werte aus der DB lädt und als klickbare Einträge anbietet.
+- Module können direkt als Filter übernommen werden; Tags lassen sich per Klick zur Filterliste hinzufügen/entfernen.
+- Katalog kann manuell aktualisiert werden (zusätzlich zum automatischen Refresh nach der Suche).
 
-**Status:** 🟡 **Teilweise umgesetzt**
+**Status:** ✅ **Vollständig umgesetzt (Katalog + Pflege im Such-/Filter-Flow)**
 
 ---
 
@@ -153,7 +155,6 @@
 ## Noch **teilweise oder ganz** umzusetzen
 - UC7 – Referenzsuche (komplett offen)
 - UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
-- UC9 – Tagging/Metadatenpflege (Grundlagen da, Management-Funktionen offen)
 - UC10 – Performance-Suche (teilweise, abhängig von FTS-Ausbau)
 
 ---
@@ -162,4 +163,4 @@
 1. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
 2. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
 3. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
-4. **UC9 erweitern:** Verwaltung für Tag-Katalog und Modul-Registry ergänzen.
+4. **UC9 optional ausbauen:** Dedizierte Admin-Verwaltung für kontrollierte Tag-/Modul-Listen ergänzen (Governance, Freigaben, Cleanup).
