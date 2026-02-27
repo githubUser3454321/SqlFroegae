@@ -3,7 +3,9 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SqlFroega.ViewModels"
-    xmlns:converters="using:SqlFroega.Converters">
+    xmlns:models="using:SqlFroega.Application.Models"
+    xmlns:converters="using:SqlFroega.Converters"
+    Background="{ThemeResource AppPageBackgroundBrush}">
 
     <Page.DataContext>
         <vm:ScriptItemViewModel />
@@ -13,6 +15,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -33,7 +36,8 @@
 
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <Button Content="Copy" Command="{Binding CopyCommand}" />
-                <Button Content="Save" Command="{Binding SaveCommand}" Style="{ThemeResource AccentButtonStyle}" />
+                <Button Content="Save" Command="{Binding SaveCommand}" Style="{ThemeResource AccentButtonStyle}"
+                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
             </StackPanel>
         </Grid>
 
@@ -116,8 +120,54 @@
             </Grid>
         </Border>
 
+        <!-- History -->
+        <Border Grid.Row="2"
+                CornerRadius="12"
+                BorderThickness="1"
+                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Padding="12">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="180"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="History (Temporal)" FontWeight="SemiBold"/>
+                    <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshHistoryCommand}"/>
+                </Grid>
+
+                <TextBlock Grid.Row="1" Text="{Binding HistoryCountText}" Opacity="0.75"/>
+
+                <ListView Grid.Row="2" ItemsSource="{Binding HistoryItems}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:ScriptHistoryItem">
+                            <Grid ColumnSpacing="12" Padding="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="{Binding ValidFrom}"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ValidTo}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding ChangedBy}" TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+        </Border>
+
         <!-- Status -->
-        <Grid Grid.Row="2" ColumnSpacing="10">
+        <Grid Grid.Row="3" ColumnSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>

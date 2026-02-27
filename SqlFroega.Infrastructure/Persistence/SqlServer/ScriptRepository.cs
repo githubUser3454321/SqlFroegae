@@ -29,7 +29,6 @@ public sealed class ScriptRepository : IScriptRepository
         int skip = 0,
         CancellationToken ct = default)
     {
-        // Guardrails für UX/Performance
         if (take <= 0) take = 50;
         if (take > 500) take = 500;
         if (skip < 0) skip = 0;
@@ -56,7 +55,6 @@ public sealed class ScriptRepository : IScriptRepository
             sb.AppendLine($"LEFT JOIN {_opt.CustomersTable} c ON c.Id = s.CustomerId");
         sb.AppendLine("WHERE 1=1");
 
-        // Filters
         if (filters.Scope is not null)
         {
             sb.AppendLine("AND s.Scope = @scope");
@@ -77,8 +75,6 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (filters.Tags is { Count: > 0 })
         {
-            // MVP: Tags sind als Text (JSON/CSV) gespeichert -> LIKE Filter
-            // Später sauber: ScriptTags m:n
             for (int i = 0; i < filters.Tags.Count; i++)
             {
                 var param = $"@tag{i}";
@@ -87,13 +83,11 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
-        // Query Text (Fulltext oder LIKE)
         if (!string.IsNullOrWhiteSpace(queryText))
         {
             queryText = queryText.Trim();
             if (_opt.UseFullTextSearch)
             {
-                // Voraussetzung: Full-Text Index auf Content (und evtl Name/Description)
                 sb.AppendLine("AND (CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q))");
                 p.Add("@q", queryText);
             }
@@ -104,14 +98,12 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
-        // Sortierung: MVP simpel (Name)
         sb.AppendLine("ORDER BY s.Name ASC");
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
 
-        // Tags: DB liefert string -> in DTO List<string> umwandeln
         return rows.Select(r => new ScriptListItem(
             r.Id,
             r.Name,
@@ -150,7 +142,8 @@ public sealed class ScriptRepository : IScriptRepository
         var row = await conn.QuerySingleOrDefaultAsync<ScriptDetailRow>(
             new CommandDefinition(sql.ToString(), new { id }, cancellationToken: ct));
 
-        if (row is null) return null;
+        if (row is null)
+            return null;
 
         return new ScriptDetail(
             row.Id,
@@ -168,9 +161,6 @@ public sealed class ScriptRepository : IScriptRepository
 
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
-        // ScriptKey muss eindeutig sein (oder Id)
-        // MVP: Upsert via MERGE auf Id. (Wenn Id null => neue Id)
-        // Temporal: ValidFrom/ValidTo werden vom SQL Server verwaltet.
         var sql = $@"
 DECLARE @id uniqueidentifier = ISNULL(@Id, NEWID());
 
@@ -204,8 +194,6 @@ WHEN NOT MATCHED THEN
 SELECT @id;
 ";
 
-        // Tags: wir speichern als JSON oder CSV string (MVP).
-        // Hier: wenn List<string> => JSON-ähnliche Speicherung wäre besser, aber MVP: simple JSON array string.
         var tagsText = ToTagsStorage(script.Tags);
 
         var args = new
@@ -226,10 +214,68 @@ SELECT @id;
         return id;
     }
 
-    public Task<IReadOnlyList<ScriptHistoryItem>> GetHistoryAsync(Guid id, int take = 50, CancellationToken ct = default)
-        => throw new NotImplementedException("MVP: History not implemented yet (Temporal can be added later).");
+    public async Task<IReadOnlyList<ScriptHistoryItem>> GetHistoryAsync(Guid id, int take = 50, CancellationToken ct = default)
+    {
+        if (take <= 0) take = 20;
+        if (take > 200) take = 200;
 
-    // ---------- Helpers / internal row models ----------
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptsTable);
+
+        const string metadataSql = """
+SELECT TOP 1
+    t.temporal_type AS TemporalType,
+    startCol.name AS ValidFromColumn,
+    endCol.name AS ValidToColumn,
+    CASE
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'ChangedBy') IS NOT NULL THEN 'ChangedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'ModifiedBy') IS NOT NULL THEN 'ModifiedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'UpdatedBy') IS NOT NULL THEN 'UpdatedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'LastModifiedBy') IS NOT NULL THEN 'LastModifiedBy'
+        ELSE NULL
+    END AS ChangedByColumn
+FROM sys.tables t
+INNER JOIN sys.schemas ss ON ss.schema_id = t.schema_id
+LEFT JOIN sys.periods p ON p.object_id = t.object_id
+LEFT JOIN sys.columns startCol ON startCol.object_id = t.object_id AND startCol.column_id = p.start_column_id
+LEFT JOIN sys.columns endCol ON endCol.object_id = t.object_id AND endCol.column_id = p.end_column_id
+WHERE ss.name = @schemaName AND t.name = @tableName;
+""";
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        var metadata = await conn.QuerySingleOrDefaultAsync<TemporalMetadataRow>(
+            new CommandDefinition(metadataSql, new { schemaName, tableName }, cancellationToken: ct));
+
+        if (metadata is null || metadata.TemporalType != 2)
+            return Array.Empty<ScriptHistoryItem>();
+
+        if (string.IsNullOrWhiteSpace(metadata.ValidFromColumn) || string.IsNullOrWhiteSpace(metadata.ValidToColumn))
+            return Array.Empty<ScriptHistoryItem>();
+
+        var fullTable = $"{QuoteIdentifier(schemaName)}.{QuoteIdentifier(tableName)}";
+        var validFromColumn = QuoteIdentifier(metadata.ValidFromColumn);
+        var validToColumn = QuoteIdentifier(metadata.ValidToColumn);
+        var changedByExpr = metadata.ChangedByColumn is null
+            ? "N''"
+            : $"CONVERT(nvarchar(256), s.{QuoteIdentifier(metadata.ChangedByColumn)})";
+
+        var sql = $@"
+SELECT TOP (@take)
+    CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,
+    CAST(s.{validToColumn} AS datetime2) AS ValidTo,
+    COALESCE({changedByExpr}, N'') AS ChangedBy
+FROM {fullTable} FOR SYSTEM_TIME ALL AS s
+WHERE s.Id = @id
+ORDER BY s.{validFromColumn} DESC;";
+
+        var rows = await conn.QueryAsync<ScriptHistoryRow>(
+            new CommandDefinition(sql, new { id, take }, cancellationToken: ct));
+
+        return rows.Select(r => new ScriptHistoryItem(
+            r.ValidFrom,
+            r.ValidTo,
+            r.ChangedBy ?? string.Empty
+        )).ToList();
+    }
 
     private sealed record ScriptListItemRow(
         Guid Id,
@@ -255,6 +301,19 @@ SELECT @id;
         string Tags
     );
 
+    private sealed record TemporalMetadataRow(
+        int TemporalType,
+        string? ValidFromColumn,
+        string? ValidToColumn,
+        string? ChangedByColumn
+    );
+
+    private sealed record ScriptHistoryRow(
+        DateTime ValidFrom,
+        DateTime ValidTo,
+        string? ChangedBy
+    );
+
     private static IReadOnlyList<string> ParseTags(string? tags)
     {
         if (string.IsNullOrWhiteSpace(tags))
@@ -262,13 +321,8 @@ SELECT @id;
 
         tags = tags.Trim();
 
-        // MVP tolerant:
-        // - JSON array: ["a","b"]
-        // - CSV: a,b
         if (tags.StartsWith("[") && tags.EndsWith("]"))
         {
-            // sehr simple JSON-array parsing (ohne JSON dependency, MVP)
-            // Erwartet: ["a","b"] oder [ "a" , "b" ]
             var inner = tags[1..^1].Trim();
             if (inner.Length == 0) return Array.Empty<string>();
 
@@ -288,7 +342,7 @@ SELECT @id;
     private static string ToTagsStorage(IReadOnlyList<string> tags)
     {
         if (tags is null || tags.Count == 0) return "[]";
-        // simple JSON array string
+
         var cleaned = tags
             .Select(t => (t ?? "").Trim())
             .Where(t => t.Length > 0)
@@ -305,8 +359,22 @@ SELECT @id;
         await conn.ExecuteAsync(new CommandDefinition(sql, new { id }, cancellationToken: ct));
     }
 
-    //Task<IReadOnlyList<ScriptHistoryItem>> IScriptRepository.GetHistoryAsync(Guid id, int take, CancellationToken ct)
-    //{
-    //    throw new NotImplementedException();
-    //}
+    private static (string Schema, string Table) SplitSchemaAndTable(string rawTable)
+    {
+        var normalized = (rawTable ?? string.Empty)
+            .Trim()
+            .Replace("[", string.Empty)
+            .Replace("]", string.Empty);
+
+        var parts = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length switch
+        {
+            0 => ("dbo", "SqlScripts"),
+            1 => ("dbo", parts[0]),
+            _ => (parts[^2], parts[^1])
+        };
+    }
+
+    private static string QuoteIdentifier(string name)
+        => $"[{(name ?? string.Empty).Replace("]", "]]")}]";
 }

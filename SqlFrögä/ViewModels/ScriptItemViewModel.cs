@@ -1,24 +1,22 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using System;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
-using static System.Formats.Asn1.AsnWriter;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SqlFroega.ViewModels;
 
 public partial class ScriptItemViewModel : ObservableObject
 {
     private readonly IScriptRepository _repo;
-
     private Guid _id;
+
+    public ObservableCollection<ScriptHistoryItem> HistoryItems { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
@@ -33,6 +31,8 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string _tagsText = "";
     [ObservableProperty] private string _customerIdText = "";
 
+    public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
+
     public ScriptItemViewModel()
     {
         _repo = App.Services.GetRequiredService<IScriptRepository>();
@@ -44,7 +44,6 @@ public partial class ScriptItemViewModel : ObservableObject
 
         if (id == Guid.Empty)
         {
-            // New
             Title = "New Script";
             Name = "";
             Key = "";
@@ -55,6 +54,7 @@ public partial class ScriptItemViewModel : ObservableObject
             TagsText = "";
             CustomerIdText = "";
             Error = null;
+            ClearHistory();
             return;
         }
 
@@ -67,6 +67,7 @@ public partial class ScriptItemViewModel : ObservableObject
             if (detail is null)
             {
                 Error = "Script not found.";
+                ClearHistory();
                 return;
             }
 
@@ -79,7 +80,6 @@ public partial class ScriptItemViewModel : ObservableObject
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
             CustomerIdText = detail.CustomerId?.ToString() ?? "";
 
-            // ScopeLabel -> Scope Index (MVP mapping)
             Scope = detail.ScopeLabel switch
             {
                 "Global" => 0,
@@ -87,6 +87,33 @@ public partial class ScriptItemViewModel : ObservableObject
                 "Module" => 2,
                 _ => 0
             };
+
+            await LoadHistoryCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task RefreshHistoryAsync()
+    {
+        if (_id == Guid.Empty)
+        {
+            ClearHistory();
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            await LoadHistoryCoreAsync();
         }
         catch (Exception ex)
         {
@@ -152,8 +179,9 @@ public partial class ScriptItemViewModel : ObservableObject
 
             var newId = await _repo.UpsertAsync(dto);
             _id = newId;
-
             Title = "Edit Script";
+
+            await LoadHistoryCoreAsync();
         }
         catch (Exception ex)
         {
@@ -163,5 +191,21 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task LoadHistoryCoreAsync()
+    {
+        var items = await _repo.GetHistoryAsync(_id, take: 50);
+        HistoryItems.Clear();
+        foreach (var item in items)
+            HistoryItems.Add(item);
+
+        OnPropertyChanged(nameof(HistoryCountText));
+    }
+
+    private void ClearHistory()
+    {
+        HistoryItems.Clear();
+        OnPropertyChanged(nameof(HistoryCountText));
     }
 }
