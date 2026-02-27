@@ -147,7 +147,7 @@
 
                 <ListView Grid.Row="2" ItemsSource="{Binding HistoryItems}">
                     <ListView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="models:ScriptHistoryItem">
                             <Grid ColumnSpacing="12" Padding="4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="2*"/>
