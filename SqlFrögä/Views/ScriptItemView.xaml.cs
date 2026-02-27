@@ -1,15 +1,9 @@
-﻿using Microsoft.UI;
-using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace SqlFroega.Views;
 
@@ -95,11 +89,23 @@ public sealed partial class ScriptItemView : Page
         {
             XamlRoot = XamlRoot,
             Title = $"SQL snapshot from {item.ValidFrom:G}",
+            PrimaryButtonText = "Restore in editor",
             CloseButtonText = "Close",
-            DefaultButton = ContentDialogButton.None,   // <— wichtig
+            DefaultButton = ContentDialogButton.Primary,
             Content = dialogContent,
         };
 
-        await dialog.ShowAsync();
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            try
+            {
+                VM.RestoreHistoryVersionCommand.Execute(item);
+            }
+            catch (Exception ex)
+            {
+                VM.Error = ex.Message;
+            }
+        }
     }
 }

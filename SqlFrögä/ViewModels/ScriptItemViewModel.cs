@@ -151,6 +151,19 @@ public partial class ScriptItemViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void RestoreHistoryVersion(ScriptHistoryItem? historyItem)
+    {
+        if (historyItem is null)
+            return;
+
+        if (IsReadOnlyMode)
+            throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
+
+        Content = NormalizeSqlContent(historyItem.Content);
+        Error = $"Restored snapshot from {historyItem.ValidFrom:G}. Save to persist this version.";
+    }
+
+    [RelayCommand]
     private async Task SaveAsync()
     {
         try
