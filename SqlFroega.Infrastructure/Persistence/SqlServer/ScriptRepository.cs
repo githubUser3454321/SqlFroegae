@@ -162,11 +162,11 @@ public sealed class ScriptRepository : IScriptRepository
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
         var sql = $@"
-DECLARE @id uniqueidentifier = ISNULL(@Id, NEWID());
+DECLARE @resolvedId uniqueidentifier = ISNULL(@Id, NEWID());
 
 MERGE {_opt.ScriptsTable} AS target
 USING (SELECT 
-        @id AS Id,
+        @resolvedId AS Id,
         @Name AS Name,
         @Key AS ScriptKey,
         @Content AS Content,
@@ -191,7 +191,7 @@ WHEN NOT MATCHED THEN
     INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, Description, Tags)
     VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.Description, src.Tags);
 
-SELECT @id;
+SELECT @resolvedId;
 ";
 
         var tagsText = ToTagsStorage(script.Tags);
