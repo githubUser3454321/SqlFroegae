@@ -1,0 +1,88 @@
+<Page
+    x:Class="SqlFroega.Views.LibraryView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SqlFroega.ViewModels"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:models="using:SqlFroega.Application.Models"
+    mc:Ignorable="d">
+
+    <Page.DataContext>
+        <vm:LibraryViewModel />
+    </Page.DataContext>
+
+    <Grid Padding="12" ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="420" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- LEFT -->
+        <StackPanel Grid.Column="0" Spacing="10">
+            <TextBlock Text="SqlFroega – Script Library" FontSize="20" FontWeight="SemiBold" />
+
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox
+                    Grid.Column="0"
+                    PlaceholderText="Suche (Name, Beschreibung, Content)…"
+                    Text="{Binding QueryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    KeyDown="QueryTextBox_KeyDown"/>
+
+                <Button
+                    Grid.Column="1"
+                    Content="Search"
+                    Command="{Binding SearchCommand}" />
+            </Grid>
+
+            <TextBlock Text="{Binding Error}" Foreground="Tomato" TextWrapping="WrapWholeWords" />
+
+            <ListView
+                ItemsSource="{Binding Results}"
+                SelectedItem="{Binding Selected, Mode=TwoWay}"
+                Height="600">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:ScriptListItem">
+                        <StackPanel Padding="6">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Key}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Description}" Opacity="0.8" FontSize="12" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </StackPanel>
+
+        <!-- RIGHT -->
+        <Grid Grid.Column="1" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="4">
+                <TextBlock Text="{Binding SelectedDetail.Name}" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding SelectedDetail.Key}" Opacity="0.7" />
+                <TextBlock Text="{Binding SelectedDetail.Description}" Opacity="0.9" TextWrapping="WrapWholeWords" />
+            </StackPanel>
+
+            <TextBox
+                Grid.Row="1"
+                Text="{Binding SelectedDetail.Content}"
+                IsReadOnly="True"
+                AcceptsReturn="True"
+                TextWrapping="NoWrap"
+                FontFamily="Consolas" />
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="Copy" Click="Copy_Click" IsEnabled="{Binding SelectedDetail}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

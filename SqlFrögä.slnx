@@ -8,7 +8,7 @@
   <Project Path="SqlFroega.Domain/SqlFroega.Domain.csproj" Id="59ad39b9-6304-4b1d-94ec-b06323447099" />
   <Project Path="SqlFroega.Infrastructure/SqlFroega.Infrastructure.csproj" />
   <Project Path="SqlFroega.Tests/SqlFroega.Tests.csproj" Id="57aa5650-8635-49ee-a5b6-3590f8dbb713" />
-  <Project Path="SqlFrögä/SqlFrögä.csproj">
+  <Project Path="SqlFrögä/SqlFroega.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />

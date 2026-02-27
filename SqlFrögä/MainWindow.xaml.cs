@@ -5,7 +5,7 @@ using SqlFroega.Application.Models;
 
 
 
-namespace SqlFrögä
+namespace SqlFroega
 {
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
@@ -17,9 +17,14 @@ namespace SqlFrögä
         public MainWindow()
         {
             InitializeComponent();
-            Activated += MainWindow_Activated;
+            //Activated += MainWindow_Activated;
 
         }
+        /// <summary>
+        /// Testing....
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
         {
             if (_initialized) return;

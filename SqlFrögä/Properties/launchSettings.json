@@ -1,9 +1,9 @@
 ﻿{
   "profiles": {
-    "SqlFrögä (Package)": {
+    "SqlFroega (Package)": {
       "commandName": "MsixPackage"
     },
-    "SqlFrögä (Unpackaged)": {
+    "SqlFroega (Unpackaged)": {
       "commandName": "Project"
     }
   }
