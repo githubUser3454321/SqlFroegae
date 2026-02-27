@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Application
     x:Class="SqlFroega.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -7,10 +7,42 @@
     xmlns:local="using:SqlFroega">
     <Application.Resources>
         <ResourceDictionary>
-            <Color x:Key="AppAccentColor">#FF4AA3FF</Color>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+            </ResourceDictionary.MergedDictionaries>
 
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="AppAccentColor">#FF4AA3FF</Color>
+                    <Color x:Key="AppPageBackgroundColor">#F2F8FF</Color>
+                    <Color x:Key="AppPaneBackgroundColor">#EAF4FF</Color>
+                    <Color x:Key="AppCardColor">#FFFFFFFF</Color>
+                    <Color x:Key="AppCardBorderColor">#D0E7FF</Color>
+                </ResourceDictionary>
 
-            <SolidColorBrush x:Key="SystemAccentColor" Color="{StaticResource AppAccentColor}" />
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="AppAccentColor">#FF4AA3FF</Color>
+                    <Color x:Key="AppPageBackgroundColor">#0E1622</Color>
+                    <Color x:Key="AppPaneBackgroundColor">#132033</Color>
+                    <Color x:Key="AppCardColor">#1B2838</Color>
+                    <Color x:Key="AppCardBorderColor">#2A3A4F</Color>
+                </ResourceDictionary>
+
+                <ResourceDictionary x:Key="Default">
+                    <Color x:Key="AppAccentColor">#FF4AA3FF</Color>
+                    <Color x:Key="AppPageBackgroundColor">#F2F8FF</Color>
+                    <Color x:Key="AppPaneBackgroundColor">#EAF4FF</Color>
+                    <Color x:Key="AppCardColor">#FFFFFFFF</Color>
+                    <Color x:Key="AppCardBorderColor">#D0E7FF</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="AppPageBackgroundBrush" Color="{ThemeResource AppPageBackgroundColor}" />
+            <SolidColorBrush x:Key="AppPaneBackgroundBrush" Color="{ThemeResource AppPaneBackgroundColor}" />
+            <SolidColorBrush x:Key="AppCardBrush" Color="{ThemeResource AppCardColor}" />
+            <SolidColorBrush x:Key="AppCardBorderBrush" Color="{ThemeResource AppCardBorderColor}" />
+
+            <SolidColorBrush x:Key="SystemAccentColor" Color="{ThemeResource AppAccentColor}" />
             <SolidColorBrush x:Key="SystemAccentColorLight1" Color="#FF7BBEFF" />
             <SolidColorBrush x:Key="SystemAccentColorLight2" Color="#FFAAD6FF" />
             <SolidColorBrush x:Key="SystemAccentColorLight3" Color="#FFD6ECFF" />
@@ -18,35 +50,7 @@
             <SolidColorBrush x:Key="SystemAccentColorDark2" Color="#FF2467B1" />
             <SolidColorBrush x:Key="SystemAccentColorDark3" Color="#FF1C4F86" />
 
-
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="{ThemeResource CardBackgroundColor}" />
-            <Color x:Key="CardBackgroundColor">Transparent</Color>
-
-            <!-- Hellblau Light Mode -->
-            <SolidColorBrush x:Key="AppPageBackgroundBrush"
-                     Color="{ThemeResource AppPageBackgroundColor}" />
-
-            <Color x:Key="AppPageBackgroundColor">#F2F8FF</Color>
-
-            <!-- Cards -->
-            <SolidColorBrush x:Key="AppCardBrush"
-                     Color="{ThemeResource AppCardColor}" />
-
-            <Color x:Key="AppCardColor">#FFFFFFFF</Color>
-
-            <!-- Border Light Blue -->
-            <SolidColorBrush x:Key="AppCardBorderBrush"
-                     Color="#D0E7FF"/>
-
             <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
-
-            <ResourceDictionary.MergedDictionaries>
-                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
-            </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
-        
         </ResourceDictionary>
-        
     </Application.Resources>
 </Application>
