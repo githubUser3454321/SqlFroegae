@@ -40,6 +40,7 @@ public sealed partial class ScriptItemView : Page
         {
             Text = item.Content ?? string.Empty,
             IsReadOnly = true,
+            IsSpellCheckEnabled = false,
             AcceptsReturn = true,
             TextWrapping = TextWrapping.NoWrap,
             FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas"),
@@ -50,19 +51,35 @@ public sealed partial class ScriptItemView : Page
         ScrollViewer.SetHorizontalScrollBarVisibility(sqlViewer, ScrollBarVisibility.Auto);
         ScrollViewer.SetVerticalScrollBarVisibility(sqlViewer, ScrollBarVisibility.Auto);
 
+        var dialogContent = new Grid
+        {
+            Width = 900,
+            Height = 500,
+            MinWidth = 720,
+            MinHeight = 380
+        };
+
+        dialogContent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        dialogContent.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        dialogContent.Children.Add(new TextBlock
+        {
+            Text = $"Gültig von {item.ValidFrom:G} bis {item.ValidTo:G}",
+            Opacity = 0.75,
+            Margin = new Thickness(0, 0, 0, 8)
+        });
+
+        Grid.SetRow(sqlViewer, 1);
+        dialogContent.Children.Add(sqlViewer);
+
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
             Title = $"SQL snapshot from {item.ValidFrom:G}",
             CloseButtonText = "Close",
+            CloseButtonStyle = Resources["HistoryDialogCloseButtonStyle"] as Style,
             DefaultButton = ContentDialogButton.Close,
-            Content = new Grid
-            {
-                MinWidth = 720,
-                MaxWidth = 900,
-                MinHeight = 420,
-                Children = { sqlViewer }
-            }
+            Content = dialogContent
         };
 
         await dialog.ShowAsync();
