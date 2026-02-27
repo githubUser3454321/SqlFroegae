@@ -22,6 +22,22 @@
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="{ThemeResource CardBackgroundColor}" />
             <Color x:Key="CardBackgroundColor">Transparent</Color>
 
+            <!-- Hellblau Light Mode -->
+            <SolidColorBrush x:Key="AppPageBackgroundBrush"
+                     Color="{ThemeResource AppPageBackgroundColor}" />
+
+            <Color x:Key="AppPageBackgroundColor">#F2F8FF</Color>
+
+            <!-- Cards -->
+            <SolidColorBrush x:Key="AppCardBrush"
+                     Color="{ThemeResource AppCardColor}" />
+
+            <Color x:Key="AppCardColor">#FFFFFFFF</Color>
+
+            <!-- Border Light Blue -->
+            <SolidColorBrush x:Key="AppCardBorderBrush"
+                     Color="#D0E7FF"/>
+
             <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
 
             <ResourceDictionary.MergedDictionaries>

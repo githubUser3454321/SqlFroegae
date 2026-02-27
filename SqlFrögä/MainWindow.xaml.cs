@@ -11,7 +11,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        RootFrame.Navigate(typeof(LibrarySearchView));
+        RootFrame.Navigate(typeof(LibrarySplitView));
 
     }
 }

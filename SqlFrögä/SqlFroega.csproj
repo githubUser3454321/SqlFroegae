@@ -50,6 +50,9 @@
     <ProjectReference Include="..\SqlFroega.Infrastructure\SqlFroega.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Page Update="Views\LibrarySplitView.xaml">
+      <SubType>Designer</SubType>
+    </Page>
     <Page Update="Views\ScriptItemView.xaml">
       <SubType>Designer</SubType>
     </Page>

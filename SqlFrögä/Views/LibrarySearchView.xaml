@@ -109,7 +109,7 @@
                                 <Border CornerRadius="10"
                                         BorderThickness="1"
                                         BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                        Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        Background="White"
                                         Padding="10"
                                         Margin="0,0,0,8">
                                     <Grid ColumnSpacing="10">
