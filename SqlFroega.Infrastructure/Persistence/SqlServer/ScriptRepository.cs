@@ -100,6 +100,14 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        {
+            var objectSearch = BuildReferenceSearchPattern(filters.ReferencedObject);
+            sb.AppendLine("AND (s.Content LIKE '%' + @refObj + '%' OR s.Content LIKE '%' + @refObjBracket + '%')");
+            p.Add("@refObj", objectSearch.Normalized);
+            p.Add("@refObjBracket", objectSearch.Bracketed);
+        }
+
         if (!string.IsNullOrWhiteSpace(queryText))
         {
             queryText = queryText.Trim();
@@ -194,6 +202,25 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        {
+            var objectSearch = BuildReferenceSearchPattern(filters.ReferencedObject);
+            p.Add("@refObj", objectSearch.Normalized);
+            p.Add("@refObjBracket", objectSearch.Bracketed);
+
+            sb.AppendLine("      AND (");
+            sb.AppendLine("          s.Content LIKE '%' + @refObj + '%' OR s.Content LIKE '%' + @refObjBracket + '%'");
+            if (filters.SearchHistory)
+            {
+                sb.AppendLine("          OR EXISTS (");
+                sb.AppendLine($"              SELECT 1 FROM {fullTable} FOR SYSTEM_TIME ALL AS hs");
+                sb.AppendLine("              WHERE hs.Id = s.Id");
+                sb.AppendLine("                AND (hs.Content LIKE '%' + @refObj + '%' OR hs.Content LIKE '%' + @refObjBracket + '%')");
+                sb.AppendLine("          )");
+            }
+            sb.AppendLine("      )");
+        }
+
         if (!string.IsNullOrWhiteSpace(queryText))
         {
             queryText = queryText.Trim();
@@ -266,6 +293,22 @@ public sealed class ScriptRepository : IScriptRepository
             ParseTags(r.Tags),
             r.IsDeleted
         )).ToList();
+    }
+
+    private static ReferenceObjectSearch BuildReferenceSearchPattern(string raw)
+    {
+        var normalized = raw.Trim();
+        var parts = normalized
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(p => p.Trim('[', ']'))
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToArray();
+
+        if (parts.Length == 0)
+            return new ReferenceObjectSearch(normalized, normalized);
+
+        var bracketed = string.Join('.', parts.Select(p => $"[{p}]"));
+        return new ReferenceObjectSearch(string.Join('.', parts), bracketed);
     }
 
     public async Task<ScriptDetail?> GetByIdAsync(Guid id, CancellationToken ct = default)
@@ -515,6 +558,11 @@ ORDER BY s.{validFromColumn} DESC;";
         string? Description,
         string Tags,
         bool IsDeleted
+    );
+
+    private readonly record struct ReferenceObjectSearch(
+        string Normalized,
+        string Bracketed
     );
 
     private sealed record ScriptDetailRow(

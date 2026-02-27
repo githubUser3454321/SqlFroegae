@@ -31,6 +31,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _customerIdFilterText = "";
     [ObservableProperty] private string _moduleFilterText = "";
     [ObservableProperty] private string _tagsFilterText = "";
+    [ObservableProperty] private string _referencedObjectFilterText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
 
@@ -80,6 +81,7 @@ public partial class LibrarySplitViewModel : ObservableObject
                 CustomerId: customerId,
                 Module: string.IsNullOrWhiteSpace(ModuleFilterText) ? null : ModuleFilterText.Trim(),
                 Tags: tags,
+                ReferencedObject: string.IsNullOrWhiteSpace(ReferencedObjectFilterText) ? null : ReferencedObjectFilterText.Trim(),
                 IncludeDeleted: IncludeDeleted,
                 SearchHistory: SearchInHistory
             );

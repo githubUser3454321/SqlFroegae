@@ -100,9 +100,12 @@
 **Ziel:** Abfragen wie „Welche Scripts referenzieren Tabelle X?“
 
 **Ist:**
-- Keine Parser-/Referenzsuch-Implementierung sichtbar.
+- In der Suche gibt es jetzt den neuen Filter **Referenzobjekt** (`dbo.Objekt` oder `Objekt`).
+- Repository-seitig wird eine heuristische Referenzsuche auf `Content` ausgeführt (normalisierte + bracketed Schreibweise wie `[dbo].[Objekt]`).
+- Funktioniert sowohl auf aktuellen Datensätzen als auch (optional) in Temporal-History, wenn „Auch in History-Versionen suchen“ aktiv ist.
+- Noch kein AST-/ScriptDom-Parser und keine persistierte Referenz-Index-Tabelle.
 
-**Status:** ⛔ **Nicht umgesetzt**
+**Status:** 🟡 **Teilweise umgesetzt (heuristische Referenzsuche im Search-Flow)**
 
 ---
 
@@ -153,14 +156,14 @@
 - UC6 – Script-History (inkl. Restore-Flow)
 
 ## Noch **teilweise oder ganz** umzusetzen
-- UC7 – Referenzsuche (komplett offen)
+- UC7 – Referenzsuche (teilweise: Referenzobjekt-Filter + heuristische Content-Suche)
 - UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
 - UC10 – Performance-Suche (teilweise, abhängig von FTS-Ausbau)
 
 ---
 
 ## 4) Kurzempfehlung für die nächsten Schritte (priorisiert)
-1. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
+1. **UC7 ausbauen:** Von heuristischer LIKE-Suche auf ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle wechseln.
 2. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
 3. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
 4. **UC9 optional ausbauen:** Dedizierte Admin-Verwaltung für kontrollierte Tag-/Modul-Listen ergänzen (Governance, Freigaben, Cleanup).
