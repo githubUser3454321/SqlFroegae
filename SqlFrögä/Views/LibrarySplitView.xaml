@@ -38,7 +38,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="SqlFroega" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="SqlFrögä" FontSize="22" FontWeight="SemiBold"/>
                     <TextBlock Text="T-SQL Script Library" Opacity="0.75"/>
                 </StackPanel>
 
