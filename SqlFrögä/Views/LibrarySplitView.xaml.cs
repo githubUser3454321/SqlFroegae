@@ -1,7 +1,9 @@
-﻿using Microsoft.UI.Xaml.Controls;
+﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using SqlFroega.ViewModels;
 using System;
+using System.Threading.Tasks;
 using Windows.System;
 
 namespace SqlFroega.Views;
@@ -27,5 +29,33 @@ public sealed partial class LibrarySplitView : Page
         {
             await VM.SearchCommand.ExecuteAsync(null);
         }
+    }
+
+    private async void DeleteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: Guid scriptId })
+            return;
+
+        var shouldDelete = await ConfirmDeleteAsync();
+        if (!shouldDelete)
+            return;
+
+        await VM.DeleteCommand.ExecuteAsync(scriptId);
+    }
+
+    private async Task<bool> ConfirmDeleteAsync()
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Script wirklich löschen?",
+            Content = "Diese Aktion entfernt das Script dauerhaft.",
+            PrimaryButtonText = "Löschen",
+            CloseButtonText = "Abbrechen",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        return result == ContentDialogResult.Primary;
     }
 }

@@ -166,8 +166,8 @@
                                                     Command="{Binding DataContext.EditCommand, ElementName=ResultsList}"
                                                     CommandParameter="{Binding Id}"/>
                                             <Button Content="Delete"
-                                                    Command="{Binding DataContext.DeleteCommand, ElementName=ResultsList}"
-                                                    CommandParameter="{Binding Id}"/>
+                                                    Click="DeleteButton_Click"
+                                                    Tag="{Binding Id}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
