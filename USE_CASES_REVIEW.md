@@ -73,11 +73,12 @@
 4. Optional: Soft Delete statt Hard Delete.
 
 **Ist:**
-- Hard Delete ist vorhanden.
-- Bestätigungsdialog ist in der UI umgesetzt.
-- Soft-Delete-Logik ist nicht implementiert.
+- Soft Delete ist jetzt als **optionaler Modus** implementiert (Feature-Flag `EnableSoftDelete`).
+- Wenn die Tabelle eine `IsDeleted`-Spalte besitzt, setzt Delete auf `IsDeleted = 1`.
+- Suche und Detail-Load blenden soft-gelöschte Datensätze standardmäßig aus; per Filter können sie eingeblendet werden.
+- Fallback bleibt Hard Delete, falls Soft Delete deaktiviert ist oder die Spalte fehlt.
 
-**Status:** 🟡 **Teilweise umgesetzt**
+**Status:** ✅ **Vollständig umgesetzt (optional konfigurierbar)**
 
 ---
 
@@ -146,10 +147,10 @@
 - UC2 – Script anzeigen (Preview)
 - UC3 – Script bearbeiten
 - UC4 – Neues Script erstellen
+- UC5 – Script löschen (optional Soft Delete)
 - UC6 – Script-History (inkl. Restore-Flow)
 
 ## Noch **teilweise oder ganz** umzusetzen
-- UC5 – Script löschen (optional Soft Delete)
 - UC7 – Referenzsuche (komplett offen)
 - UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
 - UC9 – Tagging/Metadatenpflege (Grundlagen da, Management-Funktionen offen)
@@ -158,7 +159,7 @@
 ---
 
 ## 4) Kurzempfehlung für die nächsten Schritte (priorisiert)
-1. **UC5 vervollständigen:** Optionales Soft-Delete-Flag einführen.
-2. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
-3. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
-4. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
+1. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
+2. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
+3. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
+4. **UC9 erweitern:** Verwaltung für Tag-Katalog und Modul-Registry ergänzen.
