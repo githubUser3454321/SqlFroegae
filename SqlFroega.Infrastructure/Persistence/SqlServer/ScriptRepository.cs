@@ -15,6 +15,7 @@ public sealed class ScriptRepository : IScriptRepository
 {
     private readonly ISqlConnectionFactory _connFactory;
     private readonly SqlServerOptions _opt;
+    private bool? _supportsSoftDelete;
 
     public ScriptRepository(ISqlConnectionFactory connFactory, IOptions<SqlServerOptions> options)
     {
@@ -36,6 +37,9 @@ public sealed class ScriptRepository : IScriptRepository
         var p = new DynamicParameters();
         p.Add("@take", take);
         p.Add("@skip", skip);
+        p.Add("@includeDeleted", filters.IncludeDeleted);
+
+        var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
 
         var temporalInfo = (filters.IncludeDeleted || filters.SearchHistory)
             ? await TryGetTemporalInfoAsync(ct)
@@ -57,11 +61,16 @@ public sealed class ScriptRepository : IScriptRepository
             sb.AppendLine("  CAST(NULL AS nvarchar(256)) AS CustomerName,");
         sb.AppendLine("  s.Description,");
         sb.AppendLine("  COALESCE(s.Tags, N'') AS Tags,");
-        sb.AppendLine("  CAST(0 AS bit) AS IsDeleted");
+        sb.AppendLine(useSoftDelete
+            ? "  CAST(COALESCE(s.IsDeleted, 0) AS bit) AS IsDeleted"
+            : "  CAST(0 AS bit) AS IsDeleted");
         sb.AppendLine($"FROM {_opt.ScriptsTable} s");
         if (_opt.JoinCustomers)
             sb.AppendLine($"LEFT JOIN {_opt.CustomersTable} c ON c.Id = s.CustomerId");
         sb.AppendLine("WHERE 1=1");
+
+        if (useSoftDelete)
+            sb.AppendLine("AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
 
         if (filters.Scope is not null)
         {
@@ -279,7 +288,11 @@ public sealed class ScriptRepository : IScriptRepository
         sql.AppendLine($"FROM {_opt.ScriptsTable} s");
         if (_opt.JoinCustomers)
             sql.AppendLine($"LEFT JOIN {_opt.CustomersTable} c ON c.Id = s.CustomerId");
-        sql.AppendLine("WHERE s.Id = @id;");
+        sql.AppendLine("WHERE s.Id = @id");
+        if (_opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct))
+            sql.AppendLine("  AND COALESCE(s.IsDeleted, 0) = 0;");
+        else
+            sql.AppendLine(";");
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var row = await conn.QuerySingleOrDefaultAsync<ScriptDetailRow>(
@@ -304,7 +317,43 @@ public sealed class ScriptRepository : IScriptRepository
 
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
-        var sql = $@"
+        var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
+
+        var sql = useSoftDelete
+            ? $@"
+DECLARE @resolvedId uniqueidentifier = ISNULL(@Id, NEWID());
+
+MERGE {_opt.ScriptsTable} AS target
+USING (SELECT 
+        @resolvedId AS Id,
+        @Name AS Name,
+        @Key AS ScriptKey,
+        @Content AS Content,
+        @Scope AS Scope,
+        @CustomerId AS CustomerId,
+        @Module AS Module,
+        @Description AS Description,
+        @Tags AS Tags
+) AS src
+ON target.Id = src.Id
+WHEN MATCHED THEN
+    UPDATE SET
+        Name = src.Name,
+        ScriptKey = src.ScriptKey,
+        Content = src.Content,
+        Scope = src.Scope,
+        CustomerId = src.CustomerId,
+        Module = src.Module,
+        Description = src.Description,
+        Tags = src.Tags,
+        IsDeleted = 0
+WHEN NOT MATCHED THEN
+    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, Description, Tags, IsDeleted)
+    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.Description, src.Tags, 0);
+
+SELECT @resolvedId;
+"
+            : $@"
 DECLARE @resolvedId uniqueidentifier = ISNULL(@Id, NEWID());
 
 MERGE {_opt.ScriptsTable} AS target
@@ -509,9 +558,39 @@ ORDER BY s.{validFromColumn} DESC;";
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var sql = $"DELETE FROM {_opt.ScriptsTable} WHERE Id = @id;";
         await using var conn = await _connFactory.OpenAsync(ct);
-        await conn.ExecuteAsync(new CommandDefinition(sql, new { id }, cancellationToken: ct));
+
+        if (_opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct))
+        {
+            var softDeleteSql = $"UPDATE {_opt.ScriptsTable} SET IsDeleted = 1 WHERE Id = @id;";
+            await conn.ExecuteAsync(new CommandDefinition(softDeleteSql, new { id }, cancellationToken: ct));
+            return;
+        }
+
+        var hardDeleteSql = $"DELETE FROM {_opt.ScriptsTable} WHERE Id = @id;";
+        await conn.ExecuteAsync(new CommandDefinition(hardDeleteSql, new { id }, cancellationToken: ct));
+    }
+
+    private async Task<bool> SupportsSoftDeleteAsync(CancellationToken ct)
+    {
+        if (_supportsSoftDelete.HasValue)
+            return _supportsSoftDelete.Value;
+
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptsTable);
+
+        const string sql = """
+SELECT CASE
+         WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'IsDeleted') IS NULL THEN CAST(0 AS bit)
+         ELSE CAST(1 AS bit)
+       END;
+""";
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        var result = await conn.ExecuteScalarAsync<bool>(
+            new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
+
+        _supportsSoftDelete = result;
+        return result;
     }
 
     private static (string Schema, string Table) SplitSchemaAndTable(string rawTable)

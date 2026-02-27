@@ -25,6 +25,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             cfg.CustomersTable = "dbo.Customers";
             cfg.UseFullTextSearch = false;
             cfg.JoinCustomers = true;
+            cfg.EnableSoftDelete = true;
         });
 
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();

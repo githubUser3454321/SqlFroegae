@@ -9,4 +9,5 @@ public sealed class SqlServerOptions
 
     public bool UseFullTextSearch { get; set; } = false;
     public bool JoinCustomers { get; set; } = true;
+    public bool EnableSoftDelete { get; set; } = false;
 }
