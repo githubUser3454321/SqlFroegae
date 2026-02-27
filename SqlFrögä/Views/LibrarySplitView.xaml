@@ -4,8 +4,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SqlFroega.ViewModels"
     xmlns:models="using:SqlFroega.Application.Models"
-    xmlns:views="using:SqlFroega.Views"
-    xmlns:converters="using:SqlFroega.Converters"
     Background="{ThemeResource AppPageBackgroundBrush}">
 
     <Page.DataContext>
@@ -22,7 +20,7 @@
 
         <!-- LEFT: Search -->
         <Grid Grid.Column="0"
-                Background="#EAF4FF"
+                Background="{ThemeResource AppPaneBackgroundBrush}"
                 CornerRadius="16"
                 Padding="12">
             <Grid.RowDefinitions>
@@ -47,7 +45,8 @@
                 <Button Grid.Column="1"
                         Content="New"
                         Command="{Binding NewCommand}"
-                        Style="{ThemeResource AccentButtonStyle}"/>
+                        Style="{ThemeResource AccentButtonStyle}"
+                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
             </Grid>
 
             <!-- Search bar -->
@@ -105,7 +104,7 @@
                                 <Border CornerRadius="10"
                                         BorderThickness="1"
                                         BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                        Background="White"
+                                        Background="{ThemeResource AppCardBrush}"
                                         Padding="10"
                                         Margin="0,0,0,8">
                                     <Grid ColumnSpacing="10">
@@ -150,7 +149,7 @@
                 BorderThickness="1"
                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                 Padding="0"
-                Background="White">
+                Background="{ThemeResource AppCardBrush}">
             <Grid>
                 <Frame x:Name="DetailFrame"/>
             </Grid>
