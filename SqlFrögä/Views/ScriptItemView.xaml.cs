@@ -478,15 +478,37 @@ public sealed partial class ScriptItemView : Page
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
+        var reasonText = string.IsNullOrWhiteSpace(item.ChangeReason)
+            ? "Kein Änderungsgrund vorhanden."
+            : item.ChangeReason;
+
+        var metaPanel = new StackPanel
+        {
+            Spacing = 4,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        metaPanel.Children.Add(new TextBlock
+        {
+            Text = $"Gültig von {item.ValidFrom:G} bis {item.ValidTo:G}",
+            Opacity = 0.75
+        });
+        metaPanel.Children.Add(new TextBlock
+        {
+            Text = string.IsNullOrWhiteSpace(item.ChangedBy)
+                ? "Geändert von: unbekannt"
+                : $"Geändert von: {item.ChangedBy}",
+            Opacity = 0.75
+        });
+        metaPanel.Children.Add(new TextBlock
+        {
+            Text = $"Änderungsgrund: {reasonText}",
+            TextWrapping = TextWrapping.WrapWholeWords
+        });
+
         var dialogContent = new Grid { Width = 900, Height = 500, MinWidth = 720, MinHeight = 380 };
         dialogContent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         dialogContent.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        dialogContent.Children.Add(new TextBlock
-        {
-            Text = $"Gültig von {item.ValidFrom:G} bis {item.ValidTo:G}",
-            Opacity = 0.75,
-            Margin = new Thickness(0, 0, 0, 8)
-        });
+        dialogContent.Children.Add(metaPanel);
         Grid.SetRow(scroller, 1);
         dialogContent.Children.Add(scroller);
 

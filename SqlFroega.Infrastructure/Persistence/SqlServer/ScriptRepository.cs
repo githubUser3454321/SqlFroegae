@@ -576,7 +576,13 @@ SELECT TOP 1
         WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'UpdatedBy') IS NOT NULL THEN 'UpdatedBy'
         WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'LastModifiedBy') IS NOT NULL THEN 'LastModifiedBy'
         ELSE NULL
-    END AS ChangedByColumn
+    END AS ChangedByColumn,
+    CASE
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'UpdateReason') IS NOT NULL THEN 'UpdateReason'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'ChangeReason') IS NOT NULL THEN 'ChangeReason'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'Reason') IS NOT NULL THEN 'Reason'
+        ELSE NULL
+    END AS ChangeReasonColumn
 FROM sys.tables t
 INNER JOIN sys.schemas ss ON ss.schema_id = t.schema_id
 LEFT JOIN sys.periods p ON p.object_id = t.object_id
@@ -601,12 +607,16 @@ WHERE ss.name = @schemaName AND t.name = @tableName;
         var changedByExpr = metadata.ChangedByColumn is null
             ? "N''"
             : $"CONVERT(nvarchar(256), s.{QuoteIdentifier(metadata.ChangedByColumn)})";
+        var changeReasonExpr = metadata.ChangeReasonColumn is null
+            ? "N''"
+            : $"CONVERT(nvarchar(max), s.{QuoteIdentifier(metadata.ChangeReasonColumn)})";
 
         var sql = $@"
 SELECT TOP (@take)
     CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,
     CAST(s.{validToColumn} AS datetime2) AS ValidTo,
     COALESCE({changedByExpr}, N'') AS ChangedBy,
+    COALESCE({changeReasonExpr}, N'') AS ChangeReason,
     COALESCE(s.Content, N'') AS Content
 FROM {fullTable} FOR SYSTEM_TIME ALL AS s
 WHERE s.Id = @id
@@ -620,6 +630,7 @@ ORDER BY s.{validFromColumn} DESC;";
             ValidFrom = r.ValidFrom,
             ValidTo = r.ValidTo,
             ChangedBy = r.ChangedBy ?? string.Empty,
+            ChangeReason = r.ChangeReason ?? string.Empty,
             Content = r.Content ?? string.Empty
         }).ToList();
     }
@@ -795,7 +806,8 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         int TemporalType,
         string? ValidFromColumn,
         string? ValidToColumn,
-        string? ChangedByColumn
+        string? ChangedByColumn,
+        string? ChangeReasonColumn
     );
 
     private readonly record struct TemporalInfo(
@@ -809,6 +821,7 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         DateTime ValidFrom,
         DateTime ValidTo,
         string? ChangedBy,
+        string? ChangeReason,
         string? Content
     );
 
@@ -1147,6 +1160,16 @@ END;
 IF COL_LENGTH('{_opt.ScriptsTable}', 'RelatedModules') IS NULL
 BEGIN
     ALTER TABLE {_opt.ScriptsTable} ADD RelatedModules nvarchar(max) NULL;
+END;
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'UpdatedBy') IS NULL
+BEGIN
+    ALTER TABLE {_opt.ScriptsTable} ADD UpdatedBy nvarchar(256) NULL;
+END;
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'UpdateReason') IS NULL
+BEGIN
+    ALTER TABLE {_opt.ScriptsTable} ADD UpdateReason nvarchar(max) NULL;
 END;";
 
         await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
@@ -1180,7 +1203,8 @@ SELECT TOP 1
     CAST(t.temporal_type AS int) AS TemporalType,
     startCol.name AS ValidFromColumn,
     endCol.name AS ValidToColumn,
-    CAST(NULL AS nvarchar(256)) AS ChangedByColumn
+    CAST(NULL AS nvarchar(256)) AS ChangedByColumn,
+    CAST(NULL AS nvarchar(256)) AS ChangeReasonColumn
 FROM sys.tables t
 INNER JOIN sys.schemas ss ON ss.schema_id = t.schema_id
 LEFT JOIN sys.periods p ON p.object_id = t.object_id
