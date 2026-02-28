@@ -198,8 +198,8 @@
                 <Grid RowSpacing="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" ColumnSpacing="10">
@@ -212,25 +212,12 @@
                         <TextBlock Grid.Column="1" Text="{Binding ResultsCountText}" VerticalAlignment="Center" Opacity="0.8"/>
                     </Grid>
 
-                    <Grid Grid.Row="1" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Button Content="← Zurück"
-                                Command="{Binding PreviousPageCommand}"/>
-                        <Button Grid.Column="1"
-                                Content="Weiter →"
-                                Command="{Binding NextPageCommand}"/>
-                    </Grid>
-
-                    <ListView x:Name="ResultsList" Grid.Row="2"
+                    <ListView x:Name="ResultsList" Grid.Row="1"
                               ItemsSource="{Binding Results}"
                               SelectedItem="{Binding Selected, Mode=TwoWay}"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              SizeChanged="ResultsList_SizeChanged">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:ScriptListItem">
                                 <Border CornerRadius="10"
@@ -266,6 +253,22 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+
+                    <Grid Grid.Row="2"
+                          ColumnSpacing="8"
+                          Visibility="{Binding PaginationVisibility}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Content="← Zurück"
+                                Command="{Binding PreviousPageCommand}"/>
+                        <Button Grid.Column="1"
+                                Content="Weiter →"
+                                Command="{Binding NextPageCommand}"/>
+                    </Grid>
                 </Grid>
             </Border>
 

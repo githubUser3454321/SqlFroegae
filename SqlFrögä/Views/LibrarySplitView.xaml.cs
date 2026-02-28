@@ -1,5 +1,6 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Input;
 using SqlFroega.ViewModels;
 using System;
@@ -14,6 +15,11 @@ public sealed partial class LibrarySplitView : Page
     {
         InitializeComponent();
 
+        _resizeDebounceTimer = DispatcherQueue.CreateTimer();
+        _resizeDebounceTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _resizeDebounceTimer.IsRepeating = false;
+        _resizeDebounceTimer.Tick += ResizeDebounceTimer_Tick;
+
         // Frame in VM registrieren, damit VM rechts navigieren kann.
         VM.AttachDetailFrame(DetailFrame);
 
@@ -24,6 +30,9 @@ public sealed partial class LibrarySplitView : Page
     }
 
     private LibrarySplitViewModel VM => (LibrarySplitViewModel)DataContext;
+
+    private readonly DispatcherQueueTimer _resizeDebounceTimer;
+    private double _pendingResultsViewportHeight;
 
 
     private async void LibrarySplitView_Loaded(object sender, RoutedEventArgs e)
@@ -50,6 +59,22 @@ public sealed partial class LibrarySplitView : Page
             return;
 
         await VM.DeleteCommand.ExecuteAsync(scriptId);
+    }
+
+    private void ResultsList_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (e.NewSize.Height <= 0)
+            return;
+
+        _pendingResultsViewportHeight = e.NewSize.Height;
+        _resizeDebounceTimer.Stop();
+        _resizeDebounceTimer.Start();
+    }
+
+    private async void ResizeDebounceTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        sender.Stop();
+        await VM.UpdateViewportHeightAsync(_pendingResultsViewportHeight);
     }
 
 

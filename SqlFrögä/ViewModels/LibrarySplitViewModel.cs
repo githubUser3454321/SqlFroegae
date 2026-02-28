@@ -16,13 +16,16 @@ namespace SqlFroega.ViewModels;
 
 public partial class LibrarySplitViewModel : ObservableObject
 {
-    private const int PageSize = 50;
+    private const int DefaultPageSize = 50;
+    private const int MinimumPageSize = 1;
+    private const double EstimatedResultItemHeight = 96d;
     private readonly IScriptRepository _repo;
     private readonly ICustomerMappingRepository _customerMappingRepository;
     private readonly IUserRepository _userRepository;
     private Frame? _detailFrame;
     private ScriptSearchFilters? _activeFilters;
     private string? _activeSearchText;
+    private int _pageSize = DefaultPageSize;
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
     public ObservableCollection<string> AvailableMainModules { get; } = new();
@@ -49,6 +52,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private bool _searchInHistory;
     [ObservableProperty] private int _currentPage = 1;
     [ObservableProperty] private bool _hasNextPage;
+    [ObservableProperty] private Visibility _paginationVisibility = Visibility.Collapsed;
 
 
     public string ResultsCountText =>
@@ -419,15 +423,16 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (_activeFilters is null)
             return;
 
-        var skip = Math.Max(0, page - 1) * PageSize;
-        var items = await _repo.SearchAsync(_activeSearchText, _activeFilters, take: PageSize, skip: skip);
+        var skip = Math.Max(0, page - 1) * _pageSize;
+        var items = await _repo.SearchAsync(_activeSearchText, _activeFilters, take: _pageSize, skip: skip);
 
         Results.Clear();
         foreach (var it in items)
             Results.Add(it);
 
         CurrentPage = page;
-        HasNextPage = items.Count == PageSize;
+        HasNextPage = items.Count == _pageSize;
+        PaginationVisibility = CurrentPage > 1 || HasNextPage ? Visibility.Visible : Visibility.Collapsed;
 
         OnPropertyChanged(nameof(ResultsCountText));
         OnPropertyChanged(nameof(CanGoToPreviousPage));
@@ -445,5 +450,25 @@ public partial class LibrarySplitViewModel : ObservableObject
     partial void OnHasNextPageChanged(bool value)
     {
         NextPageCommand.NotifyCanExecuteChanged();
+    }
+
+    public async Task UpdateViewportHeightAsync(double height)
+    {
+        if (height <= 0)
+            return;
+
+        var calculatedPageSize = Math.Max(MinimumPageSize, (int)Math.Floor(height / EstimatedResultItemHeight));
+        if (calculatedPageSize == _pageSize)
+            return;
+
+        var previousPageSize = _pageSize;
+        _pageSize = calculatedPageSize;
+
+        if (_activeFilters is null)
+            return;
+
+        var absoluteIndex = Math.Max(0, CurrentPage - 1) * previousPageSize;
+        var targetPage = (absoluteIndex / _pageSize) + 1;
+        await LoadPageAsync(targetPage);
     }
 }
