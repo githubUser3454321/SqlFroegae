@@ -37,7 +37,8 @@
                             PlaceholderText="Kundenkürzel (z.B. KDN)"
                             Text="{Binding SelectedCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             ItemsSource="{Binding CustomerMappings}"
-                            DisplayMemberPath="CustomerCode"/>
+                            DisplayMemberPath="CustomerCode"
+                            TextMemberPath="CustomerCode"/>
             <Button Grid.Column="3" Content="Copy" Command="{Binding CopyCommand}" />
             <Button Grid.Column="4" Content="Copy Rendered" Command="{Binding CopyRenderedCommand}"/>
         </Grid>
