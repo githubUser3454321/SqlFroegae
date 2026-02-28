@@ -1,5 +1,7 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
@@ -192,8 +194,32 @@ public sealed partial class ScriptItemView : Page
             PrimaryButtonText = "Übernehmen",
             CloseButtonText = "Schliessen",
             DefaultButton = ContentDialogButton.Primary,
-            Content = content
+            Content = content,
+            IsPrimaryButtonEnabled = true,
+
         };
+        // Kräftigeres Hellblau (du kannst die Werte anpassen)
+        var normal = ColorHelper.FromArgb(0xFF, 0x33, 0x99, 0xFF);
+        var hover = ColorHelper.FromArgb(0xFF, 0x5A, 0xB3, 0xFF);
+        var pressed = ColorHelper.FromArgb(0xFF, 0x1F, 0x7F, 0xD6);
+        var disabled = ColorHelper.FromArgb(0xFF, 0xCC, 0xCC, 0xCC);
+
+        dialog.Resources["AccentButtonBackground"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBackgroundPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBackgroundPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBackgroundDisabled"] = new SolidColorBrush(disabled);
+
+        dialog.Resources["AccentButtonForeground"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPointerOver"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPressed"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundDisabled"] = new SolidColorBrush(Colors.White);
+
+        // optional: wenn du auch die Umrandung “sichtbar” erzwingen willst
+        dialog.Resources["AccentButtonBorderBrush"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBorderBrushPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBorderBrushPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBorderBrushDisabled"] = new SolidColorBrush(disabled);
+        dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
 
         dialog.PrimaryButtonClick += (_, _) =>
         {
@@ -315,9 +341,31 @@ public sealed partial class ScriptItemView : Page
             PrimaryButtonText = "Übernehmen",
             CloseButtonText = "Schliessen",
             DefaultButton = ContentDialogButton.Primary,
-            Content = content
+            Content = content,
+            IsPrimaryButtonEnabled = true,
         };
+        // Kräftigeres Hellblau (du kannst die Werte anpassen)
+        var normal = ColorHelper.FromArgb(0xFF, 0x33, 0x99, 0xFF);
+        var hover = ColorHelper.FromArgb(0xFF, 0x5A, 0xB3, 0xFF);
+        var pressed = ColorHelper.FromArgb(0xFF, 0x1F, 0x7F, 0xD6);
+        var disabled = ColorHelper.FromArgb(0xFF, 0xCC, 0xCC, 0xCC);
 
+        dialog.Resources["AccentButtonBackground"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBackgroundPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBackgroundPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBackgroundDisabled"] = new SolidColorBrush(disabled);
+
+        dialog.Resources["AccentButtonForeground"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPointerOver"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPressed"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundDisabled"] = new SolidColorBrush(Colors.White);
+
+        // optional: wenn du auch die Umrandung “sichtbar” erzwingen willst
+        dialog.Resources["AccentButtonBorderBrush"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBorderBrushPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBorderBrushPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBorderBrushDisabled"] = new SolidColorBrush(disabled);
+        dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
         dialog.PrimaryButtonClick += (_, _) =>
         {
             selectedFlags.Clear();
@@ -380,7 +428,30 @@ public sealed partial class ScriptItemView : Page
             CloseButtonText = "Close",
             DefaultButton = ContentDialogButton.Primary,
             Content = dialogContent,
+            IsPrimaryButtonEnabled = true,
         };
+        // Kräftigeres Hellblau (du kannst die Werte anpassen)
+        var normal = ColorHelper.FromArgb(0xFF, 0x33, 0x99, 0xFF);
+        var hover = ColorHelper.FromArgb(0xFF, 0x5A, 0xB3, 0xFF);
+        var pressed = ColorHelper.FromArgb(0xFF, 0x1F, 0x7F, 0xD6);
+        var disabled = ColorHelper.FromArgb(0xFF, 0xCC, 0xCC, 0xCC);
+
+        dialog.Resources["AccentButtonBackground"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBackgroundPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBackgroundPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBackgroundDisabled"] = new SolidColorBrush(disabled);
+
+        dialog.Resources["AccentButtonForeground"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPointerOver"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundPressed"] = new SolidColorBrush(Colors.White);
+        dialog.Resources["AccentButtonForegroundDisabled"] = new SolidColorBrush(Colors.White);
+
+        // optional: wenn du auch die Umrandung “sichtbar” erzwingen willst
+        dialog.Resources["AccentButtonBorderBrush"] = new SolidColorBrush(normal);
+        dialog.Resources["AccentButtonBorderBrushPointerOver"] = new SolidColorBrush(hover);
+        dialog.Resources["AccentButtonBorderBrushPressed"] = new SolidColorBrush(pressed);
+        dialog.Resources["AccentButtonBorderBrushDisabled"] = new SolidColorBrush(disabled);
+        dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
 
         var result = await dialog.ShowAsync();
         if (result == ContentDialogResult.Primary)

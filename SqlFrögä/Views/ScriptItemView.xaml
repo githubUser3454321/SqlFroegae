@@ -34,7 +34,7 @@
             <Button Grid.Column="1" Content="Save" Command="{Binding SaveCommand}"/>
             <AutoSuggestBox Grid.Column="2"
                             x:Name="SelectedCustomerCodeAutoSuggest"
-                            PlaceholderText="Kundenkürzel (z.B. KDN)"
+                            PlaceholderText="Kundenkürzel (z.B. CSA)"
                             Text="{Binding SelectedCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                             TextChanged="CustomerCodeAutoSuggest_TextChanged"
                             SuggestionChosen="CustomerCodeAutoSuggest_SuggestionChosen"
@@ -121,8 +121,8 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Kundenkürzel (z.B. KDN)" Opacity="0.75"/>
-                        <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. KDN)"
+                        <TextBlock Text="Kundenkürzel (z.B. CSA)" Opacity="0.75"/>
+                        <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. CSA)"
                                         x:Name="ScriptCustomerCodeAutoSuggest"
                                         Text="{Binding ScriptCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         TextChanged="CustomerCodeAutoSuggest_TextChanged"

@@ -6,6 +6,8 @@
     xmlns:converters="using:SqlFroega.Converters"
     xmlns:local="using:SqlFroega">
     <Application.Resources>
+
+
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
@@ -85,6 +87,18 @@
             <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminate" Color="#FF4AA3FF" />
             <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePointerOver" Color="#FF2E7FD9" />
             <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePressed" Color="#FF2467B1" />
+
+            <Style  x:Key="LightBluePrimaryDialogButton"
+                    TargetType="Button"
+                    BasedOn="{StaticResource AccentButtonStyle}">
+                <Setter Property="Background">
+                    <Setter.Value>
+                        <SolidColorBrush Color="#7DC8FF"/>
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Foreground" Value="White"/>
+            </Style>
+
 
             <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
         </ResourceDictionary>

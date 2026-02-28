@@ -74,7 +74,7 @@ public sealed partial class LibrarySplitView : Page
             CloseButtonText = "Abbrechen",
             DefaultButton = ContentDialogButton.Close
         };
-
+        dialog.CloseButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
         var result = await dialog.ShowAsync();
         return result == ContentDialogResult.Primary;
     }
