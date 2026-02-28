@@ -106,6 +106,14 @@ public sealed partial class ScriptItemView : Page
             await ShowRelatedModulesDialogAsync();
     }
 
+    private async void EditFlags_Click(object sender, RoutedEventArgs e) => await ShowFlagsDialogAsync();
+
+    private async void FlagsTextBox_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (!VM.IsReadOnlyMode)
+            await ShowFlagsDialogAsync();
+    }
+
     private async Task ShowRelatedModulesDialogAsync()
     {
         var selectedModules = new ObservableCollection<string>(VM.SelectedRelatedModules);
@@ -197,6 +205,116 @@ public sealed partial class ScriptItemView : Page
             foreach (var module in selectedModules)
                 VM.SelectedRelatedModules.Add(module);
             VM.RelatedModulesText = string.Join(", ", VM.SelectedRelatedModules);
+        };
+
+        await dialog.ShowAsync();
+    }
+
+    private async Task ShowFlagsDialogAsync()
+    {
+        var selectedFlags = new ObservableCollection<string>(VM.SelectedFlags);
+        var filteredFlags = new ObservableCollection<string>();
+        var selectedSet = new HashSet<string>(selectedFlags, StringComparer.OrdinalIgnoreCase);
+
+        var list = new ListView
+        {
+            Height = 260,
+            SelectionMode = ListViewSelectionMode.Multiple,
+            IsItemClickEnabled = false,
+            ItemsSource = filteredFlags
+        };
+
+        void ApplyFilter(string typed)
+        {
+            var matches = VM.AvailableFlags
+                .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            filteredFlags.Clear();
+            foreach (var flag in matches)
+                filteredFlags.Add(flag);
+
+            list.SelectedItems.Clear();
+            foreach (var flag in filteredFlags.Where(selectedSet.Contains))
+                list.SelectedItems.Add(flag);
+        }
+
+        var search = new AutoSuggestBox { PlaceholderText = "Flag suchen", Width = 420 };
+        search.TextChanged += (_, e) =>
+        {
+            if (e.Reason == AutoSuggestionBoxTextChangeReason.SuggestionChosen)
+                return;
+
+            var typed = search.Text?.Trim() ?? string.Empty;
+            search.ItemsSource = VM.AvailableFlags
+                .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .Take(25)
+                .ToList();
+
+            ApplyFilter(typed);
+        };
+
+        search.SuggestionChosen += (_, e) =>
+        {
+            if (e.SelectedItem is not string flag)
+                return;
+
+            search.Text = flag;
+            ApplyFilter(flag);
+        };
+
+        list.SelectionChanged += (_, _) =>
+        {
+            selectedSet = list.SelectedItems
+                .OfType<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        };
+
+        var createButton = new Button { Content = "Neu erstellen", HorizontalAlignment = HorizontalAlignment.Left };
+        createButton.Click += (_, _) =>
+        {
+            var newFlag = search.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(newFlag))
+                return;
+
+            VM.CreateFlagCommand.Execute(newFlag);
+            selectedSet.Add(newFlag);
+            ApplyFilter(newFlag);
+        };
+
+        ApplyFilter(string.Empty);
+
+        var content = new StackPanel { Spacing = 10 };
+        content.Children.Add(search);
+        content.Children.Add(createButton);
+        content.Children.Add(new TextBlock { Text = "Flags auswählen (Mehrfachauswahl möglich)", Opacity = 0.75 });
+        content.Children.Add(list);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Flags verwalten",
+            PrimaryButtonText = "Übernehmen",
+            CloseButtonText = "Schließen",
+            DefaultButton = ContentDialogButton.Primary,
+            Content = content
+        };
+
+        dialog.PrimaryButtonClick += (_, _) =>
+        {
+            selectedFlags.Clear();
+            foreach (var flag in selectedSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                selectedFlags.Add(flag);
+
+            VM.SelectedFlags.Clear();
+            foreach (var flag in selectedFlags)
+                VM.SelectedFlags.Add(flag);
+            VM.FlagsText = string.Join(", ", VM.SelectedFlags);
         };
 
         await dialog.ShowAsync();
