@@ -134,15 +134,15 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
-            var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
-            if (objectTokens.Count == 0)
+            var objectSearchText = NormalizeIdentifier(filters.ReferencedObject);
+            if (string.IsNullOrWhiteSpace(objectSearchText))
             {
                 sb.AppendLine("AND 1 = 0");
             }
             else
             {
-                sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.SearchToken IN @objectTokens)");
-                p.Add("@objectTokens", objectTokens);
+                sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND LOWER(r.ObjectName) LIKE '%' + @objectSearchText + '%')");
+                p.Add("@objectSearchText", objectSearchText);
             }
         }
 
@@ -280,15 +280,15 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
-            var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
-            if (objectTokens.Count == 0)
+            var objectSearchText = NormalizeIdentifier(filters.ReferencedObject);
+            if (string.IsNullOrWhiteSpace(objectSearchText))
             {
                 sb.AppendLine("      AND 1 = 0");
             }
             else
             {
-                sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.SearchToken IN @objectTokens)");
-                p.Add("@objectTokens", objectTokens);
+                sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND LOWER(r.ObjectName) LIKE '%' + @objectSearchText + '%')");
+                p.Add("@objectSearchText", objectSearchText);
             }
         }
 
@@ -781,20 +781,20 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         if (string.IsNullOrWhiteSpace(objectName))
             return Array.Empty<ScriptReferenceItem>();
 
-        var objectTokens = BuildObjectSearchTokens(objectName);
+        var objectSearchText = NormalizeIdentifier(objectName);
+        if (string.IsNullOrWhiteSpace(objectSearchText))
+            return Array.Empty<ScriptReferenceItem>();
 
         const string sql = @"
 SELECT r.ScriptId,
        r.ObjectName,
        r.ObjectType
 FROM {0} r
-WHERE r.ObjectName = @objectName
-   OR r.SearchToken IN @objectTokens
-ORDER BY r.CreatedAt DESC;";
+WHERE LOWER(r.ObjectName) LIKE '%' + @objectSearchText + '%';";
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var rows = await conn.QueryAsync<ScriptReferenceRow>(
-            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName, objectTokens }, cancellationToken: ct));
+            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectSearchText }, cancellationToken: ct));
 
         return rows
             .DistinctBy(x => new { x.ScriptId, x.ObjectName, x.ObjectType })
@@ -813,19 +813,18 @@ ORDER BY r.CreatedAt DESC;";
             return;
 
         var insertSql = $@"
-INSERT INTO {_opt.ScriptObjectRefsTable}(ScriptId, ObjectName, SearchToken, ObjectType, CreatedAt)
-VALUES(@ScriptId, @ObjectName, @SearchToken, @ObjectType, SYSUTCDATETIME());";
+INSERT INTO {_opt.ScriptObjectRefsTable}(ScriptId, ObjectName, ObjectType)
+VALUES(@ScriptId, @ObjectName, @ObjectType);";
 
         var rows = refs
-            .SelectMany(x => BuildReferenceSearchTokens(x.Name)
-                .Select(token => new
-                {
-                    ScriptId = scriptId,
-                    ObjectName = x.Name,
-                    SearchToken = token,
-                    ObjectType = (int)x.Type
-                }))
-            .DistinctBy(x => new { x.ScriptId, x.ObjectName, x.SearchToken, x.ObjectType });
+            .Select(x => new
+            {
+                ScriptId = scriptId,
+                ObjectName = NormalizeIdentifier(x.Name),
+                ObjectType = (int)x.Type
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.ObjectName))
+            .DistinctBy(x => new { x.ScriptId, x.ObjectName, x.ObjectType });
 
         await conn.ExecuteAsync(new CommandDefinition(insertSql, rows, cancellationToken: ct));
     }
@@ -840,25 +839,71 @@ BEGIN
     DECLARE @sql nvarchar(max) = N'CREATE TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(
         ScriptId uniqueidentifier NOT NULL,
         ObjectName nvarchar(512) NOT NULL,
-        SearchToken nvarchar(512) NOT NULL,
-        ObjectType int NOT NULL,
-        CreatedAt datetime2 NOT NULL CONSTRAINT DF_ScriptObjectRefs_CreatedAt DEFAULT SYSUTCDATETIME()
+        ObjectType int NOT NULL
     );
-    CREATE INDEX IX_ScriptObjectRefs_SearchToken ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(SearchToken, ScriptId);
+    CREATE UNIQUE INDEX UX_ScriptObjectRefs_ScriptId_ObjectName_ObjectType ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ScriptId, ObjectName, ObjectType);
     CREATE INDEX IX_ScriptObjectRefs_ObjectName ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ObjectName);';
     EXEC(@sql);
 END
 
-IF COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'SearchToken') IS NULL
+IF COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'SearchToken') IS NOT NULL
 BEGIN
-    DECLARE @sqlAddColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' ADD SearchToken nvarchar(512) NULL;';
-    EXEC(@sqlAddColumn);
+    IF EXISTS (
+        SELECT 1 FROM sys.indexes i
+        INNER JOIN sys.tables t ON t.object_id = i.object_id
+        INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+        WHERE s.name = @schemaName
+          AND t.name = @tableName
+          AND i.name = 'IX_ScriptObjectRefs_SearchToken'
+    )
+    BEGIN
+        DECLARE @sqlDropSearchTokenIndex nvarchar(max) = N'DROP INDEX IX_ScriptObjectRefs_SearchToken ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N';';
+        EXEC(@sqlDropSearchTokenIndex);
+    END
 
-    DECLARE @sqlBackfill nvarchar(max) = N'UPDATE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' SET SearchToken = ObjectName WHERE SearchToken IS NULL;';
-    EXEC(@sqlBackfill);
+    DECLARE @sqlDropSearchTokenColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' DROP COLUMN SearchToken;';
+    EXEC(@sqlDropSearchTokenColumn);
+END
 
-    DECLARE @sqlAlterColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' ALTER COLUMN SearchToken nvarchar(512) NOT NULL;';
-    EXEC(@sqlAlterColumn);
+IF COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'CreatedAt') IS NOT NULL
+BEGIN
+    DECLARE @sqlDropCreatedAtDefault nvarchar(max) = N'';
+
+    SELECT TOP 1 @sqlDropCreatedAtDefault = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' DROP CONSTRAINT ' + QUOTENAME(dc.name) + N';'
+    FROM sys.default_constraints dc
+    INNER JOIN sys.columns c ON c.default_object_id = dc.object_id
+    INNER JOIN sys.tables t ON t.object_id = c.object_id
+    INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+    WHERE s.name = @schemaName
+      AND t.name = @tableName
+      AND c.name = 'CreatedAt';
+
+    IF @sqlDropCreatedAtDefault <> N''
+        EXEC(@sqlDropCreatedAtDefault);
+
+    DECLARE @sqlDropCreatedAtColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' DROP COLUMN CreatedAt;';
+    EXEC(@sqlDropCreatedAtColumn);
+END
+
+
+DECLARE @sqlDeduplicate nvarchar(max) = N';WITH dedupe AS (
+    SELECT ROW_NUMBER() OVER (PARTITION BY ScriptId, ObjectName, ObjectType ORDER BY (SELECT NULL)) AS rn
+    FROM ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'
+)
+DELETE FROM dedupe WHERE rn > 1;';
+EXEC(@sqlDeduplicate);
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes i
+    INNER JOIN sys.tables t ON t.object_id = i.object_id
+    INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+    WHERE s.name = @schemaName
+      AND t.name = @tableName
+      AND i.name = 'UX_ScriptObjectRefs_ScriptId_ObjectName_ObjectType'
+)
+BEGIN
+    DECLARE @sqlCreateUniqueIndex nvarchar(max) = N'CREATE UNIQUE INDEX UX_ScriptObjectRefs_ScriptId_ObjectName_ObjectType ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ScriptId, ObjectName, ObjectType);';
+    EXEC(@sqlCreateUniqueIndex);
 END
 
 IF NOT EXISTS (
@@ -867,11 +912,11 @@ IF NOT EXISTS (
     INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
     WHERE s.name = @schemaName
       AND t.name = @tableName
-      AND i.name = 'IX_ScriptObjectRefs_SearchToken'
+      AND i.name = 'IX_ScriptObjectRefs_ObjectName'
 )
 BEGIN
-    DECLARE @sqlCreateSearchTokenIndex nvarchar(max) = N'CREATE INDEX IX_ScriptObjectRefs_SearchToken ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(SearchToken, ScriptId);';
-    EXEC(@sqlCreateSearchTokenIndex);
+    DECLARE @sqlCreateObjectNameIndex nvarchar(max) = N'CREATE INDEX IX_ScriptObjectRefs_ObjectName ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ObjectName);';
+    EXEC(@sqlCreateObjectNameIndex);
 END";
 
         await conn.ExecuteAsync(new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
@@ -930,55 +975,6 @@ END";
         tokens.Add($"{schema}.{table}.{obj}");
 
         return tokens.ToList();
-    }
-
-    private static IReadOnlyList<string> BuildReferenceSearchTokens(string objectName)
-    {
-        var normalized = NormalizeIdentifier(objectName);
-        if (string.IsNullOrWhiteSpace(normalized))
-            return Array.Empty<string>();
-
-        var parts = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length == 0)
-            return Array.Empty<string>();
-
-        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { normalized };
-
-        if (parts.Length == 1)
-        {
-            if (!IsSqlKeyword(parts[0]))
-                tokens.Add(parts[0]);
-
-            return tokens.ToList();
-        }
-
-        if (parts.Length == 2)
-        {
-            var table = parts[1];
-            tokens.Add(table);
-
-            var simplified = SimplifyTableName(table);
-            if (!string.Equals(simplified, table, StringComparison.OrdinalIgnoreCase))
-                tokens.Add(simplified);
-
-            return tokens.ToList();
-        }
-
-        var schema = parts[^3];
-        var tableName = parts[^2];
-        var objectSegment = parts[^1];
-
-        tokens.Add(objectSegment);
-        tokens.Add($"{tableName}.{objectSegment}");
-
-        var simplifiedTableName = SimplifyTableName(tableName);
-        if (!string.Equals(simplifiedTableName, tableName, StringComparison.OrdinalIgnoreCase))
-            tokens.Add($"{simplifiedTableName}.{objectSegment}");
-
-        tokens.Add(tableName);
-        tokens.Add($"{schema}.{tableName}");
-
-        return tokens.Where(t => !IsSqlKeyword(t)).ToList();
     }
 
     private static string NormalizeIdentifier(string? raw)
