@@ -60,6 +60,8 @@ public partial class LoginViewModel : ObservableObject
                     return;
                 }
 
+                await _userRepository.ClearRememberedDeviceAsync();
+
                 if (StaySignedIn)
                 {
                     await _userRepository.RememberDeviceAsync(user.Id);

@@ -104,17 +104,27 @@ WHERE u.IsActive = 1
         await using var conn = await _connFactory.OpenAsync();
 
         await conn.ExecuteAsync(@"
-MERGE dbo.AuthenticatedDevices AS target
-USING (SELECT @UserId AS UserId, @WindowsUserName AS WindowsUserName, @ComputerName AS ComputerName) AS source
-ON target.UserId = source.UserId
-   AND target.WindowsUserName = source.WindowsUserName
-   AND target.ComputerName = source.ComputerName
-WHEN MATCHED THEN
-    UPDATE SET LastSeenUtc = SYSUTCDATETIME()
-WHEN NOT MATCHED THEN
-    INSERT (Id, UserId, WindowsUserName, ComputerName, LastSeenUtc)
-    VALUES (NEWID(), source.UserId, source.WindowsUserName, source.ComputerName, SYSUTCDATETIME());",
+DELETE FROM dbo.AuthenticatedDevices
+WHERE WindowsUserName = @WindowsUserName
+  AND ComputerName = @ComputerName;
+
+INSERT INTO dbo.AuthenticatedDevices (Id, UserId, WindowsUserName, ComputerName, LastSeenUtc)
+VALUES (NEWID(), @UserId, @WindowsUserName, @ComputerName, SYSUTCDATETIME());",
             new { UserId = userId, WindowsUserName = windowsUserName, ComputerName = computerName });
+    }
+
+    public async Task ClearRememberedDeviceAsync()
+    {
+        var windowsUserName = _hostIdentityProvider.GetWindowsUserName();
+        var computerName = _hostIdentityProvider.GetComputerName();
+
+        await using var conn = await _connFactory.OpenAsync();
+
+        await conn.ExecuteAsync(@"
+DELETE FROM dbo.AuthenticatedDevices
+WHERE WindowsUserName = @WindowsUserName
+  AND ComputerName = @ComputerName;",
+            new { WindowsUserName = windowsUserName, ComputerName = computerName });
     }
 
     public async Task<UserAccount> AddAsync(string username, string password, bool isAdmin)

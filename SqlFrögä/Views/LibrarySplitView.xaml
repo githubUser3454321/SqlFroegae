@@ -38,6 +38,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
@@ -61,6 +62,10 @@
                 <Button Grid.Column="2"
                         Content="New"
                         Command="{Binding NewCommand}"/>
+
+                <Button Grid.Column="3"
+                        Content="Abmelden"
+                        Command="{Binding LogoutAndCloseCommand}"/>
             </Grid>
 
             <!-- Search bar -->

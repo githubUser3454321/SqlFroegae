@@ -18,6 +18,7 @@ public partial class LibrarySplitViewModel : ObservableObject
 {
     private readonly IScriptRepository _repo;
     private readonly ICustomerMappingRepository _customerMappingRepository;
+    private readonly IUserRepository _userRepository;
     private Frame? _detailFrame;
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
@@ -56,6 +57,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     {
         _repo = App.Services.GetRequiredService<IScriptRepository>();
         _customerMappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
+        _userRepository = App.Services.GetRequiredService<IUserRepository>();
     }
 
     public void AttachDetailFrame(Frame frame) => _detailFrame = frame;
@@ -178,6 +180,29 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (_detailFrame is null) return;
         Selected = null;
         _detailFrame.Navigate(typeof(UserManagementAdminView));
+    }
+
+
+    [RelayCommand]
+    private async Task LogoutAndCloseAsync()
+    {
+        try
+        {
+            IsBusy = true;
+            Error = null;
+
+            await _userRepository.ClearRememberedDeviceAsync();
+            App.CurrentUser = null;
+            Microsoft.UI.Xaml.Application.Current.Exit();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     [RelayCommand]

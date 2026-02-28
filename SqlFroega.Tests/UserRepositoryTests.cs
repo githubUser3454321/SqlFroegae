@@ -80,4 +80,38 @@ public sealed class UserRepositoryTests
         Assert.True(reactivated);
         Assert.NotNull(result);
     }
+
+
+    [Fact]
+    public async Task ClearRememberedDevice_RemovesPasswordlessLogin()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("device-user", "secret", isAdmin: false);
+        await repo.RememberDeviceAsync(user.Id);
+        await repo.ClearRememberedDeviceAsync();
+
+        var byRememberedDevice = await repo.FindActiveByRememberedDeviceAsync("device-user");
+
+        Assert.Null(byRememberedDevice);
+    }
+
+    [Fact]
+    public async Task RememberDevice_ReplacesExistingDeviceEntry()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var firstUser = await repo.AddAsync("first", "secret", isAdmin: false);
+        var secondUser = await repo.AddAsync("second", "secret", isAdmin: false);
+
+        await repo.RememberDeviceAsync(firstUser.Id);
+        await repo.RememberDeviceAsync(secondUser.Id);
+
+        var firstLookup = await repo.FindActiveByRememberedDeviceAsync("first");
+        var secondLookup = await repo.FindActiveByRememberedDeviceAsync("second");
+
+        Assert.Null(firstLookup);
+        Assert.NotNull(secondLookup);
+    }
+
 }
