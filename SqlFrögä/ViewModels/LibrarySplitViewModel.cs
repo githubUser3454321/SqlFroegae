@@ -16,10 +16,13 @@ namespace SqlFroega.ViewModels;
 
 public partial class LibrarySplitViewModel : ObservableObject
 {
+    private const int PageSize = 50;
     private readonly IScriptRepository _repo;
     private readonly ICustomerMappingRepository _customerMappingRepository;
     private readonly IUserRepository _userRepository;
     private Frame? _detailFrame;
+    private ScriptSearchFilters? _activeFilters;
+    private string? _activeSearchText;
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
     public ObservableCollection<string> AvailableMainModules { get; } = new();
@@ -44,9 +47,15 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _tagCatalogSearchText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
+    [ObservableProperty] private int _currentPage = 1;
+    [ObservableProperty] private bool _hasNextPage;
 
 
-    public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
+    public string ResultsCountText =>
+        Results.Count == 0
+            ? $"No results (Page {CurrentPage})"
+            : $"{Results.Count} results (Page {CurrentPage})";
+    public bool CanGoToPreviousPage => CurrentPage > 1;
 
     public Visibility AdminButtonVisibility => App.CurrentUser?.IsAdmin == true
         ? Visibility.Visible
@@ -113,13 +122,9 @@ public partial class LibrarySplitViewModel : ObservableObject
                 SearchHistory: SearchInHistory
             );
 
-            var items = await _repo.SearchAsync(searchText, filters, take: 200, skip: 0);
-
-            Results.Clear();
-            foreach (var it in items)
-                Results.Add(it);
-
-            OnPropertyChanged(nameof(ResultsCountText));
+            _activeSearchText = searchText;
+            _activeFilters = filters;
+            await LoadPageAsync(1);
 
             await RefreshMetadataCatalogAsync();
         }
@@ -243,6 +248,24 @@ public partial class LibrarySplitViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoToPreviousPage))]
+    private async Task PreviousPageAsync()
+    {
+        if (!CanGoToPreviousPage)
+            return;
+
+        await LoadPageAsync(CurrentPage - 1);
+    }
+
+    [RelayCommand(CanExecute = nameof(HasNextPage))]
+    private async Task NextPageAsync()
+    {
+        if (!HasNextPage)
+            return;
+
+        await LoadPageAsync(CurrentPage + 1);
     }
 
 
@@ -389,5 +412,38 @@ public partial class LibrarySplitViewModel : ObservableObject
     {
         if (_detailFrame is null) return;
         _detailFrame.Navigate(typeof(ScriptItemView), id);
+    }
+
+    private async Task LoadPageAsync(int page)
+    {
+        if (_activeFilters is null)
+            return;
+
+        var skip = Math.Max(0, page - 1) * PageSize;
+        var items = await _repo.SearchAsync(_activeSearchText, _activeFilters, take: PageSize, skip: skip);
+
+        Results.Clear();
+        foreach (var it in items)
+            Results.Add(it);
+
+        CurrentPage = page;
+        HasNextPage = items.Count == PageSize;
+
+        OnPropertyChanged(nameof(ResultsCountText));
+        OnPropertyChanged(nameof(CanGoToPreviousPage));
+        PreviousPageCommand.NotifyCanExecuteChanged();
+        NextPageCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnCurrentPageChanged(int value)
+    {
+        OnPropertyChanged(nameof(ResultsCountText));
+        OnPropertyChanged(nameof(CanGoToPreviousPage));
+        PreviousPageCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnHasNextPageChanged(bool value)
+    {
+        NextPageCommand.NotifyCanExecuteChanged();
     }
 }
