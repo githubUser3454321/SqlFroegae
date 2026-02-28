@@ -77,4 +77,3 @@ Open the solution in Visual Studio (Windows) and run the `SqlFrögä` startup pr
 
 ---
 
-If you want, I can also add a dedicated **Database Setup** section with example SQL table definitions and seed data so first-time contributors can run the app faster.
