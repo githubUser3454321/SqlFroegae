@@ -31,6 +31,8 @@
                     PlaceholderText="Passwort"
                     PasswordChanged="PasswordBox_PasswordChanged"/>
 
+                <CheckBox Content="Angemeldet bleiben" IsChecked="{Binding StaySignedIn, Mode=TwoWay}"/>
+
                 <Button Content="Anmelden" Command="{Binding LoginCommand}"/>
 
                 <TextBlock Foreground="DarkRed" Text="{Binding Error}" TextWrapping="WrapWholeWords"/>

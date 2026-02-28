@@ -30,6 +30,19 @@ public sealed class UserRepositoryTests
     }
 
     [Fact]
+    public async Task RememberedDevice_Login_WorksWithoutPassword()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("device-user", "secret", isAdmin: false);
+        await repo.RememberDeviceAsync(user.Id);
+
+        var byRememberedDevice = await repo.FindActiveByRememberedDeviceAsync("device-user");
+
+        Assert.NotNull(byRememberedDevice);
+    }
+
+    [Fact]
     public async Task Login_Fails_WithWrongPassword()
     {
         var repo = new InMemoryUserRepository();
@@ -51,5 +64,20 @@ public sealed class UserRepositoryTests
 
         Assert.True(deactivated);
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task Reactivate_RestoresUserLogin()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("inactive", "secret", isAdmin: true);
+        await repo.DeactivateAsync(user.Id);
+
+        var reactivated = await repo.ReactivateAsync(user.Id);
+        var result = await repo.FindActiveByCredentialsAsync("inactive", "secret");
+
+        Assert.True(reactivated);
+        Assert.NotNull(result);
     }
 }

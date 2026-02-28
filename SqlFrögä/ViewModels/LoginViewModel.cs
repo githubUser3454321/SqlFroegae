@@ -13,6 +13,7 @@ public partial class LoginViewModel : ObservableObject
 
     [ObservableProperty] private string _username = string.Empty;
     [ObservableProperty] private string _password = string.Empty;
+    [ObservableProperty] private bool _staySignedIn;
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
 
@@ -32,23 +33,37 @@ public partial class LoginViewModel : ObservableObject
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Password))
-        {
-            Error = "Bitte Passwort eingeben.";
-            return;
-        }
-
         try
         {
             IsBusy = true;
             Error = null;
 
-            var user = await _userRepository.FindActiveByCredentialsAsync(Username, Password);
+            SqlFroega.Application.Models.UserAccount? user;
 
-            if (user is null)
+            if (string.IsNullOrWhiteSpace(Password))
             {
-                Error = "Anmeldung fehlgeschlagen: Benutzername oder Passwort ungültig bzw. Benutzer deaktiviert.";
-                return;
+                user = await _userRepository.FindActiveByRememberedDeviceAsync(Username);
+
+                if (user is null)
+                {
+                    Error = "Bitte Passwort eingeben oder auf diesem Gerät angemeldet bleiben aktivieren.";
+                    return;
+                }
+            }
+            else
+            {
+                user = await _userRepository.FindActiveByCredentialsAsync(Username, Password);
+
+                if (user is null)
+                {
+                    Error = "Anmeldung fehlgeschlagen: Benutzername oder Passwort ungültig bzw. Benutzer deaktiviert.";
+                    return;
+                }
+
+                if (StaySignedIn)
+                {
+                    await _userRepository.RememberDeviceAsync(user.Id);
+                }
             }
 
             App.CurrentUser = user;

@@ -35,9 +35,10 @@ public partial class App : Microsoft.UI.Xaml.Application
         });
 
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
+        services.AddSingleton<IHostIdentityProvider, HostIdentityProvider>();
         services.AddScoped<IScriptRepository, ScriptRepository>();
         services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
-        services.AddSingleton<IUserRepository, InMemoryUserRepository>();
+        services.AddScoped<IUserRepository, SqlUserRepository>();
         services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
         Services = services.BuildServiceProvider();
