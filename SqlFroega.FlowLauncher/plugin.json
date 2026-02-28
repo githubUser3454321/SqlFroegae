@@ -1,0 +1,12 @@
+{
+  "ID": "9A688F57E7644F33ACDF8A7D501EAF23",
+  "ActionKeyword": "sql",
+  "Name": "SqlFroega",
+  "Description": "Search SqlFroega scripts and copy SQL / rendered SQL",
+  "Author": "SqlFroega",
+  "Version": "1.0.0",
+  "Language": "csharp",
+  "Website": "https://github.com/Flow-Launcher/plugin-samples/tree/master/HelloWorldCSharp",
+  "IcoPath": "Images/app.png",
+  "ExecuteFileName": "SqlFroega.FlowLauncher.dll"
+}

@@ -7,6 +7,7 @@
   <Project Path="SqlFroega.Api/SqlFroega.Api.csproj" />
   <Project Path="SqlFroega.Application/SqlFroega.Application.csproj" />
   <Project Path="SqlFroega.Domain/SqlFroega.Domain.csproj" Id="59ad39b9-6304-4b1d-94ec-b06323447099" />
+  <Project Path="SqlFroega.FlowLauncher/SqlFroega.FlowLauncher.csproj" />
   <Project Path="SqlFroega.Infrastructure/SqlFroega.Infrastructure.csproj" />
   <Project Path="SqlFroega.Tests/SqlFroega.Tests.csproj" Id="57aa5650-8635-49ee-a5b6-3590f8dbb713" />
   <Project Path="SqlFrögä/SqlFroega.csproj">
