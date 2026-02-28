@@ -28,6 +28,36 @@ public sealed partial class ScriptItemView : Page
             await VM.LoadAsync(id);
     }
 
+    private void MainModuleAutoSuggest_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox autoSuggest)
+            UpdateModuleSuggestions(autoSuggest, autoSuggest.Text);
+    }
+
+    private void MainModuleAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.SuggestionChosen)
+            return;
+
+        UpdateModuleSuggestions(sender, sender.Text);
+    }
+
+    private void MainModuleAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is string moduleName)
+            VM.MainModule = moduleName;
+    }
+
+    private void UpdateModuleSuggestions(AutoSuggestBox control, string? typedText)
+    {
+        var typed = typedText?.Trim() ?? string.Empty;
+        control.ItemsSource = VM.AvailableModules
+            .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(25)
+            .ToList();
+    }
+
     private async void EditRelatedModules_Click(object sender, RoutedEventArgs e) => await ShowRelatedModulesDialogAsync();
 
     private async void RelatedModulesTextBox_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
