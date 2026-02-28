@@ -110,10 +110,13 @@
 **Ziel:** Script abhängig vom Kundenkontext angepasst rendern.
 
 **Ist:**
-- Abstraktionen/Domain-Typen sind angelegt.
-- Keine konkrete Implementierung im Infrastructure/UI-Fluss.
+- Kunden-Mapping ist jetzt konkret umgesetzt (`CustomerCode`, `SchemaName`, `ObjectPrefix`, `DatabaseUser`) inkl. persistenter SQL-Tabelle `dbo.CustomerMappings`.
+- Beim Speichern ohne `CustomerId` wird SQL vor Persistenz mit Microsoft ScriptDom geparst/validiert und anschließend auf kanonische Tenant-Notation (`om.om_...`) normalisiert.
+- Beim Speichern mit gesetzter `CustomerId` bleibt SQL unverändert (as-is).
+- In der Script-Detailansicht gibt es neben „Copy“ ein Kundenkürzel-Feld (AutoSuggest) + „Copy Rendered“, um Platzhalter direkt in den Zielkunden-Kontext zu übersetzen.
+- Eine einfache Mapping-Maske (anlegen/refresh) ist in der Detailansicht vorhanden.
 
-**Status:** 🟡 **Teilweise umgesetzt (Vorbereitung vorhanden)**
+**Status:** ✅ **MVP umgesetzt**
 
 ---
 
@@ -154,13 +157,11 @@
 
 ## Noch **teilweise oder ganz** umzusetzen
 - UC7 – Referenzsuche (komplett offen)
-- UC8 – Kunden-Mapping/Rendering (nur vorbereitet)
 - UC10 – Performance-Suche (teilweise, abhängig von FTS-Ausbau)
 
 ---
 
 ## 4) Kurzempfehlung für die nächsten Schritte (priorisiert)
 1. **UC7 starten:** ScriptDom-basierte Objekt-Referenzextraktion + Index-Tabelle aufbauen.
-2. **UC8 konkretisieren:** Mapping-Pipeline (Rules laden → Rendern → Preview/Copy rendered).
-3. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
-4. **UC9 optional ausbauen:** Dedizierte Admin-Verwaltung für kontrollierte Tag-/Modul-Listen ergänzen (Governance, Freigaben, Cleanup).
+2. **UC10 messbar machen:** FTS-Indexing + Benchmark-Szenarien definieren.
+3. **UC9 optional ausbauen:** Dedizierte Admin-Verwaltung für kontrollierte Tag-/Modul-Listen ergänzen (Governance, Freigaben, Cleanup).
