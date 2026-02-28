@@ -168,6 +168,94 @@ public sealed class SqlParsingTests
         Assert.Equal("SELECT * FROM sys.syn_objects;", result);
     }
 
+    [Theory]
+    [MemberData(nameof(NormalizeForStorage_ValidNormalizationCases))]
+    public async Task NormalizeForStorage_ValidNormalizationCases_Run(string sql, string expected)
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Equal(expected, result);
+    }
+
+    public static IEnumerable<object[]> NormalizeForStorage_ValidNormalizationCases()
+    {
+        yield return new object[] { "SELECT * FROM syn_adkont;", "SELECT * FROM om.om_adkont;" };
+        yield return new object[] { "SELECT * FROM syn_adkont_sql;", "SELECT * FROM om.om_adkont_sql;" };
+        yield return new object[] { "SELECT * FROM [syn_adkont_sql];", "SELECT * FROM [om].[om_adkont_sql];" };
+        yield return new object[] { "SELECT * FROM om_db.syn_adkont_sql;", "SELECT * FROM om.om_adkont_sql;" };
+        yield return new object[] { "SELECT * FROM [om_db].[syn_adkont_sql];", "SELECT * FROM [om].[om_adkont_sql];" };
+        yield return new object[] { "UPDATE syn_testtable SET col = 1;", "UPDATE om.om_testtable SET col = 1;" };
+        yield return new object[] { "DELETE FROM om.syn_oldtable WHERE Id = 1;", "DELETE FROM om.om_oldtable WHERE Id = 1;" };
+        yield return new object[] { "MERGE om_db.syn_target AS t USING syn_source AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;", "MERGE om.om_target AS t USING om.om_source AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;" };
+        yield return new object[] { "SELECT * FROM sys.objects;", "SELECT * FROM sys.objects;" };
+        yield return new object[] { "SELECT * FROM syn_testtable t JOIN om.syn_adkont_sql a ON a.Id = t.Id;", "SELECT * FROM om.om_testtable t JOIN om.om_adkont_sql a ON a.Id = t.Id;" };
+    }
+
+    [Theory]
+    [MemberData(nameof(NormalizeForStorage_MixedPrefixConflictCases))]
+    public async Task NormalizeForStorage_MixedPrefixConflictCases_Throw(string sql)
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om_db2", ObjectPrefix = "sws_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync(sql));
+    }
+
+    public static IEnumerable<object[]> NormalizeForStorage_MixedPrefixConflictCases()
+    {
+        yield return new object[] { "SELECT * FROM syn_a; SELECT * FROM sws_b;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a; SELECT * FROM om_db2.sws_b;" };
+        yield return new object[] { "UPDATE syn_a SET x=1; DELETE FROM sws_b;" };
+        yield return new object[] { "SELECT * FROM [syn_a]; SELECT * FROM [sws_b];" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a a JOIN om_db2.sws_b b ON a.Id=b.Id;" };
+        yield return new object[] { "MERGE syn_a AS t USING sws_b AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.X=s.X;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a; SELECT * FROM sws_b;" };
+        yield return new object[] { "SELECT * FROM syn_a; SELECT * FROM om_db2.sws_b;" };
+        yield return new object[] { "DELETE FROM om_db.syn_a; DELETE FROM sws_b;" };
+        yield return new object[] { "SELECT * FROM syn_a WHERE EXISTS (SELECT 1 FROM sws_b);" };
+    }
+
+    [Theory]
+    [MemberData(nameof(NormalizeForStorage_QualifiedSchemaConflictCases))]
+    public async Task NormalizeForStorage_QualifiedSchemaConflictCases_Throw(string sql)
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync(sql));
+    }
+
+    public static IEnumerable<object[]> NormalizeForStorage_QualifiedSchemaConflictCases()
+    {
+        yield return new object[] { "SELECT * FROM om_db.syn_a; SELECT * FROM om.syn_b;" };
+        yield return new object[] { "UPDATE om_db.syn_a SET x=1; DELETE FROM om.syn_b;" };
+        yield return new object[] { "SELECT * FROM [om_db].[syn_a]; SELECT * FROM [om].[syn_b];" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a a JOIN om.syn_b b ON a.Id=b.Id;" };
+        yield return new object[] { "MERGE om_db.syn_a AS t USING om.syn_b AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.X=s.X;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a; SELECT * FROM syn_b; SELECT * FROM om.syn_c;" };
+        yield return new object[] { "DELETE FROM om.syn_b; DELETE FROM om_db.syn_a;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_a WHERE EXISTS (SELECT 1 FROM om.syn_b);" };
+        yield return new object[] { "SELECT * FROM om.syn_a; SELECT * FROM om_db.syn_b;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_testtable; SELECT * FROM om.syn_adkont_sql;" };
+    }
+
     [Fact]
     public void Extractor_FindsReferences_InJoinAliasAndCte()
     {
