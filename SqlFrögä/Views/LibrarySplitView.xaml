@@ -37,6 +37,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
@@ -44,7 +45,16 @@
                     <TextBlock Text="T-SQL Script Library" Opacity="0.75"/>
                 </StackPanel>
 
-                <Button Grid.Column="1"
+                <Button Grid.Column="1" Content="Admin">
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Kunden-Mapping Verwaltung"
+                                            Click="CustomerMappingAdmin_Click"/>
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button Grid.Column="2"
                         Content="New"
                         Command="{Binding NewCommand}"/>
             </Grid>

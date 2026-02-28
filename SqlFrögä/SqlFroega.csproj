@@ -60,6 +60,9 @@
     <Page Update="Views\ScriptItemView.xaml">
       <SubType>Designer</SubType>
     </Page>
+    <Page Update="Views\CustomerMappingAdminView.xaml">
+      <SubType>Designer</SubType>
+    </Page>
   </ItemGroup>
 
   <!--

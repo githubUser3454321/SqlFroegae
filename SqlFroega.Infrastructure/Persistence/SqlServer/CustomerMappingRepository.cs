@@ -85,6 +85,19 @@ WHEN NOT MATCHED THEN
         await conn.ExecuteAsync(new CommandDefinition(sql, mapping, cancellationToken: ct));
     }
 
+    public async Task DeleteAsync(Guid customerId, CancellationToken ct = default)
+    {
+        await EnsureTableAsync(ct);
+
+        const string sql = """
+DELETE FROM dbo.CustomerMappings
+WHERE CustomerId = @customerId;
+""";
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await conn.ExecuteAsync(new CommandDefinition(sql, new { customerId }, cancellationToken: ct));
+    }
+
     private async Task EnsureTableAsync(CancellationToken ct)
     {
         if (_tableEnsured)

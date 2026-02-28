@@ -112,6 +112,15 @@ public partial class LibrarySplitViewModel : ObservableObject
         NavigateDetail(value.Id);
     }
 
+
+    [RelayCommand]
+    private void OpenCustomerMappingAdmin()
+    {
+        if (_detailFrame is null) return;
+        Selected = null;
+        _detailFrame.Navigate(typeof(CustomerMappingAdminView));
+    }
+
     [RelayCommand]
     private void New()
     {

@@ -52,6 +52,12 @@ public sealed partial class LibrarySplitView : Page
         await VM.DeleteCommand.ExecuteAsync(scriptId);
     }
 
+
+    private void CustomerMappingAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        VM.OpenCustomerMappingAdminCommand.Execute(null);
+    }
+
     private async Task<bool> ConfirmDeleteAsync()
     {
         var dialog = new ContentDialog

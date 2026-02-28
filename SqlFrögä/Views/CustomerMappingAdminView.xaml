@@ -1,0 +1,110 @@
+<Page
+    x:Class="SqlFroega.Views.CustomerMappingAdminView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SqlFroega.ViewModels"
+    xmlns:models="using:SqlFroega.Application.Models"
+    Background="{ThemeResource AppPageBackgroundBrush}">
+
+    <Page.DataContext>
+        <vm:CustomerMappingAdminViewModel/>
+    </Page.DataContext>
+
+    <Grid Padding="16" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <TextBlock Text="Kunden-Mapping Verwaltung" FontSize="22" FontWeight="SemiBold"/>
+                <TextBlock Text="CustomerId und Kundenkürzel verwalten" Opacity="0.75"/>
+            </StackPanel>
+
+            <Button Grid.Column="1" Content="Neu" Command="{Binding NewMappingCommand}"/>
+            <Button Grid.Column="2" Content="Speichern" Command="{Binding SaveCommand}"/>
+            <Button Grid.Column="3" Content="Löschen" Command="{Binding DeleteCommand}"/>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    CornerRadius="12"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    Padding="8">
+                <ListView ItemsSource="{Binding Mappings}" SelectedItem="{Binding Selected, Mode=TwoWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:CustomerMappingItem">
+                            <StackPanel Padding="4">
+                                <TextBlock Text="{Binding CustomerCode}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding CustomerName}" Opacity="0.8"/>
+                                <TextBlock Text="{Binding CustomerId}" FontSize="12" Opacity="0.6"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+
+            <Border Grid.Column="1"
+                    CornerRadius="12"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    Padding="12">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Text="Kundenkürzel" Opacity="0.75"/>
+                        <TextBox Text="{Binding CustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1">
+                        <TextBlock Text="Kundenname" Opacity="0.75"/>
+                        <TextBox Text="{Binding CustomerName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2">
+                        <TextBlock Text="DB User" Opacity="0.75"/>
+                        <TextBox Text="{Binding DatabaseUser, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3">
+                        <TextBlock Text="Object Prefix" Opacity="0.75"/>
+                        <TextBox Text="{Binding ObjectPrefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <ProgressRing Width="18" Height="18" IsActive="{Binding IsBusy}" />
+            <TextBlock Grid.Column="1" Text="{Binding Error}" Foreground="Tomato" TextWrapping="WrapWholeWords"/>
+        </Grid>
+    </Grid>
+</Page>
