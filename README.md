@@ -123,3 +123,8 @@ Die App wird über Visual Studio unter Windows gestartet (`SqlFrögä` als Start
 ---
 
 Bei Bedarf kann die README im nächsten Schritt um ein kurzes Architekturdiagramm sowie ein konkretes Datenbankschema-Beispiel erweitert werden.
+
+## API-Dokumentation
+
+Die ausführliche API-Dokumentation findest du hier: **[SqlFroega.Api README](SqlFroega.Api/README.md)**.
+

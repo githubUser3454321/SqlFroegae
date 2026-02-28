@@ -7,7 +7,7 @@ namespace SqlFroega.Api.Auth;
 
 internal interface IRefreshTokenStore
 {
-    Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, TimeSpan lifetime, CancellationToken ct = default);
+    Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, string? tenantContext, TimeSpan lifetime, CancellationToken ct = default);
     Task<RefreshTokenValidationResult?> RotateAsync(string refreshToken, TimeSpan lifetime, CancellationToken ct = default);
     Task RevokeAsync(string refreshToken, CancellationToken ct = default);
 }
@@ -16,12 +16,12 @@ internal sealed class InMemoryRefreshTokenStore : IRefreshTokenStore
 {
     private readonly ConcurrentDictionary<string, RefreshTokenEntry> _tokens = new(StringComparer.Ordinal);
 
-    public Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, TimeSpan lifetime, CancellationToken ct = default)
+    public Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, string? tenantContext, TimeSpan lifetime, CancellationToken ct = default)
     {
         var token = CreateToken();
         var expiresAtUtc = DateTime.UtcNow.Add(lifetime);
 
-        _tokens[token] = new RefreshTokenEntry(token, username, string.Join(',', scopes), expiresAtUtc);
+        _tokens[token] = new RefreshTokenEntry(token, username, string.Join(',', scopes), tenantContext, expiresAtUtc);
 
         return Task.FromResult(new RefreshTokenIssueResult(token, expiresAtUtc));
     }
@@ -39,8 +39,8 @@ internal sealed class InMemoryRefreshTokenStore : IRefreshTokenStore
         }
 
         var scopes = ParseScopes(existing.ScopesCsv);
-        var next = await IssueAsync(existing.Username, scopes, lifetime, ct);
-        return new RefreshTokenValidationResult(existing.Username, scopes, next.Token, next.ExpiresAtUtc);
+        var next = await IssueAsync(existing.Username, scopes, existing.TenantContext, lifetime, ct);
+        return new RefreshTokenValidationResult(existing.Username, scopes, existing.TenantContext, next.Token, next.ExpiresAtUtc);
     }
 
     public Task RevokeAsync(string refreshToken, CancellationToken ct = default)
@@ -72,7 +72,7 @@ internal sealed class SqlRefreshTokenStore : IRefreshTokenStore
         _connectionFactory = connectionFactory;
     }
 
-    public async Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, TimeSpan lifetime, CancellationToken ct = default)
+    public async Task<RefreshTokenIssueResult> IssueAsync(string username, IReadOnlyList<string> scopes, string? tenantContext, TimeSpan lifetime, CancellationToken ct = default)
     {
         var token = CreateToken();
         var expiresAtUtc = DateTime.UtcNow.Add(lifetime);
@@ -82,8 +82,8 @@ internal sealed class SqlRefreshTokenStore : IRefreshTokenStore
         await EnsureSchemaAsync(conn, ct);
 
         const string sql = """
-INSERT INTO dbo.ApiRefreshTokens (Token, Username, ScopesCsv, ExpiresAtUtc, CreatedAtUtc)
-VALUES (@Token, @Username, @ScopesCsv, @ExpiresAtUtc, SYSUTCDATETIME());
+INSERT INTO dbo.ApiRefreshTokens (Token, Username, ScopesCsv, TenantContext, ExpiresAtUtc, CreatedAtUtc)
+VALUES (@Token, @Username, @ScopesCsv, @TenantContext, @ExpiresAtUtc, SYSUTCDATETIME());
 """;
 
         await conn.ExecuteAsync(new CommandDefinition(sql, new
@@ -91,6 +91,7 @@ VALUES (@Token, @Username, @ScopesCsv, @ExpiresAtUtc, SYSUTCDATETIME());
             Token = token,
             Username = username,
             ScopesCsv = scopesCsv,
+            TenantContext = tenantContext,
             ExpiresAtUtc = expiresAtUtc
         }, cancellationToken: ct));
 
@@ -105,7 +106,7 @@ VALUES (@Token, @Username, @ScopesCsv, @ExpiresAtUtc, SYSUTCDATETIME());
         await using var tx = await conn.BeginTransactionAsync(ct);
 
         const string loadSql = """
-SELECT TOP 1 Token, Username, ScopesCsv, ExpiresAtUtc
+SELECT TOP 1 Token, Username, ScopesCsv, TenantContext, ExpiresAtUtc
 FROM dbo.ApiRefreshTokens
 WHERE Token = @Token;
 """;
@@ -125,8 +126,8 @@ WHERE Token = @Token;
         var nextExpiresAtUtc = DateTime.UtcNow.Add(lifetime);
 
         const string insertSql = """
-INSERT INTO dbo.ApiRefreshTokens (Token, Username, ScopesCsv, ExpiresAtUtc, CreatedAtUtc)
-VALUES (@Token, @Username, @ScopesCsv, @ExpiresAtUtc, SYSUTCDATETIME());
+INSERT INTO dbo.ApiRefreshTokens (Token, Username, ScopesCsv, TenantContext, ExpiresAtUtc, CreatedAtUtc)
+VALUES (@Token, @Username, @ScopesCsv, @TenantContext, @ExpiresAtUtc, SYSUTCDATETIME());
 """;
 
         await conn.ExecuteAsync(new CommandDefinition(insertSql, new
@@ -134,12 +135,13 @@ VALUES (@Token, @Username, @ScopesCsv, @ExpiresAtUtc, SYSUTCDATETIME());
             Token = nextToken,
             Username = existing.Username,
             ScopesCsv = existing.ScopesCsv,
+            TenantContext = existing.TenantContext,
             ExpiresAtUtc = nextExpiresAtUtc
         }, tx, cancellationToken: ct));
 
         await tx.CommitAsync(ct);
 
-        return new RefreshTokenValidationResult(existing.Username, scopes, nextToken, nextExpiresAtUtc);
+        return new RefreshTokenValidationResult(existing.Username, scopes, existing.TenantContext, nextToken, nextExpiresAtUtc);
     }
 
     public async Task RevokeAsync(string refreshToken, CancellationToken ct = default)
@@ -161,6 +163,7 @@ BEGIN
         Token nvarchar(256) NOT NULL PRIMARY KEY,
         Username nvarchar(256) NOT NULL,
         ScopesCsv nvarchar(1024) NOT NULL,
+        TenantContext nvarchar(128) NULL,
         ExpiresAtUtc datetime2 NOT NULL,
         CreatedAtUtc datetime2 NOT NULL
     );
@@ -170,6 +173,14 @@ END
 """;
 
         await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+
+        const string alterSql = """
+IF COL_LENGTH('dbo.ApiRefreshTokens', 'TenantContext') IS NULL
+BEGIN
+    ALTER TABLE dbo.ApiRefreshTokens ADD TenantContext nvarchar(128) NULL;
+END
+""";
+        await conn.ExecuteAsync(new CommandDefinition(alterSql, cancellationToken: ct));
 
         const string cleanupSql = "DELETE FROM dbo.ApiRefreshTokens WHERE ExpiresAtUtc < DATEADD(day, -2, SYSUTCDATETIME());";
         await conn.ExecuteAsync(new CommandDefinition(cleanupSql, cancellationToken: ct));
@@ -188,8 +199,8 @@ END
     }
 }
 
-internal sealed record RefreshTokenEntry(string Token, string Username, string ScopesCsv, DateTime ExpiresAtUtc);
+internal sealed record RefreshTokenEntry(string Token, string Username, string ScopesCsv, string? TenantContext, DateTime ExpiresAtUtc);
 
 internal sealed record RefreshTokenIssueResult(string Token, DateTime ExpiresAtUtc);
 
-internal sealed record RefreshTokenValidationResult(string Username, IReadOnlyList<string> Scopes, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
+internal sealed record RefreshTokenValidationResult(string Username, IReadOnlyList<string> Scopes, string? TenantContext, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);

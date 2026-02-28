@@ -120,7 +120,7 @@ app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }));
 
 var api = app.MapGroup("/api/v1").RequireRateLimiting("api");
 
-api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepository, IRefreshTokenStore refreshTokenStore) =>
+api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepository, IRefreshTokenStore refreshTokenStore, HttpContext httpContext) =>
 {
     if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
     {
@@ -140,8 +140,9 @@ api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepo
         ? new[] { "scripts.read", "scripts.write", "mappings.read", "admin.users" }
         : new[] { "scripts.read", "scripts.write", "mappings.read" };
 
-    var accessToken = CreateAccessToken(user.Username, user.Id, scopes, jwtOptions, signingKey);
-    var refresh = await refreshTokenStore.IssueAsync(user.Username, scopes, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
+    var tenantContext = ResolveTenantContext(httpContext, request.TenantContext);
+    var accessToken = CreateAccessToken(user.Username, user.Id, scopes, tenantContext, jwtOptions, signingKey);
+    var refresh = await refreshTokenStore.IssueAsync(user.Username, scopes, tenantContext, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
 
     return Results.Ok(new LoginResponse(
         accessToken.Token,
@@ -167,7 +168,7 @@ api.MapPost("/auth/refresh", async (RefreshTokenRequest request, IRefreshTokenSt
         return Results.Unauthorized();
     }
 
-    var accessToken = CreateAccessToken(rotated.Username, Guid.Empty, rotated.Scopes, jwtOptions, signingKey);
+    var accessToken = CreateAccessToken(rotated.Username, Guid.Empty, rotated.Scopes, rotated.TenantContext, jwtOptions, signingKey);
 
     return Results.Ok(new LoginResponse(
         accessToken.Token,
@@ -215,7 +216,7 @@ api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptReposit
 
 api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
-    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    if (!TryGetTenantContext(httpContext, user, out var tenantValidationError, out _))
     {
         return tenantValidationError;
     }
@@ -245,9 +246,9 @@ api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository sc
     return Results.Created($"/api/v1/scripts/{scriptId}", new { id = scriptId });
 }).RequireAuthorization(Policies.ScriptsWrite);
 
-api.MapDelete("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, HttpContext httpContext, CancellationToken ct) =>
+api.MapDelete("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
-    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    if (!TryGetTenantContext(httpContext, user, out var tenantValidationError, out _))
     {
         return tenantValidationError;
     }
@@ -258,7 +259,7 @@ api.MapDelete("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepo
 
 api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
-    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    if (!TryGetTenantContext(httpContext, user, out var tenantValidationError, out _))
     {
         return tenantValidationError;
     }
@@ -284,7 +285,7 @@ api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockReques
 
 api.MapPost("/scripts/{id:guid}/locks/release", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
-    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    if (!TryGetTenantContext(httpContext, user, out var tenantValidationError, out _))
     {
         return tenantValidationError;
     }
@@ -354,20 +355,37 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
-static bool TryGetTenantContext(HttpContext context, out IResult? errorResult, out string tenantContext)
+static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)
 {
-    tenantContext = context.Request.Headers["X-Tenant-Context"].ToString();
+    tenantContext = ResolveTenantContext(context, null, user);
     if (string.IsNullOrWhiteSpace(tenantContext))
     {
         errorResult = Results.ValidationProblem(new Dictionary<string, string[]>
         {
-            ["X-Tenant-Context"] = ["Header X-Tenant-Context ist für schreibende Operationen erforderlich."]
+            ["tenantContext"] = ["Tenant/CustomerContext ist erforderlich (Header X-Tenant-Context oder Claim tenant_context)."]
         });
         return false;
     }
 
     errorResult = null;
     return true;
+}
+
+static string ResolveTenantContext(HttpContext context, string? requestTenantContext, ClaimsPrincipal? user = null)
+{
+    if (!string.IsNullOrWhiteSpace(requestTenantContext))
+    {
+        return requestTenantContext.Trim();
+    }
+
+    var headerValue = context.Request.Headers["X-Tenant-Context"].ToString();
+    if (!string.IsNullOrWhiteSpace(headerValue))
+    {
+        return headerValue.Trim();
+    }
+
+    var claimValue = (user ?? context.User).Claims.FirstOrDefault(c => c.Type == "tenant_context")?.Value;
+    return string.IsNullOrWhiteSpace(claimValue) ? string.Empty : claimValue.Trim();
 }
 
 static Dictionary<string, string[]> ValidateUpsertRequest(UpsertScriptRequest request)
@@ -400,6 +418,7 @@ static AccessTokenResult CreateAccessToken(
     string username,
     Guid userId,
     IReadOnlyList<string> scopes,
+    string? tenantContext,
     JwtOptions options,
     SymmetricSecurityKey key)
 {
@@ -413,6 +432,11 @@ static AccessTokenResult CreateAccessToken(
     };
 
     claims.AddRange(scopes.Select(scope => new Claim("scope", scope)));
+
+    if (!string.IsNullOrWhiteSpace(tenantContext))
+    {
+        claims.Add(new Claim("tenant_context", tenantContext));
+    }
 
     var jwt = new JwtSecurityToken(
         issuer: options.Issuer,
@@ -433,7 +457,7 @@ internal static class Policies
     public const string AdminUsers = "admin.users";
 }
 
-internal sealed record LoginRequest(string Username, string Password);
+internal sealed record LoginRequest(string Username, string Password, string? TenantContext);
 
 internal sealed record RefreshTokenRequest(string? RefreshToken);
 

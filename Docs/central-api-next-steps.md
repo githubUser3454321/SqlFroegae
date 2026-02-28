@@ -4,7 +4,7 @@ Dieses Dokument beschreibt ein pragmatisches Vorgehen für **eine einzige zentra
 
 ## Umsetzungsstand (aktualisiert)
 
-- **Status gesamt:** **Partialy Done** (v1-Endpoints inkl. Admin-User-Endpoint, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging, SQL-persistenter Refresh-Token-Store (bei konfigurierter DB) und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und vollständige Produktivhärtung sind weiter offen).
+- **Status gesamt:** **Partialy Done** (v1-Endpoints inkl. Admin-User-Endpoint, JWT + Refresh-Flow inkl. TenantContext-Weitergabe, Rate Limiting, Correlation/Audit-Logging, SQL-persistenter Refresh-Token-Store (mit In-Memory-Fallback) sowie Tenant/CustomerContext via Header oder Claim sind umgesetzt; Client-Adapter und vollständige Produktivhärtung sind weiter offen).
 
 ## Zielbild
 
@@ -41,7 +41,7 @@ Die bestehenden Repositories sind bereits ein gutes API-Backbone. Erste Endpunkt
 Da die API zentral läuft und von mehreren Tools genutzt wird:
 
 - Kurzlebige **JWT Access Tokens** (z. B. 15 Minuten) **DONE**
-- **Refresh Tokens** (z. B. 8–24h, rotierend) **Partialy Done** (SQL-persistenter Store implementiert, Fallback auf In-Memory wenn keine DB-Connection konfiguriert ist)
+- **Refresh Tokens** (z. B. 8–24h, rotierend) **DONE** (SQL-persistenter Store implementiert, inkl. Rotation/Revoke und In-Memory-Fallback ohne DB)
 - Rollen/Scopes:
   - `scripts.read` **DONE**
   - `scripts.write` **DONE**
@@ -53,7 +53,7 @@ Da die API zentral läuft und von mehreren Tools genutzt wird:
 
 Da ihr als Dienstleister in mehreren Firmenkontexten arbeitet:
 
-- API-seitig ein optional `TenantContext`/`CustomerContext` einführen. **Partialy Done** (Header `X-Tenant-Context` für Write-Endpunkte)
+- API-seitig ein optional `TenantContext`/`CustomerContext` einführen. **DONE** (Header `X-Tenant-Context` oder JWT-Claim `tenant_context`)
 - Jede schreibende Operation mit Kontext kennzeichnen (Header oder Claim). **DONE**
 
 ## 4) Stabilität & Sicherheit vor breitem Rollout
@@ -84,7 +84,7 @@ Vor SSMS-/FlowLauncher-Integration:
 
 1. API v1 mit read-only Endpunkten bereitstellen. **DONE**
 2. SSMS/FlowLauncher read-only anbinden. **NOT DONE**
-3. Schreib-Endpunkte mit Locking + Conflict-Handling freischalten. **Partialy Done**
+3. Schreib-Endpunkte mit Locking + Conflict-Handling freischalten. **DONE**
 
 ## 7) Konkrete 2-Wochen-Planung (Vorschlag)
 
