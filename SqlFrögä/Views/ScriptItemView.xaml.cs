@@ -1,6 +1,7 @@
 ﻿using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.Application.Models;
@@ -23,6 +24,16 @@ public sealed partial class ScriptItemView : Page
     public ScriptItemView()
     {
         InitializeComponent();
+        RegisterDragPointerHandlers(CopyButton);
+        RegisterDragPointerHandlers(CopyRenderedButton);
+    }
+
+    private void RegisterDragPointerHandlers(Button button)
+    {
+        button.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(CopyDragSource_PointerPressed), true);
+        button.AddHandler(UIElement.PointerMovedEvent, new PointerEventHandler(CopyDragSource_PointerMoved), true);
+        button.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(CopyDragSource_PointerReleased), true);
+        button.AddHandler(UIElement.PointerCanceledEvent, new PointerEventHandler(CopyDragSource_PointerCanceled), true);
     }
 
     private sealed class DragPointerState
@@ -139,7 +150,7 @@ public sealed partial class ScriptItemView : Page
             .ToList();
     }
 
-    private void CopyDragSource_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void CopyDragSource_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
         if (sender is not Button button)
             return;
@@ -156,7 +167,7 @@ public sealed partial class ScriptItemView : Page
         };
     }
 
-    private async void CopyDragSource_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private async void CopyDragSource_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (sender is not Button button)
             return;
@@ -184,13 +195,13 @@ public sealed partial class ScriptItemView : Page
         await button.StartDragAsync(point);
     }
 
-    private void CopyDragSource_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void CopyDragSource_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Button button)
             _dragPointers.Remove(button);
     }
 
-    private void CopyDragSource_PointerCanceled(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void CopyDragSource_PointerCanceled(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Button button)
             _dragPointers.Remove(button);

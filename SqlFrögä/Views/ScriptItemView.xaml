@@ -49,21 +49,13 @@
                     Content="Copy"
                     Command="{Binding CopyCommand}"
                     CanDrag="True"
-                    DragStarting="CopyButton_DragStarting"
-                    PointerPressed="CopyDragSource_PointerPressed"
-                    PointerMoved="CopyDragSource_PointerMoved"
-                    PointerReleased="CopyDragSource_PointerReleased"
-                    PointerCanceled="CopyDragSource_PointerCanceled" />
+                    DragStarting="CopyButton_DragStarting" />
             <Button Grid.Column="4"
                     x:Name="CopyRenderedButton"
                     Content="Copy Rendered"
                     Command="{Binding CopyRenderedCommand}"
                     CanDrag="True"
-                    DragStarting="CopyRenderedButton_DragStarting"
-                    PointerPressed="CopyDragSource_PointerPressed"
-                    PointerMoved="CopyDragSource_PointerMoved"
-                    PointerReleased="CopyDragSource_PointerReleased"
-                    PointerCanceled="CopyDragSource_PointerCanceled"/>
+                    DragStarting="CopyRenderedButton_DragStarting"/>
         </Grid>
 
         <Border Grid.Row="1"
