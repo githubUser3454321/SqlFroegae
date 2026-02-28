@@ -190,7 +190,7 @@ public sealed partial class ScriptItemView : Page
             XamlRoot = XamlRoot,
             Title = "Related Modules verwalten",
             PrimaryButtonText = "Übernehmen",
-            CloseButtonText = "Schließen",
+            CloseButtonText = "Schliessen",
             DefaultButton = ContentDialogButton.Primary,
             Content = content
         };
@@ -313,7 +313,7 @@ public sealed partial class ScriptItemView : Page
             XamlRoot = XamlRoot,
             Title = "Flags verwalten",
             PrimaryButtonText = "Übernehmen",
-            CloseButtonText = "Schließen",
+            CloseButtonText = "Schliessen",
             DefaultButton = ContentDialogButton.Primary,
             Content = content
         };

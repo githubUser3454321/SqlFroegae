@@ -142,10 +142,6 @@
                             <TextBlock Text="Modul-Katalog" FontWeight="SemiBold"/>
                             <TextBox PlaceholderText="Module filtern"
                                      Text="{Binding ModuleCatalogSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Border CornerRadius="8" Padding="8" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                <TextBlock Text="{Binding ModuleCatalogHintText}" Opacity="0.75" TextWrapping="WrapWholeWords"/>
-                            </Border>
-
                             <TextBlock Text="Main-Module" Opacity="0.75"/>
                             <ListView ItemsSource="{Binding FilteredMainModules}" SelectionMode="None" MaxHeight="120">
                                 <ListView.ItemTemplate>
@@ -171,9 +167,6 @@
                             <TextBlock Text="Tags" FontWeight="SemiBold"/>
                             <TextBox PlaceholderText="Tags filtern"
                                      Text="{Binding TagCatalogSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Border CornerRadius="8" Padding="8" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
-                                <TextBlock Text="{Binding TagCatalogHintText}" Opacity="0.75" TextWrapping="WrapWholeWords"/>
-                            </Border>
                             <ListView ItemsSource="{Binding FilteredTags}" SelectionMode="None" MaxHeight="160">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>

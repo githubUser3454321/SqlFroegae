@@ -43,10 +43,6 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
 
-    public bool IsModuleCatalogSearchActive => !string.IsNullOrWhiteSpace(ModuleCatalogSearchText);
-    public bool IsTagCatalogSearchActive => !string.IsNullOrWhiteSpace(TagCatalogSearchText);
-    public string ModuleCatalogHintText => IsModuleCatalogSearchActive ? string.Empty : "Tippe mindestens 1 Buchstabe, um Module anzuzeigen.";
-    public string TagCatalogHintText => IsTagCatalogSearchActive ? string.Empty : "Tippe mindestens 1 Buchstabe, um Tags anzuzeigen.";
 
     public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
 
@@ -273,15 +269,11 @@ public partial class LibrarySplitViewModel : ObservableObject
     partial void OnModuleCatalogSearchTextChanged(string value)
     {
         ApplyCatalogFilters();
-        OnPropertyChanged(nameof(IsModuleCatalogSearchActive));
-        OnPropertyChanged(nameof(ModuleCatalogHintText));
     }
 
     partial void OnTagCatalogSearchTextChanged(string value)
     {
         ApplyCatalogFilters();
-        OnPropertyChanged(nameof(IsTagCatalogSearchActive));
-        OnPropertyChanged(nameof(TagCatalogHintText));
     }
 
     private void ApplyCatalogFilters()
