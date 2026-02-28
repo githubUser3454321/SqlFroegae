@@ -6,6 +6,7 @@ using SqlFroega.ViewModels;
 using System;
 using System.Threading.Tasks;
 using Windows.System;
+using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
 namespace SqlFroega.Views;
 
