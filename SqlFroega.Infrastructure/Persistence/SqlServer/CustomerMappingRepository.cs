@@ -24,7 +24,7 @@ public sealed class CustomerMappingRepository : ICustomerMappingRepository
         await EnsureTableAsync(ct);
 
         const string sql = """
-SELECT CustomerId, CustomerCode, CustomerName, SchemaName, ObjectPrefix, DatabaseUser
+SELECT CustomerId, CustomerCode, CustomerName, DatabaseUser, ObjectPrefix
 FROM dbo.CustomerMappings
 ORDER BY CustomerCode;
 """;
@@ -42,7 +42,7 @@ ORDER BY CustomerCode;
         await EnsureTableAsync(ct);
 
         const string sql = """
-SELECT TOP (1) CustomerId, CustomerCode, CustomerName, SchemaName, ObjectPrefix, DatabaseUser
+SELECT TOP (1) CustomerId, CustomerCode, CustomerName, DatabaseUser, ObjectPrefix
 FROM dbo.CustomerMappings
 WHERE CustomerCode = @customerCode;
 """;
@@ -62,20 +62,18 @@ USING (SELECT
     @CustomerId AS CustomerId,
     @CustomerCode AS CustomerCode,
     @CustomerName AS CustomerName,
-    @SchemaName AS SchemaName,
-    @ObjectPrefix AS ObjectPrefix,
-    @DatabaseUser AS DatabaseUser) AS source
+    @DatabaseUser AS DatabaseUser,
+    @ObjectPrefix AS ObjectPrefix) AS source
 ON target.CustomerId = source.CustomerId
 WHEN MATCHED THEN
     UPDATE SET
         CustomerCode = source.CustomerCode,
         CustomerName = source.CustomerName,
-        SchemaName = source.SchemaName,
         ObjectPrefix = source.ObjectPrefix,
         DatabaseUser = source.DatabaseUser
 WHEN NOT MATCHED THEN
-    INSERT (CustomerId, CustomerCode, CustomerName, SchemaName, ObjectPrefix, DatabaseUser)
-    VALUES (source.CustomerId, source.CustomerCode, source.CustomerName, source.SchemaName, source.ObjectPrefix, source.DatabaseUser);
+    INSERT (CustomerId, CustomerCode, CustomerName, DatabaseUser, ObjectPrefix)
+    VALUES (source.CustomerId, source.CustomerCode, source.CustomerName, source.DatabaseUser, source.ObjectPrefix);
 """;
 
         await using var conn = await _connFactory.OpenAsync(ct);
@@ -94,12 +92,16 @@ BEGIN
         CustomerId uniqueidentifier NOT NULL PRIMARY KEY,
         CustomerCode nvarchar(32) NOT NULL,
         CustomerName nvarchar(256) NOT NULL,
-        SchemaName nvarchar(128) NOT NULL,
-        ObjectPrefix nvarchar(128) NOT NULL,
-        DatabaseUser nvarchar(256) NOT NULL
+        DatabaseUser nvarchar(256) NOT NULL,
+        ObjectPrefix nvarchar(128) NOT NULL
     );
 
     CREATE UNIQUE INDEX UX_CustomerMappings_CustomerCode ON dbo.CustomerMappings(CustomerCode);
+END
+
+IF COL_LENGTH('dbo.CustomerMappings', 'SchemaName') IS NOT NULL
+BEGIN
+    ALTER TABLE dbo.CustomerMappings DROP COLUMN SchemaName;
 END
 """;
 
