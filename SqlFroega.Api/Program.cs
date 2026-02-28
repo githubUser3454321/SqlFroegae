@@ -220,9 +220,10 @@ api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository sc
         return tenantValidationError;
     }
 
-    if (request.Content.Length > 200_000)
+    var validationErrors = ValidateUpsertRequest(request);
+    if (validationErrors.Count > 0)
     {
-        return Results.ValidationProblem(new Dictionary<string, string[]> { ["content"] = ["SQL-Content ist zu groß (max. 200000 Zeichen)."] });
+        return Results.ValidationProblem(validationErrors);
     }
 
     var updatedBy = string.IsNullOrWhiteSpace(request.UpdatedBy) ? user.Identity?.Name : request.UpdatedBy;
@@ -269,6 +270,15 @@ api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockReques
     }
 
     var result = await scriptRepository.TryAcquireEditLockAsync(id, username, ct);
+    if (!result.Acquired)
+    {
+        return Results.Conflict(new
+        {
+            message = "Script ist bereits gelockt.",
+            lockedBy = result.LockedBy
+        });
+    }
+
     return Results.Ok(result);
 }).RequireAuthorization(Policies.ScriptsWrite);
 
@@ -288,6 +298,14 @@ api.MapPost("/scripts/{id:guid}/locks/release", async (Guid id, ScriptLockReques
     await scriptRepository.ReleaseEditLockAsync(id, username, ct);
     return Results.NoContent();
 }).RequireAuthorization(Policies.ScriptsWrite);
+
+
+api.MapGet("/scripts/{id:guid}/locks/awareness", async (Guid id, string? username, IScriptRepository scriptRepository, ClaimsPrincipal user, CancellationToken ct) =>
+{
+    var actor = string.IsNullOrWhiteSpace(username) ? user.Identity?.Name : username;
+    var awareness = await scriptRepository.GetEditAwarenessAsync(id, actor, ct);
+    return awareness is null ? Results.NotFound() : Results.Ok(awareness);
+}).RequireAuthorization(Policies.ScriptsRead);
 
 api.MapGet("/customers/mappings", async (ICustomerMappingRepository customerMappingRepository, CancellationToken ct) =>
 {
@@ -350,6 +368,32 @@ static bool TryGetTenantContext(HttpContext context, out IResult? errorResult, o
 
     errorResult = null;
     return true;
+}
+
+static Dictionary<string, string[]> ValidateUpsertRequest(UpsertScriptRequest request)
+{
+    var errors = new Dictionary<string, string[]>();
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        errors["name"] = ["Name ist erforderlich."];
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Content))
+    {
+        errors["content"] = ["SQL-Content ist erforderlich."];
+    }
+    else if (request.Content.Length > 200_000)
+    {
+        errors["content"] = ["SQL-Content ist zu groß (max. 200000 Zeichen)."];
+    }
+
+    if (request.Scope is < 0 or > 2)
+    {
+        errors["scope"] = ["Scope muss 0 (Global), 1 (Customer) oder 2 (Module) sein."];
+    }
+
+    return errors;
 }
 
 static AccessTokenResult CreateAccessToken(

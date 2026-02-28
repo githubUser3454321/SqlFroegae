@@ -32,6 +32,7 @@ Die bestehenden Repositories sind bereits ein gutes API-Backbone. Erste Endpunkt
 - `DELETE /api/v1/scripts/{id}` **DONE**
 - `POST /api/v1/scripts/{id}/locks/acquire` **DONE**
 - `POST /api/v1/scripts/{id}/locks/release` **DONE**
+- `GET /api/v1/scripts/{id}/locks/awareness` **DONE**
 - `GET /api/v1/customers/mappings` **DONE**
 - `POST /api/v1/render/{customerCode}` **DONE**
 
@@ -71,7 +72,7 @@ Vor SSMS-/FlowLauncher-Integration:
 
 - Fokus: Suche, Detailansicht, Render-Preview, Copy-to-Clipboard **NOT DONE**
 - Nur lesende Features in erster Ausbaustufe **NOT DONE**
-- Schreibende Funktionen erst nach erfolgreicher Lock-/Conflict-Strategie **Partialy Done** (Lock-Endpoints vorhanden, Conflict-Handling clientseitig noch offen)
+- Schreibende Funktionen erst nach erfolgreicher Lock-/Conflict-Strategie **Partialy Done** (Lock-Endpoints + 409-Conflict bei Lock-Kollision serverseitig vorhanden, clientseitige UX dazu noch offen)
 
 ### FlowLauncher-Extension
 
@@ -106,4 +107,4 @@ Vor SSMS-/FlowLauncher-Integration:
 - API ist versioniert, dokumentiert und überwacht **DONE**
 - Extensions laufen ohne direkte DB-Credentials **NOT DONE**
 - Read-Use-Cases in SSMS/FlowLauncher produktiv nutzbar **NOT DONE**
-- Schreib-Use-Cases haben Locking, Audit und nachvollziehbare Fehlerantworten **Partialy Done**
+- Schreib-Use-Cases haben Locking, Audit und nachvollziehbare Fehlerantworten **DONE** (Write-Validierung + 409-Conflict für Lock-Kollisionen + Audit vorhanden)
