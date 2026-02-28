@@ -43,6 +43,20 @@ public sealed class UserRepositoryTests
     }
 
     [Fact]
+    public async Task CurrentDevice_Login_WorksWithoutUsernameAndPassword()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("auto-device", "secret", isAdmin: false);
+        await repo.RememberDeviceAsync(user.Id);
+
+        var byCurrentDevice = await repo.FindActiveByCurrentDeviceAsync();
+
+        Assert.NotNull(byCurrentDevice);
+        Assert.Equal("auto-device", byCurrentDevice!.Username);
+    }
+
+    [Fact]
     public async Task Login_Fails_WithWrongPassword()
     {
         var repo = new InMemoryUserRepository();

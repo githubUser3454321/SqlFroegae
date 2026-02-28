@@ -33,6 +33,7 @@ The solution is split into layered projects:
 - If `dbo.Users` contains **no** entries, a fallback fake admin is accepted with credentials `admin` / `admin`.
 - If at least one user exists in `dbo.Users`, only active DB users are accepted for username/password login.
 - Optional **"Angemeldet bleiben"** uses `dbo.AuthenticatedDevices` with `(UserId, WindowsUserName, ComputerName)`.
+- On app startup, a matching `(WindowsUserName, ComputerName)` entry logs the mapped active user in automatically (no password prompt).
   - Next login can succeed without password when username + current Windows user + current computer name match a remembered device.
   - If Windows account/device differs, normal password login is required again.
 - `WindowsUserName` is resolved with fallback (`USERNAME`/`Environment.UserName`/`USER`/`LOGNAME`), so offline/local VM sign-ins are supported too.

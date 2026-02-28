@@ -64,6 +64,20 @@ public sealed class InMemoryUserRepository : IUserRepository
         }
     }
 
+    public Task<UserAccount?> FindActiveByCurrentDeviceAsync()
+    {
+        lock (_sync)
+        {
+            if (!_rememberedDevice.HasValue)
+            {
+                return Task.FromResult<UserAccount?>(null);
+            }
+
+            var user = _users.FirstOrDefault(x => x.IsActive && x.Id == _rememberedDevice.Value.userId);
+            return Task.FromResult(user is null ? null : CopyUser(user));
+        }
+    }
+
     public Task RememberDeviceAsync(Guid userId)
     {
         lock (_sync)

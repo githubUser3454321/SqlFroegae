@@ -68,6 +68,23 @@ WHERE IsActive = 1
   AND PasswordHash = @providedHash", new { login, providedHash });
     }
 
+    public async Task<UserAccount?> FindActiveByCurrentDeviceAsync()
+    {
+        var windowsUserName = _hostIdentityProvider.GetWindowsUserName();
+        var computerName = _hostIdentityProvider.GetComputerName();
+
+        await using var conn = await _connFactory.OpenAsync();
+
+        return await conn.QuerySingleOrDefaultAsync<UserAccount>(@"
+SELECT TOP (1) u.Id, u.Username, u.PasswordHash, u.IsAdmin, u.IsActive
+FROM dbo.Users u
+INNER JOIN dbo.AuthenticatedDevices d ON d.UserId = u.Id
+WHERE u.IsActive = 1
+  AND d.WindowsUserName = @windowsUserName
+  AND d.ComputerName = @computerName
+ORDER BY d.LastSeenUtc DESC", new { windowsUserName, computerName });
+    }
+
     public async Task<UserAccount?> FindActiveByRememberedDeviceAsync(string username)
     {
         var login = (username ?? string.Empty).Trim();

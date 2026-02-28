@@ -6,6 +6,7 @@ public interface IUserRepository
 {
     Task<IReadOnlyList<UserAccount>> GetAllAsync();
     Task<UserAccount?> FindActiveByCredentialsAsync(string username, string password);
+    Task<UserAccount?> FindActiveByCurrentDeviceAsync();
     Task<UserAccount?> FindActiveByRememberedDeviceAsync(string username);
     Task RememberDeviceAsync(Guid userId);
     Task ClearRememberedDeviceAsync();
