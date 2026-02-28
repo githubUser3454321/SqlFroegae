@@ -19,7 +19,6 @@ public sealed class UserRepositoryTests
         Assert.NotEqual("secret", byCredentials.PasswordHash);
     }
 
-
     [Fact]
     public async Task Hashing_UsesSameDigestAsSqlNVarChar()
     {
@@ -28,6 +27,19 @@ public sealed class UserRepositoryTests
         var user = await repo.AddAsync("hash-check", "admin123", isAdmin: false);
 
         Assert.Equal("9D39DD891B174041B3488557421FAE0F8D551E1F612725717D820BDBB111530F", user.PasswordHash);
+    }
+
+    [Fact]
+    public async Task RememberedDevice_Login_WorksWithoutPassword()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("device-user", "secret", isAdmin: false);
+        await repo.RememberDeviceAsync(user.Id);
+
+        var byRememberedDevice = await repo.FindActiveByRememberedDeviceAsync("device-user");
+
+        Assert.NotNull(byRememberedDevice);
     }
 
     [Fact]

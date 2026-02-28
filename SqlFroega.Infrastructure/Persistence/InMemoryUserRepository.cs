@@ -19,6 +19,7 @@ public sealed class InMemoryUserRepository : IUserRepository
         }
     ];
 
+    private readonly HashSet<(Guid userId, string username)> _rememberedDevices = [];
     private readonly object _sync = new();
 
     public Task<IReadOnlyList<UserAccount>> GetAllAsync()
@@ -34,7 +35,7 @@ public sealed class InMemoryUserRepository : IUserRepository
 
     public Task<UserAccount?> FindActiveByCredentialsAsync(string username, string password)
     {
-        var login = username.Trim();
+        var login = (username ?? string.Empty).Trim();
         var providedHash = HashPassword(password);
 
         lock (_sync)
@@ -47,9 +48,37 @@ public sealed class InMemoryUserRepository : IUserRepository
         }
     }
 
+    public Task<UserAccount?> FindActiveByRememberedDeviceAsync(string username)
+    {
+        var login = (username ?? string.Empty).Trim();
+
+        lock (_sync)
+        {
+            var user = _users.FirstOrDefault(x => x.IsActive
+                && string.Equals(x.Username, login, StringComparison.OrdinalIgnoreCase)
+                && _rememberedDevices.Contains((x.Id, x.Username.ToUpperInvariant())));
+
+            return Task.FromResult(user is null ? null : CopyUser(user));
+        }
+    }
+
+    public Task RememberDeviceAsync(Guid userId)
+    {
+        lock (_sync)
+        {
+            var user = _users.FirstOrDefault(x => x.Id == userId);
+            if (user is not null)
+            {
+                _rememberedDevices.Add((user.Id, user.Username.ToUpperInvariant()));
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task<UserAccount> AddAsync(string username, string password, bool isAdmin)
     {
-        var trimmedUsername = username.Trim();
+        var trimmedUsername = (username ?? string.Empty).Trim();
 
         var item = new UserAccount
         {
@@ -87,7 +116,6 @@ public sealed class InMemoryUserRepository : IUserRepository
             return Task.FromResult(true);
         }
     }
-
 
     public Task<bool> ReactivateAsync(Guid userId)
     {

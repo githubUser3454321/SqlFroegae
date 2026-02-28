@@ -14,10 +14,12 @@ namespace SqlFroega.Infrastructure.Persistence.SqlServer;
 public sealed class SqlUserRepository : IUserRepository
 {
     private readonly ISqlConnectionFactory _connFactory;
+    private readonly IHostIdentityProvider _hostIdentityProvider;
 
-    public SqlUserRepository(ISqlConnectionFactory connFactory)
+    public SqlUserRepository(ISqlConnectionFactory connFactory, IHostIdentityProvider hostIdentityProvider)
     {
         _connFactory = connFactory;
+        _hostIdentityProvider = hostIdentityProvider;
     }
 
     public async Task<IReadOnlyList<UserAccount>> GetAllAsync()
@@ -64,6 +66,55 @@ FROM dbo.Users
 WHERE IsActive = 1
   AND Username = @login
   AND PasswordHash = @providedHash", new { login, providedHash });
+    }
+
+    public async Task<UserAccount?> FindActiveByRememberedDeviceAsync(string username)
+    {
+        var login = (username ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(login))
+        {
+            return null;
+        }
+
+        var windowsUserName = _hostIdentityProvider.GetWindowsUserName();
+        var computerName = _hostIdentityProvider.GetComputerName();
+
+        await using var conn = await _connFactory.OpenAsync();
+
+        return await conn.QuerySingleOrDefaultAsync<UserAccount>(@"
+SELECT TOP (1) u.Id, u.Username, u.PasswordHash, u.IsAdmin, u.IsActive
+FROM dbo.Users u
+INNER JOIN dbo.AuthenticatedDevices d ON d.UserId = u.Id
+WHERE u.IsActive = 1
+  AND u.Username = @login
+  AND d.WindowsUserName = @windowsUserName
+  AND d.ComputerName = @computerName", new { login, windowsUserName, computerName });
+    }
+
+    public async Task RememberDeviceAsync(Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            return;
+        }
+
+        var windowsUserName = _hostIdentityProvider.GetWindowsUserName();
+        var computerName = _hostIdentityProvider.GetComputerName();
+
+        await using var conn = await _connFactory.OpenAsync();
+
+        await conn.ExecuteAsync(@"
+MERGE dbo.AuthenticatedDevices AS target
+USING (SELECT @UserId AS UserId, @WindowsUserName AS WindowsUserName, @ComputerName AS ComputerName) AS source
+ON target.UserId = source.UserId
+   AND target.WindowsUserName = source.WindowsUserName
+   AND target.ComputerName = source.ComputerName
+WHEN MATCHED THEN
+    UPDATE SET LastSeenUtc = SYSUTCDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (Id, UserId, WindowsUserName, ComputerName, LastSeenUtc)
+    VALUES (NEWID(), source.UserId, source.WindowsUserName, source.ComputerName, SYSUTCDATETIME());",
+            new { UserId = userId, WindowsUserName = windowsUserName, ComputerName = computerName });
     }
 
     public async Task<UserAccount> AddAsync(string username, string password, bool isAdmin)
