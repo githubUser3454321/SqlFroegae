@@ -57,7 +57,20 @@
             <SolidColorBrush x:Key="AccentButtonForeground" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#99FFFFFF" />
+            <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#FF5A5A5A" />
+
+            <!-- Keep disabled action buttons clearly readable on bright and neutral backgrounds. -->
+            <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#FFE6E6E6" />
+            <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#FFB8B8B8" />
+            <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#FF5A5A5A" />
+
+            <!-- ContentDialog action buttons inherit dedicated disabled brushes. -->
+            <SolidColorBrush x:Key="ContentDialogButtonBackgroundDisabled" Color="#FFE6E6E6" />
+            <SolidColorBrush x:Key="ContentDialogButtonBorderBrushDisabled" Color="#FFB8B8B8" />
+            <SolidColorBrush x:Key="ContentDialogButtonForegroundDisabled" Color="#FF5A5A5A" />
+            <SolidColorBrush x:Key="ContentDialogPrimaryButtonBackgroundDisabled" Color="#FFE6E6E6" />
+            <SolidColorBrush x:Key="ContentDialogPrimaryButtonBorderBrushDisabled" Color="#FFB8B8B8" />
+            <SolidColorBrush x:Key="ContentDialogPrimaryButtonForegroundDisabled" Color="#FF5A5A5A" />
 
             <!-- Improve checkmark contrast for checked/indeterminate CheckBox states. -->
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#FF0B1D3A" />
@@ -66,6 +79,12 @@
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminate" Color="#FF0B1D3A" />
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePointerOver" Color="#FF0B1D3A" />
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePressed" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="#FF4AA3FF" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="#FF2E7FD9" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed" Color="#FF2467B1" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminate" Color="#FF4AA3FF" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePointerOver" Color="#FF2E7FD9" />
+            <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillIndeterminatePressed" Color="#FF2467B1" />
 
             <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
         </ResourceDictionary>
