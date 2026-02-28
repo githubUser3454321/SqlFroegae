@@ -94,8 +94,7 @@
 
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Main-Modul" Opacity="0.75"/>
-                        <AutoSuggestBox x:Name="MainModuleAutoSuggest"
-                                        PlaceholderText="Modul auswählen"
+                        <AutoSuggestBox PlaceholderText="Modul auswählen"
                                         Text="{Binding MainModule, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         TextChanged="MainModuleAutoSuggest_TextChanged"
                                         SuggestionChosen="MainModuleAutoSuggest_SuggestionChosen"
