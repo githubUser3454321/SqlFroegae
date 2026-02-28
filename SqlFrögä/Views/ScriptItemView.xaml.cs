@@ -48,12 +48,52 @@ public sealed partial class ScriptItemView : Page
             VM.MainModule = moduleName;
     }
 
+    private void CustomerCodeAutoSuggest_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox autoSuggest)
+            UpdateCustomerCodeSuggestions(autoSuggest, autoSuggest.Text);
+    }
+
+    private void CustomerCodeAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.SuggestionChosen)
+            return;
+
+        UpdateCustomerCodeSuggestions(sender, sender.Text);
+    }
+
+    private void CustomerCodeAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is not CustomerMappingItem mapping)
+            return;
+
+        sender.Text = mapping.CustomerCode;
+
+        if (sender == SelectedCustomerCodeAutoSuggest)
+            VM.SelectedCustomerCode = mapping.CustomerCode;
+        else if (sender == ScriptCustomerCodeAutoSuggest)
+            VM.ScriptCustomerCode = mapping.CustomerCode;
+    }
+
     private void UpdateModuleSuggestions(AutoSuggestBox control, string? typedText)
     {
         var typed = typedText?.Trim() ?? string.Empty;
         control.ItemsSource = VM.AvailableModules
             .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(25)
+            .ToList();
+    }
+
+    private void UpdateCustomerCodeSuggestions(AutoSuggestBox control, string? typedText)
+    {
+        var typed = typedText?.Trim() ?? string.Empty;
+        control.ItemsSource = VM.CustomerMappings
+            .Where(x =>
+                string.IsNullOrWhiteSpace(typed)
+                || x.CustomerCode.Contains(typed, StringComparison.OrdinalIgnoreCase)
+                || x.CustomerName.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.CustomerCode, StringComparer.OrdinalIgnoreCase)
             .Take(25)
             .ToList();
     }

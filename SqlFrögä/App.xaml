@@ -50,6 +50,15 @@
             <SolidColorBrush x:Key="SystemAccentColorDark2" Color="#FF2467B1" />
             <SolidColorBrush x:Key="SystemAccentColorDark3" Color="#FF1C4F86" />
 
+            <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF2E7FD9" />
+            <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF2467B1" />
+            <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#FF1C4F86" />
+            <SolidColorBrush x:Key="AccentButtonBackgroundDisabled" Color="#661C4F86" />
+            <SolidColorBrush x:Key="AccentButtonForeground" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#99FFFFFF" />
+
             <!-- Improve checkmark contrast for checked/indeterminate CheckBox states. -->
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#FF0B1D3A" />
             <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#FF0B1D3A" />
