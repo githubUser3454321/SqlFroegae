@@ -1,6 +1,6 @@
 /*
     Initiale Benutzeranlage (mit und ohne Adminrechte)
-    Passwort-Hashing analog zur App-Logik: SHA-256 als HEX-String.
+    Passwort-Hashing analog zur App-Logik: SHA-256 über NVARCHAR (UTF-16LE) als HEX-String.
 */
 
 IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
@@ -26,7 +26,7 @@ BEGIN
     (
         NEWID(),
         N'admin',
-        UPPER(CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', CONVERT(VARBINARY(MAX), @AdminPassword)), 2)),
+        UPPER(CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', @AdminPassword), 2)),
         1,
         1
     );
@@ -39,7 +39,7 @@ BEGIN
     (
         NEWID(),
         N'user',
-        UPPER(CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', CONVERT(VARBINARY(MAX), @StandardPassword)), 2)),
+        UPPER(CONVERT(VARCHAR(64), HASHBYTES('SHA2_256', @StandardPassword), 2)),
         0,
         1
     );

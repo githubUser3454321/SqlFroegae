@@ -102,7 +102,7 @@ public sealed class InMemoryUserRepository : IUserRepository
 
     private static string HashPassword(string password)
     {
-        var bytes = Encoding.UTF8.GetBytes(password ?? string.Empty);
+        var bytes = Encoding.Unicode.GetBytes(password ?? string.Empty);
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash);
     }
