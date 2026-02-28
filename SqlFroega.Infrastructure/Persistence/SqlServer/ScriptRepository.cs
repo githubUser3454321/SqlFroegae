@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Options;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
+using SqlFroega.Domain;
+using SqlFroega.Infrastructure.Parsing;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +17,7 @@ public sealed class ScriptRepository : IScriptRepository
 {
     private readonly ISqlConnectionFactory _connFactory;
     private readonly SqlServerOptions _opt;
+    private readonly SqlObjectReferenceExtractor _referenceExtractor = new();
     private bool? _supportsSoftDelete;
 
     public ScriptRepository(ISqlConnectionFactory connFactory, IOptions<SqlServerOptions> options)
@@ -403,6 +406,10 @@ SELECT @resolvedId;
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var id = await conn.ExecuteScalarAsync<Guid>(new CommandDefinition(sql, args, cancellationToken: ct));
+
+        var refs = _referenceExtractor.Extract(script.Content);
+        await RebuildScriptReferencesAsync(conn, id, refs, ct);
+
         return id;
     }
 
@@ -550,6 +557,76 @@ ORDER BY s.{validFromColumn} DESC;";
         string? ChangedBy,
         string? Content
     );
+
+    private sealed record ScriptReferenceRow(
+        Guid ScriptId,
+        string ObjectName,
+        DbObjectType ObjectType
+    );
+
+    public async Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(string objectName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(objectName))
+            return Array.Empty<ScriptReferenceItem>();
+
+        const string sql = @"
+SELECT r.ScriptId,
+       r.ObjectName,
+       r.ObjectType
+FROM {0} r
+WHERE r.ObjectName = @objectName
+ORDER BY r.CreatedAt DESC;";
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        var rows = await conn.QueryAsync<ScriptReferenceRow>(
+            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName = objectName.Trim() }, cancellationToken: ct));
+
+        return rows.Select(x => new ScriptReferenceItem(x.ScriptId, x.ObjectName, x.ObjectType)).ToList();
+    }
+
+    private async Task RebuildScriptReferencesAsync(System.Data.Common.DbConnection conn, Guid scriptId, IReadOnlyList<DbObjectRef> refs, CancellationToken ct)
+    {
+        await EnsureScriptRefsTableAsync(conn, ct);
+
+        var deleteSql = $"DELETE FROM {_opt.ScriptObjectRefsTable} WHERE ScriptId = @scriptId;";
+        await conn.ExecuteAsync(new CommandDefinition(deleteSql, new { scriptId }, cancellationToken: ct));
+
+        if (refs.Count == 0)
+            return;
+
+        var insertSql = $@"
+INSERT INTO {_opt.ScriptObjectRefsTable}(ScriptId, ObjectName, ObjectType, CreatedAt)
+VALUES(@ScriptId, @ObjectName, @ObjectType, SYSUTCDATETIME());";
+
+        var rows = refs.Select(x => new
+        {
+            ScriptId = scriptId,
+            ObjectName = x.Name,
+            ObjectType = (int)x.Type
+        });
+
+        await conn.ExecuteAsync(new CommandDefinition(insertSql, rows, cancellationToken: ct));
+    }
+
+    private async Task EnsureScriptRefsTableAsync(System.Data.Common.DbConnection conn, CancellationToken ct)
+    {
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptObjectRefsTable);
+
+        const string sql = @"
+IF OBJECT_ID(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'U') IS NULL
+BEGIN
+    DECLARE @sql nvarchar(max) = N'CREATE TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(
+        ScriptId uniqueidentifier NOT NULL,
+        ObjectName nvarchar(512) NOT NULL,
+        ObjectType int NOT NULL,
+        CreatedAt datetime2 NOT NULL CONSTRAINT DF_ScriptObjectRefs_CreatedAt DEFAULT SYSUTCDATETIME()
+    );
+    CREATE INDEX IX_ScriptObjectRefs_ObjectName ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ObjectName);';
+    EXEC(@sql);
+END";
+
+        await conn.ExecuteAsync(new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
+    }
 
     private static IReadOnlyList<string> ParseTags(string? tags)
     {
