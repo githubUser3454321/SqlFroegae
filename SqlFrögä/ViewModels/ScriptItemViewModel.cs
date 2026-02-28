@@ -348,8 +348,9 @@ public partial class ScriptItemViewModel : ObservableObject
             if (!lockResult.Acquired)
                 throw new InvalidOperationException($"Dieser Datensatz wird aktuell von '{lockResult.LockedBy ?? "einem anderen Anwender"}' bearbeitet.");
 
+            var awarenessBeforeReload = _editAwareness;
             await ReloadCurrentRecordAsync();
-            _editAwareness = await _repo.GetEditAwarenessAsync(_id, username);
+            _editAwareness = awarenessBeforeReload ?? await _repo.GetEditAwarenessAsync(_id, username);
             Error = null;
             IsEditUnlocked = true;
         }
@@ -663,7 +664,10 @@ public partial class ScriptItemViewModel : ObservableObject
         if (_hasEditAwarenessWarning || !IsEditUnlocked || _id == Guid.Empty)
             return;
 
-        var awareness = await _repo.GetEditAwarenessAsync(_id, App.CurrentUser?.Username) ?? _editAwareness;
+        var awareness = _editAwareness;
+        if (awareness is null)
+            awareness = await _repo.GetEditAwarenessAsync(_id, App.CurrentUser?.Username);
+
         _editAwareness = awareness;
         if (awareness?.LastViewedAt is null || awareness.LastUpdatedAt is null)
             return;
@@ -675,15 +679,15 @@ public partial class ScriptItemViewModel : ObservableObject
         if (awareness.LastUpdatedAt <= awareness.LastViewedAt)
             return;
 
-        var age = DateTime.UtcNow - awareness.LastUpdatedAt.Value;
-        if (age > TimeSpan.FromDays(10))
+        var viewedAge = DateTime.UtcNow - awareness.LastViewedAt.Value;
+        if (viewedAge > TimeSpan.FromDays(10))
             return;
 
         _hasEditAwarenessWarning = true;
 
-        var days = Math.Max(0, (int)Math.Floor(age.TotalDays));
-        var message = $"Achtung: Der Datensatz wurde von '{awareness.LastUpdatedBy ?? "einem anderen Anwender"}' vor {days} Tagen aktualisiert. " +
-                      "Du könntest Änderungen überschreiben, wenn dein SQL-Script nicht auf der aktuellen Version basiert.";
+        var days = Math.Max(0, (int)Math.Floor(viewedAge.TotalDays));
+        var message = $"Achtung: Seit deinem letzten Öffnen vor {days} Tagen wurde der Datensatz von '{awareness.LastUpdatedBy ?? "einem anderen Anwender"}' aktualisiert. " +
+                      "Bitte prüfe die aktuelle Version, damit du keine Änderungen überschreibst und dein SQL-Script auf der neuesten Basis aufsetzt.";
 
         if (WarningRequested is not null)
             await WarningRequested.Invoke(message);
