@@ -602,9 +602,9 @@ UPDATE {_opt.ScriptsTable}
 SET Module = CASE WHEN Module = @moduleName THEN NULL ELSE Module END,
     RelatedModules = CASE
         WHEN COALESCE(RelatedModules, N'') = N'' THEN RelatedModules
-        ELSE REPLACE(REPLACE(REPLACE(COALESCE(RelatedModules, N''), CONCAT('"', @moduleName, '"'), N''), ',,', ','), '[,', '[')
+        ELSE REPLACE(REPLACE(REPLACE(COALESCE(RelatedModules, N''), CONCAT('""', @moduleName, '""'), N''), ',,', ','), '[,', '[')
     END
-WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleName + '%';";
+WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleName + '%';"; // string litteral bug fixxed by relacing <CONCAT('"', @moduleName, '"')> with <CONCAT('""', @moduleName, '""')>
 
         await conn.ExecuteAsync(new CommandDefinition(scriptsSql, new { moduleName = normalized }, cancellationToken: ct));
         await conn.ExecuteAsync(new CommandDefinition($"DELETE FROM {_opt.ModulesTable} WHERE Name = @moduleName", new { moduleName = normalized }, cancellationToken: ct));
