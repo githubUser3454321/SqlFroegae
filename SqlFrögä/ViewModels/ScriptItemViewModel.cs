@@ -135,11 +135,19 @@ public partial class ScriptItemViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(MappingCustomerCode) || string.IsNullOrWhiteSpace(MappingCustomerName))
             throw new InvalidOperationException("Customer code and name are required for mapping.");
 
-        var existing = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, MappingCustomerCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        var normalizedCode = MappingCustomerCode.Trim();
+        var existing = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase));
+        var duplicate = CustomerMappings.FirstOrDefault(x =>
+            string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase) &&
+            x.CustomerId != existing?.CustomerId);
+
+        if (duplicate is not null)
+            throw new InvalidOperationException($"A mapping for customer code '{normalizedCode}' already exists. Please edit the existing mapping instead of creating a duplicate.");
+
         var item = new CustomerMappingItem
         {
             CustomerId = existing?.CustomerId ?? Guid.NewGuid(),
-            CustomerCode = MappingCustomerCode.Trim(),
+            CustomerCode = normalizedCode,
             CustomerName = MappingCustomerName.Trim(),
             DatabaseUser = string.IsNullOrWhiteSpace(MappingDatabaseUser) ? "om" : MappingDatabaseUser.Trim(),
             ObjectPrefix = string.IsNullOrWhiteSpace(MappingObjectPrefix) ? "om_" : MappingObjectPrefix.Trim()
@@ -152,13 +160,21 @@ public partial class ScriptItemViewModel : ObservableObject
     [RelayCommand]
     private async Task CopyRenderedAsync()
     {
-        var rendered = await BuildRenderedSqlAsync();
-        if (string.IsNullOrWhiteSpace(rendered))
-            return;
+        try
+        {
+            var rendered = await BuildRenderedSqlAsync();
+            if (string.IsNullOrWhiteSpace(rendered))
+                return;
 
-        var dp = new DataPackage();
-        dp.SetText(rendered);
-        Clipboard.SetContent(dp);
+            var dp = new DataPackage();
+            dp.SetText(rendered);
+            Clipboard.SetContent(dp);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
     }
 
     [RelayCommand]
@@ -282,7 +298,14 @@ public partial class ScriptItemViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(SelectedCustomerCode))
             return sql;
 
-        return await _renderService.RenderForCustomerAsync(sql, SelectedCustomerCode.Trim());
+        var normalizedCode = SelectedCustomerCode.Trim();
+        var matchingMappingsCount = CustomerMappings
+            .Count(x => string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingMappingsCount > 1)
+            throw new InvalidOperationException($"Multiple mappings found for customer code '{normalizedCode}'. Please clean up duplicate customer mappings before rendering.");
+
+        return await _renderService.RenderForCustomerAsync(sql, normalizedCode);
     }
 
     private async Task LoadMappingsAsync()

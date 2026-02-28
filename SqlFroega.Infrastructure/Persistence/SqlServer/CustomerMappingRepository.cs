@@ -42,14 +42,19 @@ ORDER BY CustomerCode;
         await EnsureTableAsync(ct);
 
         const string sql = """
-SELECT TOP (1) CustomerId, CustomerCode, CustomerName, DatabaseUser, ObjectPrefix
+SELECT CustomerId, CustomerCode, CustomerName, DatabaseUser, ObjectPrefix
 FROM dbo.CustomerMappings
 WHERE CustomerCode = @customerCode;
 """;
 
         await using var conn = await _connFactory.OpenAsync(ct);
-        return await conn.QuerySingleOrDefaultAsync<CustomerMappingItem>(
-            new CommandDefinition(sql, new { customerCode = customerCode.Trim() }, cancellationToken: ct));
+        var rows = (await conn.QueryAsync<CustomerMappingItem>(
+            new CommandDefinition(sql, new { customerCode = customerCode.Trim() }, cancellationToken: ct))).ToList();
+
+        if (rows.Count <= 1)
+            return rows.SingleOrDefault();
+
+        throw new InvalidOperationException($"Multiple customer mappings found for customer code '{customerCode.Trim()}'. Please keep customer codes unique.");
     }
 
     public async Task UpsertAsync(CustomerMappingItem mapping, CancellationToken ct = default)
@@ -96,6 +101,16 @@ BEGIN
         ObjectPrefix nvarchar(128) NOT NULL
     );
 
+    CREATE UNIQUE INDEX UX_CustomerMappings_CustomerCode ON dbo.CustomerMappings(CustomerCode);
+END
+
+IF OBJECT_ID('dbo.CustomerMappings', 'U') IS NOT NULL
+AND NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.CustomerMappings')
+      AND name = 'UX_CustomerMappings_CustomerCode')
+BEGIN
     CREATE UNIQUE INDEX UX_CustomerMappings_CustomerCode ON dbo.CustomerMappings(CustomerCode);
 END
 
