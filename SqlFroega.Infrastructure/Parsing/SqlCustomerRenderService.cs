@@ -128,7 +128,6 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         {
             var generator = new Sql160ScriptGenerator(new SqlScriptGeneratorOptions
             {
-                KeywordCasing = KeywordCasing.PreserveCase,
                 IncludeSemicolons = true,
                 NewLineBeforeFromClause = false,
                 NewLineBeforeWhereClause = false
