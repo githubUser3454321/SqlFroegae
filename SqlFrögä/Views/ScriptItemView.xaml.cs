@@ -215,6 +215,7 @@ public sealed partial class ScriptItemView : Page
         var selectedFlags = new ObservableCollection<string>(VM.SelectedFlags);
         var filteredFlags = new ObservableCollection<string>();
         var selectedSet = new HashSet<string>(selectedFlags, StringComparer.OrdinalIgnoreCase);
+        var syncingSelection = false;
 
         var list = new ListView
         {
@@ -236,9 +237,17 @@ public sealed partial class ScriptItemView : Page
             foreach (var flag in matches)
                 filteredFlags.Add(flag);
 
-            list.SelectedItems.Clear();
-            foreach (var flag in filteredFlags.Where(selectedSet.Contains))
-                list.SelectedItems.Add(flag);
+            syncingSelection = true;
+            try
+            {
+                list.SelectedItems.Clear();
+                foreach (var flag in filteredFlags.Where(selectedSet.Contains))
+                    list.SelectedItems.Add(flag);
+            }
+            finally
+            {
+                syncingSelection = false;
+            }
         }
 
         var search = new AutoSuggestBox { PlaceholderText = "Flag suchen", Width = 420 };
@@ -267,12 +276,16 @@ public sealed partial class ScriptItemView : Page
             ApplyFilter(flag);
         };
 
-        list.SelectionChanged += (_, _) =>
+        list.SelectionChanged += (_, e) =>
         {
-            selectedSet = list.SelectedItems
-                .OfType<string>()
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (syncingSelection)
+                return;
+
+            foreach (var added in e.AddedItems.OfType<string>())
+                selectedSet.Add(added);
+
+            foreach (var removed in e.RemovedItems.OfType<string>())
+                selectedSet.Remove(removed);
         };
 
         var createButton = new Button { Content = "Neu erstellen", HorizontalAlignment = HorizontalAlignment.Left };
