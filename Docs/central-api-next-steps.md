@@ -4,7 +4,7 @@ Dieses Dokument beschreibt ein pragmatisches Vorgehen für **eine einzige zentra
 
 ## Umsetzungsstand (aktualisiert)
 
-- **Status gesamt:** **Partialy Done** (v1-Endpoints inkl. Admin-User-Endpoint, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und vollständige Produktivhärtung sind weiter offen).
+- **Status gesamt:** **Partialy Done** (v1-Endpoints inkl. Admin-User-Endpoint, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging, SQL-persistenter Refresh-Token-Store (bei konfigurierter DB) und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und vollständige Produktivhärtung sind weiter offen).
 
 ## Zielbild
 
@@ -40,7 +40,7 @@ Die bestehenden Repositories sind bereits ein gutes API-Backbone. Erste Endpunkt
 Da die API zentral läuft und von mehreren Tools genutzt wird:
 
 - Kurzlebige **JWT Access Tokens** (z. B. 15 Minuten) **DONE**
-- **Refresh Tokens** (z. B. 8–24h, rotierend) **Partialy Done** (aktuell in-memory, noch ohne persistente Speicherung/Revocation über Restart hinweg)
+- **Refresh Tokens** (z. B. 8–24h, rotierend) **Partialy Done** (SQL-persistenter Store implementiert, Fallback auf In-Memory wenn keine DB-Connection konfiguriert ist)
 - Rollen/Scopes:
   - `scripts.read` **DONE**
   - `scripts.write` **DONE**

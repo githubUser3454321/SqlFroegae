@@ -22,7 +22,13 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IHostIdentityProvider, HostIdentityProvider>();
-builder.Services.AddSingleton<IRefreshTokenStore, InMemoryRefreshTokenStore>();
+builder.Services.AddSingleton<IRefreshTokenStore>(sp =>
+{
+    var sqlOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SqlServerOptions>>().Value;
+    return string.IsNullOrWhiteSpace(sqlOptions.ConnectionString)
+        ? new InMemoryRefreshTokenStore()
+        : new SqlRefreshTokenStore(sp.GetRequiredService<ISqlConnectionFactory>());
+});
 builder.Services.AddScoped<IScriptRepository, ScriptRepository>();
 builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
@@ -135,7 +141,7 @@ api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepo
         : new[] { "scripts.read", "scripts.write", "mappings.read" };
 
     var accessToken = CreateAccessToken(user.Username, user.Id, scopes, jwtOptions, signingKey);
-    var refresh = refreshTokenStore.Issue(user.Username, scopes, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
+    var refresh = await refreshTokenStore.IssueAsync(user.Username, scopes, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
 
     return Results.Ok(new LoginResponse(
         accessToken.Token,
@@ -145,7 +151,7 @@ api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepo
         refresh.ExpiresAtUtc));
 });
 
-api.MapPost("/auth/refresh", (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
+api.MapPost("/auth/refresh", async (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
 {
     if (string.IsNullOrWhiteSpace(request.RefreshToken))
     {
@@ -155,7 +161,7 @@ api.MapPost("/auth/refresh", (RefreshTokenRequest request, IRefreshTokenStore re
         });
     }
 
-    var rotated = refreshTokenStore.Rotate(request.RefreshToken, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
+    var rotated = await refreshTokenStore.RotateAsync(request.RefreshToken, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
     if (rotated is null)
     {
         return Results.Unauthorized();
@@ -171,11 +177,11 @@ api.MapPost("/auth/refresh", (RefreshTokenRequest request, IRefreshTokenStore re
         rotated.RefreshTokenExpiresAtUtc));
 });
 
-api.MapPost("/auth/logout", (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
+api.MapPost("/auth/logout", async (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
 {
     if (!string.IsNullOrWhiteSpace(request.RefreshToken))
     {
-        refreshTokenStore.Revoke(request.RefreshToken);
+        await refreshTokenStore.RevokeAsync(request.RefreshToken);
     }
 
     return Results.NoContent();
