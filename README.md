@@ -1,90 +1,107 @@
 # SqlFrögä (SqlFroega)
 
-SqlFrögä is a Windows desktop tool (WinUI 3, .NET 8) for managing SQL scripts in a central SQL Server database.
+**SqlFrögä** ist eine WinUI-3-Desktopanwendung (.NET 8) zur zentralen Verwaltung von SQL-Skripten in SQL Server.
+Der Fokus liegt auf **schneller Auffindbarkeit**, **kontrollierter Bearbeitung** und **kundenabhängiger SQL-Generierung**.
 
-It is built to help developers:
-- find scripts quickly,
-- view and edit script content and metadata,
-- track historical versions (temporal tables),
-- and render customer-specific SQL variants from canonical tenant-style scripts.
+## Überblick
 
-## What this project contains
+Das Projekt ist als mehrschichtige Lösung aufgebaut:
 
-The solution is split into layered projects:
+- `SqlFrögä/` – WinUI-Frontend, Navigation, Dependency Injection
+- `SqlFroega.Application/` – Anwendungsmodelle und Abstraktionen
+- `SqlFroega.Domain/` – Domain-Typen und Kernkonzepte
+- `SqlFroega.Infrastructure/` – SQL-Server-Repositories, Parsing und Rendering
+- `SqlFroega.Tests/` – Unit- und Integrationsnahe Tests
 
-- `SqlFrögä/` – WinUI desktop application (UI + dependency wiring)
-- `SqlFroega.Application/` – application contracts and models
-- `SqlFroega.Domain/` – core domain entities/enums
-- `SqlFroega.Infrastructure/` – SQL Server persistence + SQL parsing/rendering logic
-- `SqlFroega.Tests/` – automated tests
+## Aktuelle Features
 
-## Core capabilities
+### 1) Skriptbibliothek & Suche
 
-- Script search with filters (scope, customer, module, tags, referenced object)
-- Script create, preview, update, delete (including optional soft-delete support)
-- Script history retrieval for temporal data
-- SQL object reference extraction and lookup support
-- Customer mapping + rendered SQL copy flow for customer-specific contexts
-- Metadata catalog (modules/tags)
+- Volltext-/Metadatensuche mit kombinierbaren Filtern:
+  - Scope (Global / Customer / Module)
+  - Hauptmodul, abhängige Module
+  - Tags/Flags
+  - referenzierte SQL-Objekte
+  - Kundenkürzel
+- Optionales Einbeziehen von gelöschten Einträgen und Historie in die Suche.
+- Metadaten-Katalog für Module und Tags mit schneller Filterung im UI.
 
-## Login process
+### 2) Skriptbearbeitung mit Schutzmechanismen
 
-- User authentication checks `dbo.Users` first.
-- If `dbo.Users` contains **no** entries, a fallback fake admin is accepted with credentials `admin` / `admin`.
-- If at least one user exists in `dbo.Users`, only active DB users are accepted for username/password login.
-- Optional **"Angemeldet bleiben"** uses `dbo.AuthenticatedDevices` with `(UserId, WindowsUserName, ComputerName)`.
-- On app startup, a matching `(WindowsUserName, ComputerName)` entry logs the mapped active user in automatically (no password prompt).
-  - Next login can succeed without password when username + current Windows user + current computer name match a remembered device.
-  - If Windows account/device differs, normal password login is required again.
-- `WindowsUserName` is resolved with fallback (`USERNAME`/`Environment.UserName`/`USER`/`LOGNAME`), so offline/local VM sign-ins are supported too.
+- Erstellen, Bearbeiten und Löschen von Skripten.
+- Unterstützung für:
+  - Hauptmodul + Related Modules
+  - Tags/Flags
+  - Kundenzuordnung pro Skript
+  - Beschreibung/Metadaten
+- Historie-Ansicht (temporal-basierte Versionen) inkl. Wiederherstellen eines historischen Inhalts in den Editor.
+- Bearbeitungssperren (Edit Locks), damit Datensätze nicht parallel überschrieben werden.
+- Edit-Awareness-Hinweis, wenn ein Skript seit dem letzten Öffnen von einer anderen Person geändert wurde.
+- Änderungsgrund verpflichtend, sobald sich SQL-Inhalt gegenüber der geladenen Version ändert.
 
-## Technology stack
+### 3) Kunden-Mapping & SQL-Rendering
+
+- Verwaltung von Kunden-Mappings (`CustomerCode`, `DatabaseUser`, `ObjectPrefix`).
+- Rendering eines kanonischen SQL-Skripts für einen konkreten Kunden.
+- Copy-Workflow für:
+  - Original-SQL
+  - gerendertes Kunden-SQL
+- Automatische Normalisierung beim Speichern (DB-User/Präfix), inkl. Schutz bei uneindeutigen Mapping-Paaren.
+
+### 4) Benutzer- und Zugriffsverwaltung
+
+- Login gegen `dbo.Users` (aktive Benutzer).
+- Fallback-Bootstrap-Login `admin/admin`, solange noch keine Benutzer in `dbo.Users` existieren.
+- „Angemeldet bleiben“ pro Gerät über `dbo.AuthenticatedDevices` (Windows-User + Computername).
+- Admin-Bereiche für:
+  - Benutzer anlegen/deaktivieren/reaktivieren
+  - Module anlegen/umbenennen/löschen
+  - Kunden-Mappings pflegen
+
+## Technologie-Stack
 
 - .NET 8
-- WinUI 3 desktop app
+- WinUI 3
 - CommunityToolkit.Mvvm
-- Microsoft.Extensions.DependencyInjection / Hosting abstractions
-- SQL Server backend
-- Microsoft.SqlServer.TransactSql.ScriptDom for SQL parsing and AST-based transforms
+- Microsoft.Extensions.DependencyInjection
+- SQL Server
+- Microsoft.SqlServer.TransactSql.ScriptDom
 
-## Getting started
+## Einrichtung
 
-### 1) Prerequisites
+### Voraussetzungen
 
-- Windows 10/11 with WinUI 3 support
+- Windows 10/11
 - .NET 8 SDK
-- SQL Server instance reachable from the app
+- Erreichbare SQL-Server-Instanz
 
-### 2) Configure database connection
+### Konfiguration
 
-Connection options are currently wired in `SqlFrögä/App.xaml.cs` (see `SqlServerOptions` setup).
-Adjust these values for your environment:
+Die Datenbankkonfiguration erfolgt derzeit in `SqlFrögä/App.xaml.cs` über `SqlServerOptions`.
+Wichtige Parameter:
 
 - `ConnectionString`
 - `ScriptsTable`
 - `CustomersTable`
-- optional flags like `UseFullTextSearch`, `JoinCustomers`, and `EnableSoftDelete`
+- `ModulesTable`
+- optional: `UseFullTextSearch`, `JoinCustomers`, `EnableSoftDelete`
 
-### 3) Build
+Zusätzliche SQL-Hilfsskripte liegen in `Docs/` (z. B. Seed für Benutzer und Tabelle für „Angemeldet bleiben“).
+
+## Build & Test
 
 ```bash
 dotnet build "SqlFrögä.slnx"
 ```
 
-### 4) Run tests
-
 ```bash
 dotnet test "SqlFrögä.slnx"
 ```
 
-### 5) Run the app
+## Anwendung starten
 
-Open the solution in Visual Studio (Windows) and run the `SqlFrögä` startup project.
-
-## Notes
-
-- The app expects a SQL schema that includes script/customer-related tables used by the repositories.
-- Some advanced behavior (temporal history, full-text search, soft delete) depends on database-side configuration.
+Die App wird über Visual Studio unter Windows gestartet (`SqlFrögä` als Startup-Projekt).
 
 ---
 
+Bei Bedarf kann die README im nächsten Schritt um ein kurzes Architekturdiagramm sowie ein konkretes Datenbankschema-Beispiel erweitert werden.
