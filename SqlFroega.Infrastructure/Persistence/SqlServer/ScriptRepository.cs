@@ -885,14 +885,6 @@ BEGIN
     EXEC(@sqlDropCreatedAtColumn);
 END
 
-
-DECLARE @sqlDeduplicate nvarchar(max) = N';WITH dedupe AS (
-    SELECT ROW_NUMBER() OVER (PARTITION BY ScriptId, ObjectName, ObjectType ORDER BY (SELECT NULL)) AS rn
-    FROM ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'
-)
-DELETE FROM dedupe WHERE rn > 1;';
-EXEC(@sqlDeduplicate);
-
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes i
     INNER JOIN sys.tables t ON t.object_id = i.object_id
@@ -902,6 +894,13 @@ IF NOT EXISTS (
       AND i.name = 'UX_ScriptObjectRefs_ScriptId_ObjectName_ObjectType'
 )
 BEGIN
+    DECLARE @sqlDeduplicate nvarchar(max) = N';WITH dedupe AS (
+        SELECT ROW_NUMBER() OVER (PARTITION BY ScriptId, ObjectName, ObjectType ORDER BY (SELECT NULL)) AS rn
+        FROM ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'
+    )
+    DELETE FROM dedupe WHERE rn > 1;';
+    EXEC(@sqlDeduplicate);
+
     DECLARE @sqlCreateUniqueIndex nvarchar(max) = N'CREATE UNIQUE INDEX UX_ScriptObjectRefs_ScriptId_ObjectName_ObjectType ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ScriptId, ObjectName, ObjectType);';
     EXEC(@sqlCreateUniqueIndex);
 END
