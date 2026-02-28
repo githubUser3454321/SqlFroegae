@@ -19,6 +19,7 @@ public sealed class UserRepositoryTests
         Assert.NotEqual("secret", byCredentials.PasswordHash);
     }
 
+
     [Fact]
     public async Task Hashing_UsesSameDigestAsSqlNVarChar()
     {
@@ -51,5 +52,20 @@ public sealed class UserRepositoryTests
 
         Assert.True(deactivated);
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task Reactivate_RestoresUserLogin()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("inactive", "secret", isAdmin: true);
+        await repo.DeactivateAsync(user.Id);
+
+        var reactivated = await repo.ReactivateAsync(user.Id);
+        var result = await repo.FindActiveByCredentialsAsync("inactive", "secret");
+
+        Assert.True(reactivated);
+        Assert.NotNull(result);
     }
 }

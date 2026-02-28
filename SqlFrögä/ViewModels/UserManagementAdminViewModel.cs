@@ -122,4 +122,37 @@ public partial class UserManagementAdminViewModel : ObservableObject
             IsBusy = false;
         }
     }
+    [RelayCommand]
+    private async Task ReactivateSelectedAsync()
+    {
+        if (SelectedUser is null)
+        {
+            Error = "Bitte zuerst einen Benutzer auswählen.";
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+
+            var ok = await _userRepository.ReactivateAsync(SelectedUser.Id);
+            if (!ok)
+            {
+                Error = "Benutzer konnte nicht reaktiviert werden.";
+                return;
+            }
+
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
 }

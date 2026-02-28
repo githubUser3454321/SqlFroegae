@@ -8,4 +8,5 @@ public interface IUserRepository
     Task<UserAccount?> FindActiveByCredentialsAsync(string username, string password);
     Task<UserAccount> AddAsync(string username, string password, bool isAdmin);
     Task<bool> DeactivateAsync(Guid userId);
+    Task<bool> ReactivateAsync(Guid userId);
 }

@@ -13,7 +13,7 @@ public sealed class InMemoryUserRepository : IUserRepository
         {
             Id = Guid.NewGuid(),
             Username = "admin",
-            PasswordHash = HashPassword("admin"),
+            PasswordHash = HashPassword("admin123"),
             IsAdmin = true,
             IsActive = true
         }
@@ -84,6 +84,22 @@ public sealed class InMemoryUserRepository : IUserRepository
             }
 
             user.IsActive = false;
+            return Task.FromResult(true);
+        }
+    }
+
+
+    public Task<bool> ReactivateAsync(Guid userId)
+    {
+        lock (_sync)
+        {
+            var user = _users.FirstOrDefault(x => x.Id == userId);
+            if (user is null)
+            {
+                return Task.FromResult(false);
+            }
+
+            user.IsActive = true;
             return Task.FromResult(true);
         }
     }
