@@ -46,19 +46,18 @@ Da die API zentral läuft und von mehreren Tools genutzt wird:
 
 Da ihr als Dienstleister in mehreren Firmenkontexten arbeitet:
 
-- API-seitig ein explizites `TenantContext`/`CustomerContext` einführen.
+- API-seitig ein optional `TenantContext`/`CustomerContext` einführen.
 - Jede schreibende Operation mit Kontext kennzeichnen (Header oder Claim).
-- Serverseitige Validierung, dass Benutzer nur erlaubte Kontexte nutzt.
-- Ergebnis: klare Trennung und nachvollziehbare Änderungen.
+
 
 ## 4) Stabilität & Sicherheit vor breitem Rollout
 
 Vor SSMS-/FlowLauncher-Integration:
 
-- Rate Limiting und Request-Größenlimits
+- Rate Limiting und Request-Größenlimits(Viel spielraum)
 - Zentrale strukturierte Logs + Tracing (CorrelationId)
 - Health-Check Endpunkte (`/health/live`, `/health/ready`)
-- Versionierung (`/api/v1/...`) von Anfang an
+- Versionierung (`/api/v1/...`) von Anfang an (zu begin mal nur mit v1 arbeiten, es wird bekannt gegeben ab wann wir auf v2 umstellen)
 - Einheitliches Error-Format (ProblemDetails)
 
 ## 5) SSMS- und FlowLauncher als dünne Adapter
@@ -73,15 +72,13 @@ Vor SSMS-/FlowLauncher-Integration:
 
 - Fokus: ultraschnelle Suche + Aktionen
 - Debounced Querying + lokaler Kurzzeitcache (z. B. 30–120 Sekunden)
-- Klare Tastatur-Shortcuts für „SQL kopieren“ / „Gerendertes SQL kopieren“
+- nach auswahl des resultat klare unterteilung zwischen für „SQL kopieren“ / „Gerendertes SQL kopieren“ (dann kundenkürzel angeben)
 
 ## 6) Migrationspfad ohne Big Bang
-
 1. API v1 mit read-only Endpunkten bereitstellen.
-2. Bestehende WinUI-App optional auf API umstellen (Feature Flag), parallel zur DB-Anbindung.
-3. SSMS/FlowLauncher read-only anbinden.
-4. Schreib-Endpunkte mit Locking + Conflict-Handling freischalten.
-5. Alte Direktzugriffe schrittweise reduzieren.
+2. SSMS/FlowLauncher read-only anbinden.
+3. Schreib-Endpunkte mit Locking + Conflict-Handling freischalten.
+
 
 ## 7) Konkrete 2-Wochen-Planung (Vorschlag)
 
