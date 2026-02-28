@@ -12,6 +12,7 @@ Das Projekt ist als mehrschichtige Lösung aufgebaut:
 - `SqlFroega.Domain/` – Domain-Typen und Kernkonzepte
 - `SqlFroega.Infrastructure/` – SQL-Server-Repositories, Parsing und Rendering
 - `SqlFroega.Tests/` – Unit- und Integrationsnahe Tests
+- `SqlFroega.FlowLauncher/` – FlowLauncher-Plugin (read-only Suche + Copy-Workflows)
 
 ## Aktuelle Features
 
