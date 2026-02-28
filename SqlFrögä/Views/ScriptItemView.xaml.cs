@@ -27,8 +27,35 @@ public sealed partial class ScriptItemView : Page
     {
         base.OnNavigatedTo(e);
 
+        VM.WarningRequested -= OnWarningRequestedAsync;
+        VM.WarningRequested += OnWarningRequestedAsync;
+
         if (e.Parameter is Guid id)
             await VM.LoadAsync(id);
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        VM.WarningRequested -= OnWarningRequestedAsync;
+        _ = VM.ReleaseEditLockAsync();
+    }
+
+    private Task OnWarningRequestedAsync(string message)
+        => ShowSimpleMessageAsync("Hinweis zu zwischenzeitlichen Änderungen", message);
+
+    private async Task ShowSimpleMessageAsync(string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = title,
+            Content = message,
+            CloseButtonText = "Verstanden"
+        };
+
+        ApplyPrimaryDialogStyle(dialog);
+        await dialog.ShowAsync();
     }
 
     private void MainModuleAutoSuggest_GotFocus(object sender, RoutedEventArgs e)

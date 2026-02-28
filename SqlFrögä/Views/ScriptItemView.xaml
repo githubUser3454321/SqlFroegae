@@ -31,7 +31,10 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Content="Save" Click="Save_Click"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Content="🔓 Bearbeiten" Command="{Binding AcquireEditLockCommand}"/>
+                <Button Content="Save" Click="Save_Click" IsEnabled="{Binding IsEditingEnabled}"/>
+            </StackPanel>
             <AutoSuggestBox Grid.Column="2"
                             x:Name="SelectedCustomerCodeAutoSuggest"
                             PlaceholderText="Kundenkürzel (z.B. CSA)"
@@ -77,17 +80,17 @@
 
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Name" Opacity="0.75"/>
-                        <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Key" Opacity="0.75"/>
-                        <TextBox Text="{Binding Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <TextBox Text="{Binding Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Scope" Opacity="0.75"/>
-                        <ComboBox SelectedIndex="{Binding Scope, Mode=TwoWay}" IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}">
+                        <ComboBox SelectedIndex="{Binding Scope, Mode=TwoWay}" IsEnabled="{Binding IsEditingEnabled}">
                             <ComboBoxItem Content="Global"/>
                             <ComboBoxItem Content="Customer"/>
                             <ComboBoxItem Content="Module"/>
@@ -109,7 +112,7 @@
                                         TextChanged="MainModuleAutoSuggest_TextChanged"
                                         SuggestionChosen="MainModuleAutoSuggest_SuggestionChosen"
                                         GotFocus="MainModuleAutoSuggest_GotFocus"
-                                        IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                                        IsEnabled="{Binding IsEditingEnabled}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
@@ -124,7 +127,7 @@
                                      Tapped="RelatedModulesTextBox_Tapped"/>
                             <Button Grid.Column="1" Content="Bearbeiten"
                                     Click="EditRelatedModules_Click"
-                                    IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                                    IsEnabled="{Binding IsEditingEnabled}"/>
                         </Grid>
                     </StackPanel>
 
@@ -138,14 +141,14 @@
                                         GotFocus="CustomerCodeAutoSuggest_GotFocus"
                                         DisplayMemberPath="CustomerCode"
                                         TextMemberPath="CustomerCode"
-                                        IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                                        IsEnabled="{Binding IsEditingEnabled}"/>
                     </StackPanel>
                 </Grid>
 
                 <CheckBox Grid.Row="2"
                           Content="DB-User und Prefix ersetzen (inkl. Sicherheitsprüfung auf USE/DB-Qualifier)"
                           IsChecked="{Binding ReplaceDatabaseUserAndPrefix, Mode=TwoWay}"
-                          IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                          IsEnabled="{Binding IsEditingEnabled}"/>
 
                 <Grid Grid.Row="3" RowSpacing="6">
                     <Grid.RowDefinitions>
@@ -160,7 +163,7 @@
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              FontFamily="Consolas"
-                             IsReadOnly="{Binding IsReadOnlyMode}"
+                             IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}"
                              VerticalAlignment="Stretch"
                              HorizontalAlignment="Stretch"
                              MinHeight="260"
@@ -180,7 +183,7 @@
                             <Button Grid.Column="1"
                                     Content="Flag hinzufügen"
                                     Click="EditFlags_Click"
-                                    IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                                    IsEnabled="{Binding IsEditingEnabled}"/>
                         </Grid>
                     </StackPanel>
                 </Grid>
