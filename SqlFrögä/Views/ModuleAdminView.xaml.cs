@@ -1,6 +1,7 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SqlFroega.ViewModels;
+using System;
 using System.Threading.Tasks;
 
 namespace SqlFroega.Views;
@@ -45,7 +46,7 @@ public sealed partial class ModuleAdminView : Page
             DefaultButton = ContentDialogButton.Close
         };
 
-        var result = await dialog.ShowAsync();
+        var result = await dialog.ShowAsync().AsTask();
         return result == ContentDialogResult.Primary;
     }
 }
