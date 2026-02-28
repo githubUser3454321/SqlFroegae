@@ -32,14 +32,10 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string? _module;
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string _tagsText = "";
-    [ObservableProperty] private string _customerIdText = "";
     [ObservableProperty] private bool _isReadOnlyMode;
 
     [ObservableProperty] private string _selectedCustomerCode = "";
-    [ObservableProperty] private string _mappingCustomerCode = "";
-    [ObservableProperty] private string _mappingCustomerName = "";
-    [ObservableProperty] private string _mappingDatabaseUser = "om";
-    [ObservableProperty] private string _mappingObjectPrefix = "om_";
+    [ObservableProperty] private string _scriptCustomerCode = "";
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
@@ -65,7 +61,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Module = "";
             Description = "";
             TagsText = "";
-            CustomerIdText = "";
+            ScriptCustomerCode = "";
             IsReadOnlyMode = false;
             Error = null;
             ClearHistory();
@@ -87,7 +83,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 Module = "";
                 Description = "Record was deleted. Read-only temporal history is shown.";
                 TagsText = "";
-                CustomerIdText = "";
+                ScriptCustomerCode = "";
                 IsReadOnlyMode = true;
 
                 await TryLoadHistoryAsync();
@@ -103,8 +99,14 @@ public partial class ScriptItemViewModel : ObservableObject
             Module = detail.Module;
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
-            CustomerIdText = detail.CustomerId?.ToString() ?? "";
             IsReadOnlyMode = false;
+
+            ScriptCustomerCode = "";
+            if (detail.CustomerId.HasValue)
+            {
+                var mapping = CustomerMappings.FirstOrDefault(x => x.CustomerId == detail.CustomerId.Value);
+                ScriptCustomerCode = mapping?.CustomerCode ?? string.Empty;
+            }
 
             Scope = detail.ScopeLabel switch
             {
@@ -124,37 +126,6 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
-    }
-
-    [RelayCommand]
-    private async Task RefreshMappingsAsync() => await LoadMappingsAsync();
-
-    [RelayCommand]
-    private async Task UpsertMappingAsync()
-    {
-        if (string.IsNullOrWhiteSpace(MappingCustomerCode) || string.IsNullOrWhiteSpace(MappingCustomerName))
-            throw new InvalidOperationException("Customer code and name are required for mapping.");
-
-        var normalizedCode = MappingCustomerCode.Trim();
-        var existing = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase));
-        var duplicate = CustomerMappings.FirstOrDefault(x =>
-            string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase) &&
-            x.CustomerId != existing?.CustomerId);
-
-        if (duplicate is not null)
-            throw new InvalidOperationException($"A mapping for customer code '{normalizedCode}' already exists. Please edit the existing mapping instead of creating a duplicate.");
-
-        var item = new CustomerMappingItem
-        {
-            CustomerId = existing?.CustomerId ?? Guid.NewGuid(),
-            CustomerCode = normalizedCode,
-            CustomerName = MappingCustomerName.Trim(),
-            DatabaseUser = string.IsNullOrWhiteSpace(MappingDatabaseUser) ? "om" : MappingDatabaseUser.Trim(),
-            ObjectPrefix = string.IsNullOrWhiteSpace(MappingObjectPrefix) ? "om_" : MappingObjectPrefix.Trim()
-        };
-
-        await _mappingRepository.UpsertAsync(item);
-        await LoadMappingsAsync();
     }
 
     [RelayCommand]
@@ -244,11 +215,14 @@ public partial class ScriptItemViewModel : ObservableObject
                 throw new InvalidOperationException("Content is required.");
 
             Guid? customerId = null;
-            if (!string.IsNullOrWhiteSpace(CustomerIdText))
+            if (!string.IsNullOrWhiteSpace(ScriptCustomerCode))
             {
-                if (!Guid.TryParse(CustomerIdText.Trim(), out var parsed))
-                    throw new InvalidOperationException("CustomerId is not a valid GUID.");
-                customerId = parsed;
+                var normalizedCode = ScriptCustomerCode.Trim();
+                var mapping = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase));
+                if (mapping is null)
+                    throw new InvalidOperationException($"Kundenkürzel '{normalizedCode}' wurde nicht gefunden.");
+
+                customerId = mapping.CustomerId;
             }
 
             var tags = (TagsText ?? "")

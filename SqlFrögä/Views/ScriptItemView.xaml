@@ -19,7 +19,6 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" ColumnSpacing="8">
@@ -102,8 +101,13 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="CustomerId (optional)" Opacity="0.75"/>
-                        <TextBox Text="{Binding CustomerIdText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <TextBlock Text="Kundenkürzel (z.B. KDN)" Opacity="0.75"/>
+                        <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. KDN)"
+                                        Text="{Binding ScriptCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        ItemsSource="{Binding CustomerMappings}"
+                                        DisplayMemberPath="CustomerCode"
+                                        TextMemberPath="CustomerCode"
+                                        IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
                     </StackPanel>
                 </Grid>
 
@@ -129,28 +133,7 @@
             </Grid>
         </Border>
 
-        <Expander Grid.Row="2" Header="Kunden-Mapping Verwaltung" IsExpanded="False">
-            <Grid ColumnSpacing="8" RowSpacing="8" Padding="0,8,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <TextBox Grid.Column="0" PlaceholderText="CustomerCode" Text="{Binding MappingCustomerCode, Mode=TwoWay}"/>
-                <TextBox Grid.Column="1" PlaceholderText="CustomerName" Text="{Binding MappingCustomerName, Mode=TwoWay}"/>
-                <TextBox Grid.Column="2" PlaceholderText="DB User" Text="{Binding MappingDatabaseUser, Mode=TwoWay}"/>
-                <TextBox Grid.Column="3" PlaceholderText="Object Prefix" Text="{Binding MappingObjectPrefix, Mode=TwoWay}"/>
-                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6">
-                    <Button Content="Save Mapping" Command="{Binding UpsertMappingCommand}"/>
-                    <Button Content="Refresh" Command="{Binding RefreshMappingsCommand}"/>
-                </StackPanel>
-            </Grid>
-        </Expander>
-
-        <Border Grid.Row="3"
+        <Border Grid.Row="2"
                 CornerRadius="12"
                 BorderThickness="1"
                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
@@ -195,7 +178,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="4" ColumnSpacing="10">
+        <Grid Grid.Row="3" ColumnSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
