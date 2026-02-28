@@ -122,8 +122,15 @@ public sealed class ScriptRepository : IScriptRepository
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
             var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
-            sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.ObjectName IN @objectTokens)");
-            p.Add("@objectTokens", objectTokens);
+            if (objectTokens.Count == 0)
+            {
+                sb.AppendLine("AND 1 = 0");
+            }
+            else
+            {
+                sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.SearchToken IN @objectTokens)");
+                p.Add("@objectTokens", objectTokens);
+            }
         }
 
         sb.AppendLine("ORDER BY s.Name ASC");
@@ -249,8 +256,15 @@ public sealed class ScriptRepository : IScriptRepository
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
             var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
-            sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.ObjectName IN @objectTokens)");
-            p.Add("@objectTokens", objectTokens);
+            if (objectTokens.Count == 0)
+            {
+                sb.AppendLine("      AND 1 = 0");
+            }
+            else
+            {
+                sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.SearchToken IN @objectTokens)");
+                p.Add("@objectTokens", objectTokens);
+            }
         }
 
         sb.AppendLine(")");
@@ -677,14 +691,17 @@ SELECT r.ScriptId,
        r.ObjectType
 FROM {0} r
 WHERE r.ObjectName = @objectName
-   OR r.ObjectName IN @objectTokens
+   OR r.SearchToken IN @objectTokens
 ORDER BY r.CreatedAt DESC;";
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var rows = await conn.QueryAsync<ScriptReferenceRow>(
             new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName, objectTokens }, cancellationToken: ct));
 
-        return rows.Select(x => new ScriptReferenceItem(x.ScriptId, x.ObjectName, x.ObjectType)).ToList();
+        return rows
+            .DistinctBy(x => new { x.ScriptId, x.ObjectName, x.ObjectType })
+            .Select(x => new ScriptReferenceItem(x.ScriptId, x.ObjectName, x.ObjectType))
+            .ToList();
     }
 
     private async Task RebuildScriptReferencesAsync(System.Data.Common.DbConnection conn, Guid scriptId, IReadOnlyList<DbObjectRef> refs, CancellationToken ct)
@@ -698,15 +715,19 @@ ORDER BY r.CreatedAt DESC;";
             return;
 
         var insertSql = $@"
-INSERT INTO {_opt.ScriptObjectRefsTable}(ScriptId, ObjectName, ObjectType, CreatedAt)
-VALUES(@ScriptId, @ObjectName, @ObjectType, SYSUTCDATETIME());";
+INSERT INTO {_opt.ScriptObjectRefsTable}(ScriptId, ObjectName, SearchToken, ObjectType, CreatedAt)
+VALUES(@ScriptId, @ObjectName, @SearchToken, @ObjectType, SYSUTCDATETIME());";
 
-        var rows = refs.Select(x => new
-        {
-            ScriptId = scriptId,
-            ObjectName = x.Name,
-            ObjectType = (int)x.Type
-        });
+        var rows = refs
+            .SelectMany(x => BuildReferenceSearchTokens(x.Name)
+                .Select(token => new
+                {
+                    ScriptId = scriptId,
+                    ObjectName = x.Name,
+                    SearchToken = token,
+                    ObjectType = (int)x.Type
+                }))
+            .DistinctBy(x => new { x.ScriptId, x.ObjectName, x.SearchToken, x.ObjectType });
 
         await conn.ExecuteAsync(new CommandDefinition(insertSql, rows, cancellationToken: ct));
     }
@@ -721,11 +742,38 @@ BEGIN
     DECLARE @sql nvarchar(max) = N'CREATE TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(
         ScriptId uniqueidentifier NOT NULL,
         ObjectName nvarchar(512) NOT NULL,
+        SearchToken nvarchar(512) NOT NULL,
         ObjectType int NOT NULL,
         CreatedAt datetime2 NOT NULL CONSTRAINT DF_ScriptObjectRefs_CreatedAt DEFAULT SYSUTCDATETIME()
     );
+    CREATE INDEX IX_ScriptObjectRefs_SearchToken ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(SearchToken, ScriptId);
     CREATE INDEX IX_ScriptObjectRefs_ObjectName ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(ObjectName);';
     EXEC(@sql);
+END
+
+IF COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'SearchToken') IS NULL
+BEGIN
+    DECLARE @sqlAddColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' ADD SearchToken nvarchar(512) NULL;';
+    EXEC(@sqlAddColumn);
+
+    DECLARE @sqlBackfill nvarchar(max) = N'UPDATE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' SET SearchToken = ObjectName WHERE SearchToken IS NULL;';
+    EXEC(@sqlBackfill);
+
+    DECLARE @sqlAlterColumn nvarchar(max) = N'ALTER TABLE ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N' ALTER COLUMN SearchToken nvarchar(512) NOT NULL;';
+    EXEC(@sqlAlterColumn);
+END
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes i
+    INNER JOIN sys.tables t ON t.object_id = i.object_id
+    INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+    WHERE s.name = @schemaName
+      AND t.name = @tableName
+      AND i.name = 'IX_ScriptObjectRefs_SearchToken'
+)
+BEGIN
+    DECLARE @sqlCreateSearchTokenIndex nvarchar(max) = N'CREATE INDEX IX_ScriptObjectRefs_SearchToken ON ' + QUOTENAME(@schemaName) + N'.' + QUOTENAME(@tableName) + N'(SearchToken, ScriptId);';
+    EXEC(@sqlCreateSearchTokenIndex);
 END";
 
         await conn.ExecuteAsync(new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
@@ -733,28 +781,28 @@ END";
 
     private static IReadOnlyList<string> BuildObjectSearchTokens(string rawObjectText)
     {
-        var raw = (rawObjectText ?? string.Empty).Trim();
-        if (raw.Length == 0)
+        var raw = NormalizeIdentifier(rawObjectText);
+        if (string.IsNullOrWhiteSpace(raw))
             return Array.Empty<string>();
 
-        var cleaned = raw.Replace("[", string.Empty).Replace("]", string.Empty);
-        var parts = cleaned.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = raw.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+            return Array.Empty<string>();
 
-        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { cleaned };
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         if (parts.Length == 1)
         {
             var objectName = parts[0];
-            tokens.Add($"om.{NormalizeTable(objectName)}");
+            if (IsSqlKeyword(objectName))
+                return Array.Empty<string>();
 
-            if (objectName.Contains('_'))
-            {
-                var inferredSchema = objectName.Split('_', 2)[0];
-                if (!string.IsNullOrWhiteSpace(inferredSchema))
-                    tokens.Add($"{inferredSchema}.{objectName}");
-            }
+            tokens.Add(objectName);
+            var simplified = SimplifyTableName(objectName);
+            if (!string.Equals(objectName, simplified, StringComparison.OrdinalIgnoreCase))
+                tokens.Add(simplified);
 
-            return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            return tokens.ToList();
         }
 
         if (parts.Length == 2)
@@ -762,39 +810,113 @@ END";
             var first = parts[0];
             var second = parts[1];
 
-            // schema.table
-            tokens.Add(NormalizeSchemaObject(first, second));
+            if (IsSqlKeyword(first) || IsSqlKeyword(second))
+                return Array.Empty<string>();
 
-            // table.column
-            tokens.Add($"om.{NormalizeTable(first)}.{second}");
-            return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            tokens.Add($"{first}.{second}");
+
+            var simplifiedTable = SimplifyTableName(first);
+            if (!string.Equals(simplifiedTable, first, StringComparison.OrdinalIgnoreCase))
+                tokens.Add($"{simplifiedTable}.{second}");
+
+            return tokens.ToList();
         }
 
         var schema = parts[^3];
         var table = parts[^2];
-        var column = parts[^1];
-        var normalizedTable = NormalizeSchemaObject(schema, table);
-        tokens.Add($"{normalizedTable}.{column}");
+        var obj = parts[^1];
 
-        return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        if (IsSqlKeyword(schema) || IsSqlKeyword(table) || IsSqlKeyword(obj))
+            return Array.Empty<string>();
+
+        tokens.Add($"{schema}.{table}.{obj}");
+
+        return tokens.ToList();
     }
 
-    private static string NormalizeSchemaObject(string schema, string obj)
-        => $"om.{NormalizeTable(schema, obj)}";
-
-    private static string NormalizeTable(string table)
-        => NormalizeTable("om", table);
-
-    private static string NormalizeTable(string schema, string table)
+    private static IReadOnlyList<string> BuildReferenceSearchTokens(string objectName)
     {
-        if (table.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
-            return table;
+        var normalized = NormalizeIdentifier(objectName);
+        if (string.IsNullOrWhiteSpace(normalized))
+            return Array.Empty<string>();
 
-        if (!string.IsNullOrWhiteSpace(schema) && table.StartsWith(schema + "_", StringComparison.OrdinalIgnoreCase))
-            return "om_" + table[(schema.Length + 1)..];
+        var parts = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+            return Array.Empty<string>();
 
-        return "om_" + table;
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { normalized };
+
+        if (parts.Length == 1)
+        {
+            if (!IsSqlKeyword(parts[0]))
+                tokens.Add(parts[0]);
+
+            return tokens.ToList();
+        }
+
+        if (parts.Length == 2)
+        {
+            var table = parts[1];
+            tokens.Add(table);
+
+            var simplified = SimplifyTableName(table);
+            if (!string.Equals(simplified, table, StringComparison.OrdinalIgnoreCase))
+                tokens.Add(simplified);
+
+            return tokens.ToList();
+        }
+
+        var schema = parts[^3];
+        var tableName = parts[^2];
+        var objectSegment = parts[^1];
+
+        tokens.Add(objectSegment);
+        tokens.Add($"{tableName}.{objectSegment}");
+
+        var simplifiedTableName = SimplifyTableName(tableName);
+        if (!string.Equals(simplifiedTableName, tableName, StringComparison.OrdinalIgnoreCase))
+            tokens.Add($"{simplifiedTableName}.{objectSegment}");
+
+        tokens.Add(tableName);
+        tokens.Add($"{schema}.{tableName}");
+
+        return tokens.Where(t => !IsSqlKeyword(t)).ToList();
     }
+
+    private static string NormalizeIdentifier(string? raw)
+        => (raw ?? string.Empty)
+            .Replace("[", string.Empty)
+            .Replace("]", string.Empty)
+            .Trim()
+            .ToLowerInvariant();
+
+    private static string SimplifyTableName(string tableName)
+    {
+        var normalized = NormalizeIdentifier(tableName);
+        if (string.IsNullOrWhiteSpace(normalized) || !normalized.Contains('_'))
+            return normalized;
+
+        var idx = normalized.IndexOf('_');
+        if (idx < 0 || idx == normalized.Length - 1)
+            return normalized;
+
+        return normalized[(idx + 1)..];
+    }
+
+    private static bool IsSqlKeyword(string input)
+    {
+        var normalized = NormalizeIdentifier(input);
+        return normalized.Length > 0 && SqlKeywords.Contains(normalized);
+    }
+
+    private static readonly HashSet<string> SqlKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "select", "from", "where", "join", "inner", "left", "right", "full", "cross", "on",
+        "and", "or", "not", "is", "null", "insert", "update", "delete", "merge", "into",
+        "create", "alter", "drop", "table", "view", "function", "procedure", "exec", "execute",
+        "with", "as", "group", "by", "order", "having", "distinct", "top", "case", "when",
+        "then", "else", "end", "union", "all", "exists", "in", "like", "between", "use"
+    };
 
     private static IReadOnlyList<string> ParseTags(string? tags)
     {

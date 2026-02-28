@@ -307,10 +307,11 @@ SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
     }
 
     [Theory]
-    [InlineData("om_adkont_sql", "om.om_adkont_sql")]
-    [InlineData("om_adkont_sql.[Column]", "om.om_adkont_sql.Column")]
-    [InlineData("om_adkont_sql.TestSpalte", "om.om_adkont_sql.TestSpalte")]
-    public void BuildObjectSearchTokens_AcceptsTableAndColumnShorthand(string input, string expectedToken)
+    [InlineData("Type", "type")]
+    [InlineData("adkont_sql.Type", "adkont_sql.type")]
+    [InlineData("om_adkont_sql.Type", "om_adkont_sql.type")]
+    [InlineData("om_db.om_adkont_sql.Type", "om_db.om_adkont_sql.type")]
+    public void BuildObjectSearchTokens_AcceptsHierarchicalShorthand(string input, string expectedToken)
     {
         var method = typeof(SqlFroega.Infrastructure.Persistence.SqlServer.ScriptRepository)
             .GetMethod("BuildObjectSearchTokens", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
@@ -322,15 +323,15 @@ SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
     }
 
     [Fact]
-    public void BuildObjectSearchTokens_InferSchema_FromSingleToken()
+    public void BuildObjectSearchTokens_ExcludesSqlKeywords()
     {
         var method = typeof(SqlFroega.Infrastructure.Persistence.SqlServer.ScriptRepository)
             .GetMethod("BuildObjectSearchTokens", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
         Assert.NotNull(method);
 
-        var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { "syn_adkont_sql" })!);
-        Assert.Contains("om_db.syn_adkont_sql", tokens, StringComparer.OrdinalIgnoreCase);
+        var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { "SELECT" })!);
+        Assert.Empty(tokens);
     }
 
     [Fact]
