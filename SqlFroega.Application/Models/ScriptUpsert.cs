@@ -13,5 +13,7 @@ public sealed record ScriptUpsert(
     string? MainModule,
     IReadOnlyList<string> RelatedModules,
     string? Description,
-    IReadOnlyList<string> Tags
+    IReadOnlyList<string> Tags,
+    string? UpdatedBy,
+    string? UpdateReason
 );

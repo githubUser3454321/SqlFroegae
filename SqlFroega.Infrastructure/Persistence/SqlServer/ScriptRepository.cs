@@ -390,6 +390,21 @@ public sealed class ScriptRepository : IScriptRepository
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
         var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+        await ValidateModulesExistAsync(conn, script.MainModule, script.RelatedModules, ct);
+
+        var auditColumns = await TryGetUpsertAuditColumnsAsync(conn, ct);
+        var changedByIdentifier = auditColumns.ChangedByColumn is null ? null : QuoteIdentifier(auditColumns.ChangedByColumn);
+        var reasonIdentifier = auditColumns.ChangeReasonColumn is null ? null : QuoteIdentifier(auditColumns.ChangeReasonColumn);
+        var changedBySource = changedByIdentifier is null ? string.Empty : ",\n        @UpdatedBy AS UpdatedBy";
+        var reasonSource = reasonIdentifier is null ? string.Empty : ",\n        @UpdateReason AS UpdateReason";
+        var changedByUpdate = changedByIdentifier is null ? string.Empty : $",\n        {changedByIdentifier} = src.UpdatedBy";
+        var reasonUpdate = reasonIdentifier is null ? string.Empty : $",\n        {reasonIdentifier} = src.UpdateReason";
+        var changedByInsertColumn = changedByIdentifier is null ? string.Empty : $", {changedByIdentifier}";
+        var reasonInsertColumn = reasonIdentifier is null ? string.Empty : $", {reasonIdentifier}";
+        var changedByInsertValue = changedByIdentifier is null ? string.Empty : ", src.UpdatedBy";
+        var reasonInsertValue = reasonIdentifier is null ? string.Empty : ", src.UpdateReason";
 
         var sql = useSoftDelete
             ? $@"
@@ -406,7 +421,7 @@ USING (SELECT
         @MainModule AS Module,
         @RelatedModules AS RelatedModules,
         @Description AS Description,
-        @Tags AS Tags
+        @Tags AS Tags{changedBySource}{reasonSource}
 ) AS src
 ON target.Id = src.Id
 WHEN MATCHED THEN
@@ -420,10 +435,10 @@ WHEN MATCHED THEN
         RelatedModules = src.RelatedModules,
         Description = src.Description,
         Tags = src.Tags,
-        IsDeleted = 0
+        IsDeleted = 0{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted)
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0);
+    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 "
@@ -441,7 +456,7 @@ USING (SELECT
         @MainModule AS Module,
         @RelatedModules AS RelatedModules,
         @Description AS Description,
-        @Tags AS Tags
+        @Tags AS Tags{changedBySource}{reasonSource}
 ) AS src
 ON target.Id = src.Id
 WHEN MATCHED THEN
@@ -454,10 +469,10 @@ WHEN MATCHED THEN
         Module = src.Module,
         RelatedModules = src.RelatedModules,
         Description = src.Description,
-        Tags = src.Tags
+        Tags = src.Tags{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags)
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags);
+    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 ";
@@ -475,18 +490,45 @@ SELECT @resolvedId;
             MainModule = script.MainModule,
             RelatedModules = ToTagsStorage(script.RelatedModules),
             script.Description,
-            Tags = tagsText
+            Tags = tagsText,
+            UpdatedBy = string.IsNullOrWhiteSpace(script.UpdatedBy) ? null : script.UpdatedBy.Trim(),
+            UpdateReason = string.IsNullOrWhiteSpace(script.UpdateReason) ? null : script.UpdateReason.Trim()
         };
 
-        await using var conn = await _connFactory.OpenAsync(ct);
-        await EnsureModuleSchemaAsync(conn, ct);
-        await ValidateModulesExistAsync(conn, script.MainModule, script.RelatedModules, ct);
         var id = await conn.ExecuteScalarAsync<Guid>(new CommandDefinition(sql, args, cancellationToken: ct));
 
         var refs = _referenceExtractor.Extract(script.Content);
         await RebuildScriptReferencesAsync(conn, id, refs, ct);
 
         return id;
+    }
+
+    private async Task<UpsertAuditColumns> TryGetUpsertAuditColumnsAsync(System.Data.Common.DbConnection conn, CancellationToken ct)
+    {
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptsTable);
+
+        const string sql = """
+SELECT
+    CASE
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'ChangedBy') IS NOT NULL THEN 'ChangedBy'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'ModifiedBy') IS NOT NULL THEN 'ModifiedBy'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'UpdatedBy') IS NOT NULL THEN 'UpdatedBy'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'LastModifiedBy') IS NOT NULL THEN 'LastModifiedBy'
+        ELSE NULL
+    END AS ChangedByColumn,
+    CASE
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'ChangeReason') IS NOT NULL THEN 'ChangeReason'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'UpdateReason') IS NOT NULL THEN 'UpdateReason'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'ModifiedReason') IS NOT NULL THEN 'ModifiedReason'
+        WHEN COL_LENGTH(QUOTENAME(@schemaName) + '.' + QUOTENAME(@tableName), 'Reason') IS NOT NULL THEN 'Reason'
+        ELSE NULL
+    END AS ChangeReasonColumn;
+""";
+
+        var row = await conn.QuerySingleOrDefaultAsync<UpsertAuditColumns>(
+            new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
+
+        return row ?? new UpsertAuditColumns(null, null);
     }
 
 
@@ -774,6 +816,11 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         Guid ScriptId,
         string ObjectName,
         DbObjectType ObjectType
+    );
+
+    private sealed record UpsertAuditColumns(
+        string? ChangedByColumn,
+        string? ChangeReasonColumn
     );
 
     public async Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(string objectName, CancellationToken ct = default)

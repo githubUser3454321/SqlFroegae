@@ -31,7 +31,7 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Content="Save" Command="{Binding SaveCommand}"/>
+            <Button Grid.Column="1" Content="Save" Click="Save_Click"/>
             <AutoSuggestBox Grid.Column="2"
                             x:Name="SelectedCustomerCodeAutoSuggest"
                             PlaceholderText="Kundenkürzel (z.B. CSA)"
