@@ -65,8 +65,6 @@ public partial class LibrarySplitViewModel : ObservableObject
             var customerId = await ResolveCustomerIdFilterAsync();
 
             var searchText = QueryText;
-            if (string.IsNullOrWhiteSpace(searchText) && !string.IsNullOrWhiteSpace(CustomerCodeFilterText))
-                searchText = CustomerCodeFilterText;
 
             if (!string.IsNullOrWhiteSpace(QueryText)
                 && string.IsNullOrWhiteSpace(CustomerIdFilterText)
