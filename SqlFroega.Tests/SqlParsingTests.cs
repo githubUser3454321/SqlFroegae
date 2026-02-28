@@ -98,6 +98,56 @@ SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
         var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { input })!);
         Assert.Contains(expectedToken, tokens, StringComparer.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Extractor_MapsUnqualifiedColumn_ToSingleFromTable()
+    {
+        var sql = @"SELECT omT.[Column2]
+FROM om.om_adkont_sql AS omT
+WHERE omT.testColumn IS NULL AND [Column] = '';";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.Column2" && r.Type == DbObjectType.Column);
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.testColumn" && r.Type == DbObjectType.Column);
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.Column" && r.Type == DbObjectType.Column);
+    }
+
+    [Fact]
+    public void Extractor_MapsUnqualifiedColumn_ToAllFromTables_WhenJoinExists()
+    {
+        var sql = @"SELECT MyColumn, A.Age, B.Name
+FROM om.om_ages AS A
+INNER JOIN om.om_names AS B ON A.Id = B.Id;";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_ages.MyColumn" && r.Type == DbObjectType.Column);
+        Assert.Contains(refs, r => r.Name == "om.om_names.MyColumn" && r.Type == DbObjectType.Column);
+    }
+
+
+
+    [Fact]
+    public void Extractor_MapsUnqualifiedColumn_OnlyToCurrentSubqueryScope()
+    {
+        var sql = @"SELECT a.Id
+FROM om.om_a AS a
+WHERE EXISTS (
+    SELECT 1
+    FROM om.om_types AS t
+    WHERE Type = 'X'
+);";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_types.Type" && r.Type == DbObjectType.Column);
+        Assert.DoesNotContain(refs, r => r.Name == "om.om_a.Type" && r.Type == DbObjectType.Column);
+    }
+
     [Fact]
     public void Extractor_DoesNotAnalyze_DynamicSqlContent()
     {

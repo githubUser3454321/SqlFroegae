@@ -44,6 +44,9 @@ public sealed class SqlObjectReferenceExtractor
             _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
             try
             {
+                // ScriptDom can visit SELECT elements before FROM references.
+                // Pre-visit FROM so alias-qualified columns in SELECT can be resolved.
+                node.FromClause?.Accept(this);
                 base.ExplicitVisit(node);
             }
             finally
@@ -157,7 +160,8 @@ public sealed class SqlObjectReferenceExtractor
 
         public override void ExplicitVisit(ColumnReferenceExpression node)
         {
-            if (node.MultiPartIdentifier?.Identifiers is not { Count: >= 2 } ids)
+            var ids = node.MultiPartIdentifier?.Identifiers;
+            if (ids is null || ids.Count == 0)
             {
                 base.ExplicitVisit(node);
                 return;
@@ -172,7 +176,7 @@ public sealed class SqlObjectReferenceExtractor
                 if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table) && !string.IsNullOrWhiteSpace(column))
                     _refs.Add(new DbObjectRef($"{schema}.{table}.{column}", DbObjectType.Column));
             }
-            else
+            else if (ids.Count == 2)
             {
                 var qualifier = ids[^2].Value;
                 var column = ids[^1].Value;
@@ -182,6 +186,17 @@ public sealed class SqlObjectReferenceExtractor
                     && TryResolveQualifier(qualifier, out var tableRef))
                 {
                     _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                }
+            }
+            else
+            {
+                var column = ids[^1].Value;
+                if (!string.IsNullOrWhiteSpace(column))
+                {
+                    foreach (var tableRef in GetResolvableTables())
+                    {
+                        _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                    }
                 }
             }
 
@@ -218,6 +233,14 @@ public sealed class SqlObjectReferenceExtractor
 
             tableRef = default;
             return false;
+        }
+
+        private IEnumerable<TableRef> GetResolvableTables()
+        {
+            if (_queryScope.Count == 0)
+                return Enumerable.Empty<TableRef>();
+
+            return _queryScope.Peek().Values.Distinct();
         }
 
         private void Add(SchemaObjectName? name, DbObjectType type)
