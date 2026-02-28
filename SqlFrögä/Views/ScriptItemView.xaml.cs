@@ -338,10 +338,10 @@ public sealed partial class ScriptItemView : Page
         if (e.ClickedItem is not ScriptHistoryItem item)
             return;
 
-        var normalized1 = (item.Content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+        var normalizedText = (item.Content ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
         var sqlViewer = new TextBox
         {
-            Text = normalized1,
+            Text = normalizedText,
             IsReadOnly = true,
             IsSpellCheckEnabled = false,
             AcceptsReturn = true,
@@ -350,6 +350,8 @@ public sealed partial class ScriptItemView : Page
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch
         };
+        //bug with winUi3: without this, only the very first line of T-SQL will be correctly displayed in the ui
+        sqlViewer.Text = normalizedText;
 
         var scroller = new ScrollViewer
         {
