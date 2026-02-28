@@ -1,9 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using SqlFroega.Api.Auth;
+using SqlFroega.Api.Infrastructure;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using SqlFroega.Infrastructure.Parsing;
@@ -17,6 +20,7 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
 builder.Services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddSingleton<IHostIdentityProvider, HostIdentityProvider>();
+builder.Services.AddSingleton<IRefreshTokenStore, InMemoryRefreshTokenStore>();
 builder.Services.AddScoped<IScriptRepository, ScriptRepository>();
 builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
@@ -51,12 +55,25 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.MappingsRead, policy => policy.RequireAssertion(c => HasScope(c.User, "mappings.read")));
 });
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("api", limiter =>
+    {
+        limiter.Window = TimeSpan.FromSeconds(10);
+        limiter.PermitLimit = 100;
+        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiter.QueueLimit = 20;
+    });
+});
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseCorrelationAndAudit();
 
 if (app.Environment.IsDevelopment())
 {
@@ -66,13 +83,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }));
 app.MapGet("/health/ready", () => Results.Ok(new { status = "ready" }));
 
-var api = app.MapGroup("/api/v1");
+var api = app.MapGroup("/api/v1").RequireRateLimiting("api");
 
-api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepository) =>
+api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepository, IRefreshTokenStore refreshTokenStore) =>
 {
     if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
     {
@@ -92,28 +110,51 @@ api.MapPost("/auth/login", async (LoginRequest request, IUserRepository userRepo
         ? new[] { "scripts.read", "scripts.write", "mappings.read", "admin.users" }
         : new[] { "scripts.read", "scripts.write", "mappings.read" };
 
-    var expiresAtUtc = DateTime.UtcNow.AddMinutes(jwtOptions.AccessTokenMinutes);
+    var accessToken = CreateAccessToken(user.Username, user.Id, scopes, jwtOptions, signingKey);
+    var refresh = refreshTokenStore.Issue(user.Username, scopes, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
 
-    var claims = new List<Claim>
+    return Results.Ok(new LoginResponse(
+        accessToken.Token,
+        "Bearer",
+        accessToken.ExpiresAtUtc,
+        refresh.Token,
+        refresh.ExpiresAtUtc));
+});
+
+api.MapPost("/auth/refresh", (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
+{
+    if (string.IsNullOrWhiteSpace(request.RefreshToken))
     {
-        new(JwtRegisteredClaimNames.Sub, user.Id == Guid.Empty ? user.Username : user.Id.ToString()),
-        new(JwtRegisteredClaimNames.UniqueName, user.Username),
-        new(ClaimTypes.Name, user.Username)
-    };
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["refreshToken"] = ["Refresh token ist erforderlich."]
+        });
+    }
 
-    claims.AddRange(scopes.Select(scope => new Claim("scope", scope)));
+    var rotated = refreshTokenStore.Rotate(request.RefreshToken, TimeSpan.FromHours(jwtOptions.RefreshTokenHours));
+    if (rotated is null)
+    {
+        return Results.Unauthorized();
+    }
 
-    var jwt = new JwtSecurityToken(
-        issuer: jwtOptions.Issuer,
-        audience: jwtOptions.Audience,
-        claims: claims,
-        notBefore: DateTime.UtcNow,
-        expires: expiresAtUtc,
-        signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256));
+    var accessToken = CreateAccessToken(rotated.Username, Guid.Empty, rotated.Scopes, jwtOptions, signingKey);
 
-    var accessToken = new JwtSecurityTokenHandler().WriteToken(jwt);
+    return Results.Ok(new LoginResponse(
+        accessToken.Token,
+        "Bearer",
+        accessToken.ExpiresAtUtc,
+        rotated.RefreshToken,
+        rotated.RefreshTokenExpiresAtUtc));
+});
 
-    return Results.Ok(new LoginResponse(accessToken, "Bearer", (int)TimeSpan.FromMinutes(jwtOptions.AccessTokenMinutes).TotalSeconds, expiresAtUtc));
+api.MapPost("/auth/logout", (RefreshTokenRequest request, IRefreshTokenStore refreshTokenStore) =>
+{
+    if (!string.IsNullOrWhiteSpace(request.RefreshToken))
+    {
+        refreshTokenStore.Revoke(request.RefreshToken);
+    }
+
+    return Results.NoContent();
 });
 
 api.MapGet("/scripts", async (
@@ -142,8 +183,18 @@ api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptReposit
     return script is null ? Results.NotFound() : Results.Ok(script);
 }).RequireAuthorization(Policies.ScriptsRead);
 
-api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, CancellationToken ct) =>
+api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
+    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    {
+        return tenantValidationError;
+    }
+
+    if (request.Content.Length > 200_000)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["content"] = ["SQL-Content ist zu groß (max. 200000 Zeichen)."] });
+    }
+
     var updatedBy = string.IsNullOrWhiteSpace(request.UpdatedBy) ? user.Identity?.Name : request.UpdatedBy;
     var scriptId = await scriptRepository.UpsertAsync(
         new ScriptUpsert(
@@ -163,14 +214,24 @@ api.MapPost("/scripts", async (UpsertScriptRequest request, IScriptRepository sc
     return Results.Created($"/api/v1/scripts/{scriptId}", new { id = scriptId });
 }).RequireAuthorization(Policies.ScriptsWrite);
 
-api.MapDelete("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, CancellationToken ct) =>
+api.MapDelete("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, HttpContext httpContext, CancellationToken ct) =>
 {
+    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    {
+        return tenantValidationError;
+    }
+
     await scriptRepository.DeleteAsync(id, ct);
     return Results.NoContent();
 }).RequireAuthorization(Policies.ScriptsWrite);
 
-api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, CancellationToken ct) =>
+api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
+    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    {
+        return tenantValidationError;
+    }
+
     var username = request.Username ?? user.Identity?.Name;
     if (string.IsNullOrWhiteSpace(username))
     {
@@ -181,8 +242,13 @@ api.MapPost("/scripts/{id:guid}/locks/acquire", async (Guid id, ScriptLockReques
     return Results.Ok(result);
 }).RequireAuthorization(Policies.ScriptsWrite);
 
-api.MapPost("/scripts/{id:guid}/locks/release", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, CancellationToken ct) =>
+api.MapPost("/scripts/{id:guid}/locks/release", async (Guid id, ScriptLockRequest request, IScriptRepository scriptRepository, ClaimsPrincipal user, HttpContext httpContext, CancellationToken ct) =>
 {
+    if (!TryGetTenantContext(httpContext, out var tenantValidationError, out _))
+    {
+        return tenantValidationError;
+    }
+
     var username = request.Username ?? user.Identity?.Name;
     if (string.IsNullOrWhiteSpace(username))
     {
@@ -204,6 +270,11 @@ api.MapPost("/render/{customerCode}", async (string customerCode, RenderSqlReque
     if (string.IsNullOrWhiteSpace(request.Sql))
     {
         return Results.ValidationProblem(new Dictionary<string, string[]> { ["sql"] = ["SQL darf nicht leer sein."] });
+    }
+
+    if (request.Sql.Length > 200_000)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["sql"] = ["SQL ist zu groß (max. 200000 Zeichen)."] });
     }
 
     var renderedSql = await renderService.RenderForCustomerAsync(request.Sql, customerCode, ct);
@@ -228,6 +299,51 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
+static bool TryGetTenantContext(HttpContext context, out IResult? errorResult, out string tenantContext)
+{
+    tenantContext = context.Request.Headers["X-Tenant-Context"].ToString();
+    if (string.IsNullOrWhiteSpace(tenantContext))
+    {
+        errorResult = Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["X-Tenant-Context"] = ["Header X-Tenant-Context ist für schreibende Operationen erforderlich."]
+        });
+        return false;
+    }
+
+    errorResult = null;
+    return true;
+}
+
+static AccessTokenResult CreateAccessToken(
+    string username,
+    Guid userId,
+    IReadOnlyList<string> scopes,
+    JwtOptions options,
+    SymmetricSecurityKey key)
+{
+    var expiresAtUtc = DateTime.UtcNow.AddMinutes(options.AccessTokenMinutes);
+
+    var claims = new List<Claim>
+    {
+        new(JwtRegisteredClaimNames.Sub, userId == Guid.Empty ? username : userId.ToString()),
+        new(JwtRegisteredClaimNames.UniqueName, username),
+        new(ClaimTypes.Name, username)
+    };
+
+    claims.AddRange(scopes.Select(scope => new Claim("scope", scope)));
+
+    var jwt = new JwtSecurityToken(
+        issuer: options.Issuer,
+        audience: options.Audience,
+        claims: claims,
+        notBefore: DateTime.UtcNow,
+        expires: expiresAtUtc,
+        signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+
+    return new AccessTokenResult(new JwtSecurityTokenHandler().WriteToken(jwt), expiresAtUtc);
+}
+
 internal static class Policies
 {
     public const string ScriptsRead = "scripts.read";
@@ -237,7 +353,11 @@ internal static class Policies
 
 internal sealed record LoginRequest(string Username, string Password);
 
-internal sealed record LoginResponse(string AccessToken, string TokenType, int ExpiresInSeconds, DateTime ExpiresAtUtc);
+internal sealed record RefreshTokenRequest(string? RefreshToken);
+
+internal sealed record LoginResponse(string AccessToken, string TokenType, DateTime AccessTokenExpiresAtUtc, string RefreshToken, DateTime RefreshTokenExpiresAtUtc);
+
+internal sealed record AccessTokenResult(string Token, DateTime ExpiresAtUtc);
 
 internal sealed record ScriptSearchQuery(
     string? Query,
@@ -276,4 +396,5 @@ internal sealed class JwtOptions
     public string Audience { get; init; } = "SqlFroega.Extensions";
     public string SigningKey { get; init; } = "replace-me-with-at-least-32-characters";
     public int AccessTokenMinutes { get; init; } = 15;
+    public int RefreshTokenHours { get; init; } = 12;
 }

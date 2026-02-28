@@ -4,7 +4,7 @@ Dieses Dokument beschreibt ein pragmatisches Vorgehen für **eine einzige zentra
 
 ## Umsetzungsstand (aktualisiert)
 
-- **Status gesamt:** **Partialy Done** (API-Grundgerüst + v1-Endpunkte + JWT-Login umgesetzt; einige Betriebs-/Client-Themen noch offen).
+- **Status gesamt:** **Partialy Done** (v1-Endpoints, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und Produktivhärtung sind weiter offen).
 
 ## Zielbild
 
@@ -24,6 +24,8 @@ Die bestehenden Repositories sind bereits ein gutes API-Backbone. Erste Endpunkt
 ### Minimaler Endpoint-Scope (v1)
 
 - `POST /api/v1/auth/login` **DONE**
+- `POST /api/v1/auth/refresh` **DONE**
+- `POST /api/v1/auth/logout` **DONE**
 - `GET /api/v1/scripts?query=&scope=&module=&take=&skip=` **DONE**
 - `GET /api/v1/scripts/{id}` **DONE**
 - `POST /api/v1/scripts` (create/update) **DONE**
@@ -38,30 +40,30 @@ Die bestehenden Repositories sind bereits ein gutes API-Backbone. Erste Endpunkt
 Da die API zentral läuft und von mehreren Tools genutzt wird:
 
 - Kurzlebige **JWT Access Tokens** (z. B. 15 Minuten) **DONE**
-- **Refresh Tokens** (z. B. 8–24h, rotierend) **NOT DONE**
+- **Refresh Tokens** (z. B. 8–24h, rotierend) **Partialy Done** (aktuell in-memory, noch ohne persistente Speicherung/Revocation über Restart hinweg)
 - Rollen/Scopes:
   - `scripts.read` **DONE**
   - `scripts.write` **DONE**
   - `mappings.read` **DONE**
   - `admin.users` **Partialy Done** (Claim wird ausgestellt, kein Admin-Endpoint vorhanden)
-- Audit-Log pro Request: User, Scope, Endpoint, Timestamp, CorrelationId **NOT DONE**
+- Audit-Log pro Request: User, Scope, Endpoint, Timestamp, CorrelationId **DONE**
 
 ## 3) Mandanten-/Kontextmodell für Dienstleisterbetrieb
 
 Da ihr als Dienstleister in mehreren Firmenkontexten arbeitet:
 
-- API-seitig ein optional `TenantContext`/`CustomerContext` einführen. **NOT DONE**
-- Jede schreibende Operation mit Kontext kennzeichnen (Header oder Claim). **NOT DONE**
+- API-seitig ein optional `TenantContext`/`CustomerContext` einführen. **Partialy Done** (Header `X-Tenant-Context` für Write-Endpunkte)
+- Jede schreibende Operation mit Kontext kennzeichnen (Header oder Claim). **DONE**
 
 ## 4) Stabilität & Sicherheit vor breitem Rollout
 
 Vor SSMS-/FlowLauncher-Integration:
 
-- Rate Limiting und Request-Größenlimits (Viel spielraum) **NOT DONE**
-- Zentrale strukturierte Logs + Tracing (CorrelationId) **NOT DONE**
+- Rate Limiting und Request-Größenlimits (Viel spielraum) **DONE**
+- Zentrale strukturierte Logs + Tracing (CorrelationId) **DONE**
 - Health-Check Endpunkte (`/health/live`, `/health/ready`) **DONE**
 - Versionierung (`/api/v1/...`) von Anfang an (zu begin mal nur mit v1 arbeiten, es wird bekannt gegeben ab wann wir auf v2 umstellen) **DONE**
-- Einheitliches Error-Format (ProblemDetails) **Partialy Done** (ProblemDetails aktiviert, aber noch keine durchgängige Fehler-Mapping-Strategie)
+- Einheitliches Error-Format (ProblemDetails) **Partialy Done** (ProblemDetails aktiviert, Error-Mapping noch nicht vollständig zentralisiert)
 
 ## 5) SSMS- und FlowLauncher als dünne Adapter
 
@@ -79,7 +81,7 @@ Vor SSMS-/FlowLauncher-Integration:
 
 ## 6) Migrationspfad ohne Big Bang
 
-1. API v1 mit read-only Endpunkten bereitstellen. **DONE** (plus erste Write-Endpunkte bereits vorhanden)
+1. API v1 mit read-only Endpunkten bereitstellen. **DONE**
 2. SSMS/FlowLauncher read-only anbinden. **NOT DONE**
 3. Schreib-Endpunkte mit Locking + Conflict-Handling freischalten. **Partialy Done**
 
@@ -95,7 +97,7 @@ Vor SSMS-/FlowLauncher-Integration:
 ### Woche 2
 
 - Lock-Endpunkte + Save/Delete-Endpunkte **DONE**
-- Auditing + strukturierte Logs + Healthchecks **Partialy Done** (Healthchecks vorhanden)
+- Auditing + strukturierte Logs + Healthchecks **DONE**
 - Minimaler SSMS-Prototyp gegen API **NOT DONE**
 - Last-/Smoke-Tests für Such-Endpunkte **NOT DONE**
 
