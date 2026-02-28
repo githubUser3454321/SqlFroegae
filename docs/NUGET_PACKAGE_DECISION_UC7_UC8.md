@@ -2,7 +2,7 @@
 
 ## Kurzfazit
 Für eure Anforderungen ist **`Microsoft.SqlServer.TransactSql.ScriptDom`** das beste Paket als primäre Basis.
-
+- ist istalliert.
 Ihr nutzt ScriptDom bereits in `SqlCustomerRenderService` für Parse-Validierung vor dem Speichern; das passt exakt zur Anforderung „syntaktische Ersetzung“ bei `DatabaseUser` und `ObjectPrefix`. Für UC7 (Referenzen beim Speichern erzeugen) reicht ScriptDom ebenfalls sehr gut, wenn die Referenzbildung aus dem SQL-Text erfolgen soll (Tabellen/Views/Funktionen, die im Skript explizit auftauchen).
 
 ## Begründung anhand eurer Use Cases
