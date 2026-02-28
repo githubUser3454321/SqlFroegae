@@ -34,7 +34,6 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _objectFilterText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
-    [ObservableProperty] private string _newModuleName = "";
 
     public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
 
@@ -123,6 +122,14 @@ public partial class LibrarySplitViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenModuleAdmin()
+    {
+        if (_detailFrame is null) return;
+        Selected = null;
+        _detailFrame.Navigate(typeof(ModuleAdminView));
+    }
+
+    [RelayCommand]
     private void New()
     {
         Selected = null;
@@ -171,58 +178,6 @@ public partial class LibrarySplitViewModel : ObservableObject
             IsBusy = true;
             Error = null;
             await RefreshMetadataCatalogAsync();
-        }
-        catch (Exception ex)
-        {
-            Error = ex.Message;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-
-    [RelayCommand]
-    private async Task AddModuleAsync()
-    {
-        if (string.IsNullOrWhiteSpace(NewModuleName))
-            throw new InvalidOperationException("Bitte einen Modulnamen eingeben.");
-
-        try
-        {
-            IsBusy = true;
-            Error = null;
-            await _repo.AddModuleAsync(NewModuleName.Trim());
-            NewModuleName = string.Empty;
-            await RefreshMetadataCatalogAsync();
-        }
-        catch (Exception ex)
-        {
-            Error = ex.Message;
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand]
-    public async Task RemoveModuleAsync(string? moduleName)
-    {
-        if (string.IsNullOrWhiteSpace(moduleName))
-            return;
-
-        try
-        {
-            IsBusy = true;
-            Error = null;
-            await _repo.RemoveModuleAsync(moduleName.Trim());
-
-            if (string.Equals(ModuleFilterText, moduleName, StringComparison.OrdinalIgnoreCase))
-                ModuleFilterText = string.Empty;
-
-            await SearchAsync();
         }
         catch (Exception ex)
         {

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -20,6 +21,8 @@ public partial class ScriptItemViewModel : ObservableObject
 
     public ObservableCollection<ScriptHistoryItem> HistoryItems { get; } = new();
     public ObservableCollection<CustomerMappingItem> CustomerMappings { get; } = new();
+    public ObservableCollection<string> AvailableModules { get; } = new();
+    public ObservableCollection<string> SelectedRelatedModules { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
@@ -52,6 +55,7 @@ public partial class ScriptItemViewModel : ObservableObject
     {
         _id = id;
         await LoadMappingsAsync();
+        await LoadModulesAsync();
 
         if (id == Guid.Empty)
         {
@@ -61,7 +65,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Content = "";
             Scope = 0;
             MainModule = "";
-            RelatedModulesText = "";
+            SetRelatedModules(Array.Empty<string>());
             Description = "";
             TagsText = "";
             ScriptCustomerCode = "";
@@ -85,7 +89,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 Key = "(history only)";
                 Scope = 0;
                 MainModule = "";
-            RelatedModulesText = "";
+                SetRelatedModules(Array.Empty<string>());
                 Description = "Record was deleted. Read-only temporal history is shown.";
                 TagsText = "";
                 ScriptCustomerCode = "";
@@ -103,7 +107,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Key = detail.Key;
             Content = NormalizeSqlContent(detail.Content);
             MainModule = detail.MainModule;
-            RelatedModulesText = string.Join(", ", detail.RelatedModules ?? Array.Empty<string>());
+            SetRelatedModules(detail.RelatedModules ?? Array.Empty<string>());
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
             IsReadOnlyMode = false;
@@ -134,6 +138,36 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private void AddRelatedModule(string? moduleName)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return;
+
+        var normalized = moduleName.Trim();
+        EnsureModuleExists(normalized);
+
+        if (SelectedRelatedModules.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        SelectedRelatedModules.Add(normalized);
+        UpdateRelatedModulesText();
+    }
+
+    [RelayCommand]
+    private void RemoveRelatedModule(string? moduleName)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return;
+
+        var existing = SelectedRelatedModules.FirstOrDefault(x => string.Equals(x, moduleName, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+            return;
+
+        SelectedRelatedModules.Remove(existing);
+        UpdateRelatedModulesText();
     }
 
     [RelayCommand]
@@ -222,6 +256,12 @@ public partial class ScriptItemViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(Content))
                 throw new InvalidOperationException("Content is required.");
 
+            if (!string.IsNullOrWhiteSpace(MainModule))
+                EnsureModuleExists(MainModule.Trim());
+
+            foreach (var relatedModule in SelectedRelatedModules)
+                EnsureModuleExists(relatedModule);
+
             Guid? customerId = null;
             if (!string.IsNullOrWhiteSpace(ScriptCustomerCode))
             {
@@ -262,11 +302,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 Scope: Scope,
                 CustomerId: customerId,
                 MainModule: string.IsNullOrWhiteSpace(MainModule) ? null : MainModule.Trim(),
-                RelatedModules: (RelatedModulesText ?? "")
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Where(t => !string.IsNullOrWhiteSpace(t))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList(),
+                RelatedModules: SelectedRelatedModules.ToList(),
                 Description: string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
                 Tags: tags
             );
@@ -309,6 +345,42 @@ public partial class ScriptItemViewModel : ObservableObject
         CustomerMappings.Clear();
         foreach (var mapping in mappings)
             CustomerMappings.Add(mapping);
+    }
+
+    private async Task LoadModulesAsync()
+    {
+        var modules = await _repo.GetManagedModulesAsync();
+        AvailableModules.Clear();
+        foreach (var module in modules)
+            AvailableModules.Add(module);
+    }
+
+    private void SetRelatedModules(IEnumerable<string> modules)
+    {
+        SelectedRelatedModules.Clear();
+
+        foreach (var module in modules
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedRelatedModules.Add(module);
+        }
+
+        UpdateRelatedModulesText();
+    }
+
+    private void UpdateRelatedModulesText()
+    {
+        RelatedModulesText = string.Join(", ", SelectedRelatedModules);
+    }
+
+    private void EnsureModuleExists(string moduleName)
+    {
+        if (AvailableModules.Any(x => string.Equals(x, moduleName, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        throw new InvalidOperationException($"Modul '{moduleName}' ist nicht in der Modulverwaltung vorhanden.");
     }
 
     private async Task LoadHistoryCoreAsync()

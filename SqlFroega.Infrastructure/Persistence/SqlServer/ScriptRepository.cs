@@ -455,12 +455,40 @@ SELECT @resolvedId;
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
+        await ValidateModulesExistAsync(conn, script.MainModule, script.RelatedModules, ct);
         var id = await conn.ExecuteScalarAsync<Guid>(new CommandDefinition(sql, args, cancellationToken: ct));
 
         var refs = _referenceExtractor.Extract(script.Content);
         await RebuildScriptReferencesAsync(conn, id, refs, ct);
 
         return id;
+    }
+
+
+    private async Task ValidateModulesExistAsync(System.Data.Common.DbConnection conn, string? mainModule, IReadOnlyList<string>? relatedModules, CancellationToken ct)
+    {
+        var requestedModules = (relatedModules ?? Array.Empty<string>())
+            .Append(mainModule ?? string.Empty)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (requestedModules.Count == 0)
+            return;
+
+        var sql = $"SELECT LTRIM(RTRIM(Name)) FROM {_opt.ModulesTable} WHERE Name IN @modules";
+        var existingModules = (await conn.QueryAsync<string>(new CommandDefinition(sql, new { modules = requestedModules }, cancellationToken: ct)))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var missing = requestedModules.Where(x => !existingModules.Contains(x)).ToList();
+        if (missing.Count == 0)
+            return;
+
+        throw new InvalidOperationException($"Unbekannte Module: {string.Join(", ", missing)}. Neue Module können nur in der Modulverwaltung angelegt werden.");
     }
 
     public async Task<IReadOnlyList<ScriptHistoryItem>> GetHistoryAsync(Guid id, int take = 50, CancellationToken ct = default)

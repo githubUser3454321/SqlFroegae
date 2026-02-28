@@ -50,6 +50,8 @@
                         <MenuFlyout>
                             <MenuFlyoutItem Text="Kunden-Mapping Verwaltung"
                                             Click="CustomerMappingAdmin_Click"/>
+                            <MenuFlyoutItem Text="Modul Verwaltung"
+                                            Click="ModuleAdmin_Click"/>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>
@@ -134,27 +136,12 @@
                             <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
 
                             <TextBlock Text="Module" FontWeight="SemiBold"/>
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox PlaceholderText="Neues Modul" Text="{Binding NewModuleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Button Grid.Column="1" Content="Hinzufügen" Command="{Binding AddModuleCommand}"/>
-                            </Grid>
                             <ListView ItemsSource="{Binding AvailableModules}" SelectionMode="None" MaxHeight="160">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid ColumnSpacing="6">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Button Content="{Binding}" HorizontalAlignment="Stretch"
-                                                    Command="{Binding DataContext.ApplyModuleFilterCommand, ElementName=RootPage}"
-                                                    CommandParameter="{Binding}"/>
-                                            <Button Grid.Column="1" Content="✕" Tag="{Binding}" Click="DeleteModuleButton_Click"/>
-                                        </Grid>
+                                        <Button Content="{Binding}" HorizontalAlignment="Stretch"
+                                                Command="{Binding DataContext.ApplyModuleFilterCommand, ElementName=RootPage}"
+                                                CommandParameter="{Binding}"/>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>
                             </ListView>
