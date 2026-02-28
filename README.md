@@ -77,14 +77,28 @@ Das Projekt ist als mehrschichtige Lösung aufgebaut:
 
 ### Konfiguration
 
-Die Datenbankkonfiguration erfolgt derzeit in `SqlFrögä/App.xaml.cs` über `SqlServerOptions`.
-Wichtige Parameter:
+Die Datenbankkonfiguration wird aus einer INI-Datei gelesen (`[SqlServer]`-Sektion).
+Ein Beispiel liegt im Repository: `config.example.ini`.
 
-- `ConnectionString`
+Unterstützte Start-Reihenfolge:
+
+1. **Programmargumente** (erste passende INI wird genutzt):
+   - `SqlFroega.exe --config "C:\Pfad\config.ini"`
+   - `SqlFroega.exe -c "C:\Pfad\config.ini"`
+   - oder ein direkt übergebenes `.ini`-Argument
+2. **Automatischer Fallback** auf `%AppData%/SqlFroega/config.ini`
+3. **Dateiauswahl-Dialog** beim Start, falls 1 und 2 keine gültige INI liefern
+
+Wichtige Parameter in `[SqlServer]`:
+
+- `ConnectionString` (Pflicht)
 - `ScriptsTable`
 - `CustomersTable`
+- `ScriptObjectRefsTable`
 - `ModulesTable`
 - optional: `UseFullTextSearch`, `JoinCustomers`, `EnableSoftDelete`
+
+Hinweis: Bei ungültiger oder fehlender INI zeigt die App eine Fehlermeldung und fordert erneut zur Dateiauswahl auf.
 
 Zusätzliche SQL-Hilfsskripte liegen in `Docs/`:
 - `001_seed_schema.sql` erstellt alle von der App genutzten Tabellen.
