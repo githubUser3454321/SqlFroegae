@@ -630,6 +630,51 @@ INSERT INTO {_opt.ModulesTable} (Name) VALUES (@moduleName);";
         await conn.ExecuteAsync(new CommandDefinition(sql, new { moduleName = moduleName.Trim() }, cancellationToken: ct));
     }
 
+    public async Task RenameModuleAsync(string currentModuleName, string newModuleName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(currentModuleName))
+            throw new InvalidOperationException("Current module name is required.");
+
+        if (string.IsNullOrWhiteSpace(newModuleName))
+            throw new InvalidOperationException("New module name is required.");
+
+        var current = currentModuleName.Trim();
+        var next = newModuleName.Trim();
+        if (string.Equals(current, next, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        var existingNew = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"SELECT COUNT(1) FROM {_opt.ModulesTable} WHERE Name = @name",
+            new { name = next },
+            cancellationToken: ct));
+
+        if (existingNew > 0)
+            throw new InvalidOperationException($"Modul '{next}' existiert bereits.");
+
+        var existingCurrent = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+            $"SELECT COUNT(1) FROM {_opt.ModulesTable} WHERE Name = @name",
+            new { name = current },
+            cancellationToken: ct));
+
+        if (existingCurrent == 0)
+            throw new InvalidOperationException($"Modul '{current}' wurde nicht gefunden.");
+
+        var scriptsSql = $@"
+UPDATE {_opt.ScriptsTable}
+SET Module = CASE WHEN Module = @current THEN @next ELSE Module END,
+    RelatedModules = CASE
+        WHEN COALESCE(RelatedModules, N'') = N'' THEN RelatedModules
+        ELSE REPLACE(COALESCE(RelatedModules, N''), CONCAT('""', @current, '""'), CONCAT('""', @next, '""'))
+    END
+WHERE Module = @current OR COALESCE(RelatedModules, N'') LIKE '%' + @current + '%';";
+
+        await conn.ExecuteAsync(new CommandDefinition(scriptsSql, new { current, next }, cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition($"UPDATE {_opt.ModulesTable} SET Name = @next WHERE Name = @current", new { current, next }, cancellationToken: ct));
+    }
+
     public async Task RemoveModuleAsync(string moduleName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(moduleName))

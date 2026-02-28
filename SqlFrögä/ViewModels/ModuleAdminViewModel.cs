@@ -64,16 +64,31 @@ public partial class ModuleAdminViewModel : ObservableObject
     [RelayCommand]
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(ModuleName))
-            throw new InvalidOperationException("Bitte einen Modulnamen eingeben.");
-
         try
         {
+            if (string.IsNullOrWhiteSpace(ModuleName))
+                throw new InvalidOperationException("Bitte einen Modulnamen eingeben.");
+
             IsBusy = true;
             Error = null;
 
             var name = ModuleName.Trim();
-            await _repo.AddModuleAsync(name);
+            if (string.IsNullOrWhiteSpace(Selected))
+            {
+                await _repo.AddModuleAsync(name);
+            }
+            else
+            {
+                var current = Selected.Trim();
+                if (string.Equals(current, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    Selected = name;
+                    return;
+                }
+
+                await _repo.RenameModuleAsync(current, name);
+            }
+
             await LoadAsync();
             Selected = name;
         }
