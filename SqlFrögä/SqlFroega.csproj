@@ -15,6 +15,7 @@
     <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Content Remove="Assets\SqlFrögä.ico" />
     <Content Remove="Assets\SqlFrögä.png" />
   </ItemGroup>
 
