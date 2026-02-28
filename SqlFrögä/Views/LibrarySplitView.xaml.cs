@@ -58,6 +58,35 @@ public sealed partial class LibrarySplitView : Page
         VM.OpenCustomerMappingAdminCommand.Execute(null);
     }
 
+    private async void DeleteModuleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string moduleName })
+            return;
+
+        var shouldDelete = await ConfirmDeleteModuleAsync(moduleName);
+        if (!shouldDelete)
+            return;
+
+        await VM.RemoveModuleCommand.ExecuteAsync(moduleName);
+    }
+
+
+    private async Task<bool> ConfirmDeleteModuleAsync(string moduleName)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Modul wirklich löschen?",
+            Content = $"Das Modul '{moduleName}' wird aus der Modulverwaltung entfernt und aus Main-/Related-Modulen aller Scripts gelöscht.",
+            PrimaryButtonText = "Modul löschen",
+            CloseButtonText = "Abbrechen",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        return result == ContentDialogResult.Primary;
+    }
+
     private async Task<bool> ConfirmDeleteAsync()
     {
         var dialog = new ContentDialog

@@ -10,7 +10,8 @@ public sealed record Script(
     string Content,
     ScriptScope Scope,
     Guid? CustomerId,
-    string? Module,
+    string? MainModule,
+    IReadOnlyList<string> RelatedModules,
     string? Description,
     IReadOnlyList<string> Tags
 );

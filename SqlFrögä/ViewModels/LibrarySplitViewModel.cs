@@ -34,6 +34,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _objectFilterText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
+    [ObservableProperty] private string _newModuleName = "";
 
     public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
 
@@ -181,6 +182,58 @@ public partial class LibrarySplitViewModel : ObservableObject
         }
     }
 
+
+    [RelayCommand]
+    private async Task AddModuleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NewModuleName))
+            throw new InvalidOperationException("Bitte einen Modulnamen eingeben.");
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            await _repo.AddModuleAsync(NewModuleName.Trim());
+            NewModuleName = string.Empty;
+            await RefreshMetadataCatalogAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    public async Task RemoveModuleAsync(string? moduleName)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return;
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+            await _repo.RemoveModuleAsync(moduleName.Trim());
+
+            if (string.Equals(ModuleFilterText, moduleName, StringComparison.OrdinalIgnoreCase))
+                ModuleFilterText = string.Empty;
+
+            await SearchAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     [RelayCommand]
     private void ApplyModuleFilter(string? module)
     {
@@ -216,7 +269,7 @@ public partial class LibrarySplitViewModel : ObservableObject
         var metadata = await _repo.GetMetadataCatalogAsync(IncludeDeleted);
 
         AvailableModules.Clear();
-        foreach (var module in metadata.Modules)
+        foreach (var module in metadata.Modules.Concat(metadata.RelatedModules).Distinct(StringComparer.OrdinalIgnoreCase))
             AvailableModules.Add(module);
 
         AvailableTags.Clear();

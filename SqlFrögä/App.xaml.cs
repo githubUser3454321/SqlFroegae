@@ -25,6 +25,7 @@ public partial class App : Microsoft.UI.Xaml.Application
             cfg.ScriptsTable = "dbo.SqlScripts";
             cfg.CustomersTable = "dbo.Customers";
             cfg.UseFullTextSearch = false;
+            cfg.ModulesTable = "dbo.Modules";
             cfg.JoinCustomers = true;
             cfg.EnableSoftDelete = true;
         });

@@ -29,7 +29,8 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string _key = "";
     [ObservableProperty] private string _content = "";
     [ObservableProperty] private int _scope = 0; // 0 Global, 1 Customer, 2 Module
-    [ObservableProperty] private string? _module;
+    [ObservableProperty] private string? _mainModule;
+    [ObservableProperty] private string _relatedModulesText = "";
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string _tagsText = "";
     [ObservableProperty] private bool _isReadOnlyMode;
@@ -59,7 +60,8 @@ public partial class ScriptItemViewModel : ObservableObject
             Key = "";
             Content = "";
             Scope = 0;
-            Module = "";
+            MainModule = "";
+            RelatedModulesText = "";
             Description = "";
             TagsText = "";
             ScriptCustomerCode = "";
@@ -82,7 +84,8 @@ public partial class ScriptItemViewModel : ObservableObject
                 Name = "(deleted)";
                 Key = "(history only)";
                 Scope = 0;
-                Module = "";
+                MainModule = "";
+            RelatedModulesText = "";
                 Description = "Record was deleted. Read-only temporal history is shown.";
                 TagsText = "";
                 ScriptCustomerCode = "";
@@ -99,7 +102,8 @@ public partial class ScriptItemViewModel : ObservableObject
             Name = detail.Name;
             Key = detail.Key;
             Content = NormalizeSqlContent(detail.Content);
-            Module = detail.Module;
+            MainModule = detail.MainModule;
+            RelatedModulesText = string.Join(", ", detail.RelatedModules ?? Array.Empty<string>());
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
             IsReadOnlyMode = false;
@@ -257,7 +261,12 @@ public partial class ScriptItemViewModel : ObservableObject
                 Content: normalizedContent,
                 Scope: Scope,
                 CustomerId: customerId,
-                Module: string.IsNullOrWhiteSpace(Module) ? null : Module.Trim(),
+                MainModule: string.IsNullOrWhiteSpace(MainModule) ? null : MainModule.Trim(),
+                RelatedModules: (RelatedModulesText ?? "")
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
                 Description: string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
                 Tags: tags
             );
