@@ -33,7 +33,6 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string? _error;
 
     [ObservableProperty] private int _scopeFilterIndex;
-    [ObservableProperty] private string _customerIdFilterText = "";
     [ObservableProperty] private string _mainModuleFilterText = "";
     [ObservableProperty] private string _relatedModuleFilterText = "";
     [ObservableProperty] private string _customerCodeFilterText = "";
@@ -43,6 +42,11 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _tagCatalogSearchText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
+
+    public bool IsModuleCatalogSearchActive => !string.IsNullOrWhiteSpace(ModuleCatalogSearchText);
+    public bool IsTagCatalogSearchActive => !string.IsNullOrWhiteSpace(TagCatalogSearchText);
+    public string ModuleCatalogHintText => IsModuleCatalogSearchActive ? string.Empty : "Tippe mindestens 1 Buchstabe, um Module anzuzeigen.";
+    public string TagCatalogHintText => IsTagCatalogSearchActive ? string.Empty : "Tippe mindestens 1 Buchstabe, um Tags anzuzeigen.";
 
     public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
 
@@ -62,12 +66,11 @@ public partial class LibrarySplitViewModel : ObservableObject
             IsBusy = true;
             Error = null;
 
-            var customerId = await ResolveCustomerIdFilterAsync();
+            var customerId = await ResolveCustomerFilterAsync();
 
             var searchText = QueryText;
 
             if (!string.IsNullOrWhiteSpace(QueryText)
-                && string.IsNullOrWhiteSpace(CustomerIdFilterText)
                 && string.IsNullOrWhiteSpace(CustomerCodeFilterText))
             {
                 var mappedCustomer = await _customerMappingRepository.GetByCodeAsync(QueryText.Trim());
@@ -267,9 +270,19 @@ public partial class LibrarySplitViewModel : ObservableObject
         ApplyCatalogFilters();
     }
 
-    partial void OnModuleCatalogSearchTextChanged(string value) => ApplyCatalogFilters();
+    partial void OnModuleCatalogSearchTextChanged(string value)
+    {
+        ApplyCatalogFilters();
+        OnPropertyChanged(nameof(IsModuleCatalogSearchActive));
+        OnPropertyChanged(nameof(ModuleCatalogHintText));
+    }
 
-    partial void OnTagCatalogSearchTextChanged(string value) => ApplyCatalogFilters();
+    partial void OnTagCatalogSearchTextChanged(string value)
+    {
+        ApplyCatalogFilters();
+        OnPropertyChanged(nameof(IsTagCatalogSearchActive));
+        OnPropertyChanged(nameof(TagCatalogHintText));
+    }
 
     private void ApplyCatalogFilters()
     {
@@ -281,8 +294,14 @@ public partial class LibrarySplitViewModel : ObservableObject
     private static void ApplyCatalogFilter(IEnumerable<string> source, ObservableCollection<string> target, string? filter)
     {
         var typed = filter?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(typed))
+        {
+            target.Clear();
+            return;
+        }
+
         var matches = source
-            .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .Where(x => x.Contains(typed, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -292,17 +311,8 @@ public partial class LibrarySplitViewModel : ObservableObject
             target.Add(value);
     }
 
-    private async Task<Guid?> ResolveCustomerIdFilterAsync()
+    private async Task<Guid?> ResolveCustomerFilterAsync()
     {
-        var guidInput = CustomerIdFilterText?.Trim() ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(guidInput))
-        {
-            if (!Guid.TryParse(guidInput, out var parsed))
-                throw new InvalidOperationException("CustomerId filter is not a valid GUID.");
-
-            return parsed;
-        }
-
         var codeInput = CustomerCodeFilterText?.Trim() ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(codeInput))
         {
@@ -319,9 +329,6 @@ public partial class LibrarySplitViewModel : ObservableObject
     private async Task<Guid?> TryResolveCustomerIdFromQueryTextAsync()
     {
         var query = QueryText?.Trim() ?? string.Empty;
-        if (Guid.TryParse(query, out var queryGuid))
-            return queryGuid;
-
         if (string.IsNullOrWhiteSpace(query))
             return null;
 
