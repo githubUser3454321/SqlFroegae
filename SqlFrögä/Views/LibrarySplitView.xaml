@@ -107,7 +107,7 @@
                              Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
-                             PlaceholderText="Objektsuche (z. B. x.x_adkont_sql oder om.om_adkont_sql)"
+                             PlaceholderText="Objektsuche (z. B. om_adkont_sql, om_adkont_sql.TestSpalte oder om.om_adkont_sql)"
                              Text="{Binding ObjectFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <CheckBox Grid.Row="3" Grid.Column="0"

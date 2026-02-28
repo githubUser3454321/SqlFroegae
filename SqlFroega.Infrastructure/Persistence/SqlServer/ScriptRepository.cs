@@ -120,10 +120,9 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
-            var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(filters.ReferencedObject);
-            sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND (r.ObjectName = @objectToken OR (@objectTokenFallback IS NOT NULL AND r.ObjectName = @objectTokenFallback)))");
-            p.Add("@objectToken", normalizedObjectToken);
-            p.Add("@objectTokenFallback", fallbackObjectToken);
+            var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
+            sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.ObjectName IN @objectTokens)");
+            p.Add("@objectTokens", objectTokens);
         }
 
         sb.AppendLine("ORDER BY s.Name ASC");
@@ -245,10 +244,9 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
         {
-            var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(filters.ReferencedObject);
-            sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND (r.ObjectName = @objectToken OR (@objectTokenFallback IS NOT NULL AND r.ObjectName = @objectTokenFallback)))");
-            p.Add("@objectToken", normalizedObjectToken);
-            p.Add("@objectTokenFallback", fallbackObjectToken);
+            var objectTokens = BuildObjectSearchTokens(filters.ReferencedObject);
+            sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND r.ObjectName IN @objectTokens)");
+            p.Add("@objectTokens", objectTokens);
         }
 
         sb.AppendLine(")");
@@ -591,7 +589,7 @@ ORDER BY s.{validFromColumn} DESC;";
         if (string.IsNullOrWhiteSpace(objectName))
             return Array.Empty<ScriptReferenceItem>();
 
-        var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(objectName);
+        var objectTokens = BuildObjectSearchTokens(objectName);
 
         const string sql = @"
 SELECT r.ScriptId,
@@ -599,12 +597,12 @@ SELECT r.ScriptId,
        r.ObjectType
 FROM {0} r
 WHERE r.ObjectName = @objectName
-   OR (@objectNameFallback IS NOT NULL AND r.ObjectName = @objectNameFallback)
+   OR r.ObjectName IN @objectTokens
 ORDER BY r.CreatedAt DESC;";
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var rows = await conn.QueryAsync<ScriptReferenceRow>(
-            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName = normalizedObjectToken, objectNameFallback = fallbackObjectToken }, cancellationToken: ct));
+            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName, objectTokens }, cancellationToken: ct));
 
         return rows.Select(x => new ScriptReferenceItem(x.ScriptId, x.ObjectName, x.ObjectType)).ToList();
     }
@@ -653,31 +651,60 @@ END";
         await conn.ExecuteAsync(new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
     }
 
-    private static (string NormalizedToken, string? FallbackToken) BuildObjectSearchTokens(string rawObjectText)
+    private static IReadOnlyList<string> BuildObjectSearchTokens(string rawObjectText)
     {
         var raw = (rawObjectText ?? string.Empty).Trim();
         if (raw.Length == 0)
-            return (string.Empty, null);
+            return Array.Empty<string>();
 
         var cleaned = raw.Replace("[", string.Empty).Replace("]", string.Empty);
         var parts = cleaned.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 2)
-            return (cleaned, null);
 
-        var schema = parts[^2];
-        var obj = parts[^1];
-        var fallback = $"{schema}.{obj}";
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { cleaned };
 
-        if (schema.Equals("om", StringComparison.OrdinalIgnoreCase) && obj.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
-            return (fallback, null);
+        if (parts.Length == 1)
+        {
+            tokens.Add($"om.{NormalizeTable(parts[0])}");
+            return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        }
 
-        var canonicalObject = obj;
-        if (canonicalObject.StartsWith(schema + "_", StringComparison.OrdinalIgnoreCase))
-            canonicalObject = "om_" + canonicalObject[(schema.Length + 1)..];
-        else if (!canonicalObject.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
-            canonicalObject = "om_" + canonicalObject;
+        if (parts.Length == 2)
+        {
+            var first = parts[0];
+            var second = parts[1];
 
-        return ($"om.{canonicalObject}", fallback);
+            // schema.table
+            tokens.Add(NormalizeSchemaObject(first, second));
+
+            // table.column
+            tokens.Add($"om.{NormalizeTable(first)}.{second}");
+            return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        }
+
+        var schema = parts[^3];
+        var table = parts[^2];
+        var column = parts[^1];
+        var normalizedTable = NormalizeSchemaObject(schema, table);
+        tokens.Add($"{normalizedTable}.{column}");
+
+        return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+    }
+
+    private static string NormalizeSchemaObject(string schema, string obj)
+        => $"om.{NormalizeTable(schema, obj)}";
+
+    private static string NormalizeTable(string table)
+        => NormalizeTable("om", table);
+
+    private static string NormalizeTable(string schema, string table)
+    {
+        if (table.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
+            return table;
+
+        if (!string.IsNullOrWhiteSpace(schema) && table.StartsWith(schema + "_", StringComparison.OrdinalIgnoreCase))
+            return "om_" + table[(schema.Length + 1)..];
+
+        return "om_" + table;
     }
 
     private static IReadOnlyList<string> ParseTags(string? tags)

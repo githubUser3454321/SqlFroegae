@@ -2,6 +2,7 @@ using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using SqlFroega.Domain;
 using SqlFroega.Infrastructure.Parsing;
+using SqlFroega.Infrastructure.Persistence.SqlServer;
 using Xunit;
 
 namespace SqlFroega.Tests;
@@ -71,6 +72,32 @@ SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
         Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.Name" && r.Type == DbObjectType.Column);
     }
 
+
+    [Fact]
+    public void Extractor_FindsColumns_FromAliasQualifiedSelect()
+    {
+        var sql = @"SELECT omT.[Column] FROM om.om_adkont_sql AS omT;";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.Column" && r.Type == DbObjectType.Column);
+    }
+
+    [Theory]
+    [InlineData("om_adkont_sql", "om.om_adkont_sql")]
+    [InlineData("om_adkont_sql.[Column]", "om.om_adkont_sql.Column")]
+    [InlineData("om_adkont_sql.TestSpalte", "om.om_adkont_sql.TestSpalte")]
+    public void BuildObjectSearchTokens_AcceptsTableAndColumnShorthand(string input, string expectedToken)
+    {
+        var method = typeof(SqlFroega.Infrastructure.Persistence.SqlServer.ScriptRepository)
+            .GetMethod("BuildObjectSearchTokens", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { input })!);
+        Assert.Contains(expectedToken, tokens, StringComparer.OrdinalIgnoreCase);
+    }
     [Fact]
     public void Extractor_DoesNotAnalyze_DynamicSqlContent()
     {
