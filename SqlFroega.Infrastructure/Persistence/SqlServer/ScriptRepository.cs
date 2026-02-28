@@ -1324,8 +1324,14 @@ BEGIN
         LockedAt datetime2 NOT NULL
     );
 END;";
-
-        await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+        try
+        {
+            await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
+        }
+        catch
+        {
+            throw new Exception("Database coruppted, drop everything and recreate the database.");
+        }
     }
 
     private static (string Schema, string Table) SplitSchemaAndTable(string rawTable)
