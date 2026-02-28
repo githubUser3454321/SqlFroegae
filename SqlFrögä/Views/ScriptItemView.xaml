@@ -45,15 +45,25 @@
                             DisplayMemberPath="CustomerCode"
                             TextMemberPath="CustomerCode"/>
             <Button Grid.Column="3"
+                    x:Name="CopyButton"
                     Content="Copy"
                     Command="{Binding CopyCommand}"
                     CanDrag="True"
-                    DragStarting="CopyButton_DragStarting" />
+                    DragStarting="CopyButton_DragStarting"
+                    PointerPressed="CopyDragSource_PointerPressed"
+                    PointerMoved="CopyDragSource_PointerMoved"
+                    PointerReleased="CopyDragSource_PointerReleased"
+                    PointerCanceled="CopyDragSource_PointerCanceled" />
             <Button Grid.Column="4"
+                    x:Name="CopyRenderedButton"
                     Content="Copy Rendered"
                     Command="{Binding CopyRenderedCommand}"
                     CanDrag="True"
-                    DragStarting="CopyRenderedButton_DragStarting"/>
+                    DragStarting="CopyRenderedButton_DragStarting"
+                    PointerPressed="CopyDragSource_PointerPressed"
+                    PointerMoved="CopyDragSource_PointerMoved"
+                    PointerReleased="CopyDragSource_PointerReleased"
+                    PointerCanceled="CopyDragSource_PointerCanceled"/>
         </Grid>
 
         <Border Grid.Row="1"
