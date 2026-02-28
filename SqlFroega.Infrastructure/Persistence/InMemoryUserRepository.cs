@@ -19,7 +19,7 @@ public sealed class InMemoryUserRepository : IUserRepository
         }
     ];
 
-    private readonly HashSet<(Guid userId, string username)> _rememberedDevices = [];
+    private (Guid userId, string username)? _rememberedDevice;
     private readonly object _sync = new();
 
     public Task<IReadOnlyList<UserAccount>> GetAllAsync()
@@ -56,7 +56,9 @@ public sealed class InMemoryUserRepository : IUserRepository
         {
             var user = _users.FirstOrDefault(x => x.IsActive
                 && string.Equals(x.Username, login, StringComparison.OrdinalIgnoreCase)
-                && _rememberedDevices.Contains((x.Id, x.Username.ToUpperInvariant())));
+                && _rememberedDevice.HasValue
+                && _rememberedDevice.Value.userId == x.Id
+                && string.Equals(_rememberedDevice.Value.username, x.Username, StringComparison.OrdinalIgnoreCase));
 
             return Task.FromResult(user is null ? null : CopyUser(user));
         }
@@ -69,8 +71,18 @@ public sealed class InMemoryUserRepository : IUserRepository
             var user = _users.FirstOrDefault(x => x.Id == userId);
             if (user is not null)
             {
-                _rememberedDevices.Add((user.Id, user.Username.ToUpperInvariant()));
+                _rememberedDevice = (user.Id, user.Username);
             }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task ClearRememberedDeviceAsync()
+    {
+        lock (_sync)
+        {
+            _rememberedDevice = null;
         }
 
         return Task.CompletedTask;
