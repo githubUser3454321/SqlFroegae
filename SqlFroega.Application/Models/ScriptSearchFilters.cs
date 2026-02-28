@@ -8,6 +8,7 @@ public sealed record ScriptSearchFilters(
     Guid? CustomerId,
     string? Module,
     IReadOnlyList<string>? Tags,
+    string? ReferencedObject,
     bool IncludeDeleted = false,
     bool SearchHistory = false
 );

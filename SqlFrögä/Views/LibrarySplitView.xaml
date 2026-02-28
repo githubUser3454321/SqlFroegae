@@ -80,6 +80,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -105,16 +106,20 @@
                              PlaceholderText="Tags, komma-getrennt"
                              Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <CheckBox Grid.Row="2" Grid.Column="0"
+                    <TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                             PlaceholderText="Objektsuche (z. B. x.x_adkont_sql oder om.om_adkont_sql)"
+                             Text="{Binding ObjectFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <CheckBox Grid.Row="3" Grid.Column="0"
                               Content="Gelöschte Datensätze anzeigen (Temporal)"
                               IsChecked="{Binding IncludeDeleted, Mode=TwoWay}"/>
 
-                    <CheckBox Grid.Row="2" Grid.Column="1"
+                    <CheckBox Grid.Row="3" Grid.Column="1"
                               Content="Auch in History-Versionen suchen"
                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
 
-                    <Expander Grid.Row="3" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="True">
+                    <Expander Grid.Row="4" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="True">
                         <StackPanel Spacing="8" Padding="0,8,0,0">
                             <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
 

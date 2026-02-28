@@ -6,6 +6,7 @@ public enum DbObjectType
     View = 1,
     Procedure = 2,
     Function = 3,
+    Column = 6,
     Schema = 4,
     Database = 5,
     Unknown = 98,

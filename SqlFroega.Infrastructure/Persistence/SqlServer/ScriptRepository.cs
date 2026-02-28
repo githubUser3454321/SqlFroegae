@@ -106,7 +106,7 @@ public sealed class ScriptRepository : IScriptRepository
         if (!string.IsNullOrWhiteSpace(queryText))
         {
             queryText = queryText.Trim();
-            if (_opt.UseFullTextSearch)
+            if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
             {
                 sb.AppendLine("AND (CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q))");
                 p.Add("@q", queryText);
@@ -118,10 +118,21 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        {
+            var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(filters.ReferencedObject);
+            sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND (r.ObjectName = @objectToken OR (@objectTokenFallback IS NOT NULL AND r.ObjectName = @objectTokenFallback)))");
+            p.Add("@objectToken", normalizedObjectToken);
+            p.Add("@objectTokenFallback", fallbackObjectToken);
+        }
+
         sb.AppendLine("ORDER BY s.Name ASC");
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+            await EnsureScriptRefsTableAsync(conn, ct);
+
         var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
 
         return rows.Select(r => new ScriptListItem(
@@ -202,7 +213,7 @@ public sealed class ScriptRepository : IScriptRepository
             queryText = queryText.Trim();
             p.Add("@q", queryText);
 
-            if (_opt.UseFullTextSearch)
+            if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
             {
                 sb.AppendLine("      AND (");
                 sb.AppendLine("          CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q)");
@@ -232,6 +243,14 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        {
+            var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(filters.ReferencedObject);
+            sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND (r.ObjectName = @objectToken OR (@objectTokenFallback IS NOT NULL AND r.ObjectName = @objectTokenFallback)))");
+            p.Add("@objectToken", normalizedObjectToken);
+            p.Add("@objectTokenFallback", fallbackObjectToken);
+        }
+
         sb.AppendLine(")");
         sb.AppendLine("SELECT");
         sb.AppendLine("  vr.Id,");
@@ -256,6 +275,9 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+            await EnsureScriptRefsTableAsync(conn, ct);
+
         var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
 
         return rows.Select(r => new ScriptListItem(
@@ -569,17 +591,20 @@ ORDER BY s.{validFromColumn} DESC;";
         if (string.IsNullOrWhiteSpace(objectName))
             return Array.Empty<ScriptReferenceItem>();
 
+        var (normalizedObjectToken, fallbackObjectToken) = BuildObjectSearchTokens(objectName);
+
         const string sql = @"
 SELECT r.ScriptId,
        r.ObjectName,
        r.ObjectType
 FROM {0} r
 WHERE r.ObjectName = @objectName
+   OR (@objectNameFallback IS NOT NULL AND r.ObjectName = @objectNameFallback)
 ORDER BY r.CreatedAt DESC;";
 
         await using var conn = await _connFactory.OpenAsync(ct);
         var rows = await conn.QueryAsync<ScriptReferenceRow>(
-            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName = objectName.Trim() }, cancellationToken: ct));
+            new CommandDefinition(string.Format(sql, _opt.ScriptObjectRefsTable), new { objectName = normalizedObjectToken, objectNameFallback = fallbackObjectToken }, cancellationToken: ct));
 
         return rows.Select(x => new ScriptReferenceItem(x.ScriptId, x.ObjectName, x.ObjectType)).ToList();
     }
@@ -626,6 +651,33 @@ BEGIN
 END";
 
         await conn.ExecuteAsync(new CommandDefinition(sql, new { schemaName, tableName }, cancellationToken: ct));
+    }
+
+    private static (string NormalizedToken, string? FallbackToken) BuildObjectSearchTokens(string rawObjectText)
+    {
+        var raw = (rawObjectText ?? string.Empty).Trim();
+        if (raw.Length == 0)
+            return (string.Empty, null);
+
+        var cleaned = raw.Replace("[", string.Empty).Replace("]", string.Empty);
+        var parts = cleaned.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+            return (cleaned, null);
+
+        var schema = parts[^2];
+        var obj = parts[^1];
+        var fallback = $"{schema}.{obj}";
+
+        if (schema.Equals("om", StringComparison.OrdinalIgnoreCase) && obj.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
+            return (fallback, null);
+
+        var canonicalObject = obj;
+        if (canonicalObject.StartsWith(schema + "_", StringComparison.OrdinalIgnoreCase))
+            canonicalObject = "om_" + canonicalObject[(schema.Length + 1)..];
+        else if (!canonicalObject.StartsWith("om_", StringComparison.OrdinalIgnoreCase))
+            canonicalObject = "om_" + canonicalObject;
+
+        return ($"om.{canonicalObject}", fallback);
     }
 
     private static IReadOnlyList<string> ParseTags(string? tags)
