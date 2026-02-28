@@ -457,6 +457,13 @@ public sealed partial class ScriptItemView : Page
     {
         var selectedFlags = new ObservableCollection<string>(VM.SelectedFlags);
         var selectedSet = new HashSet<string>(selectedFlags, StringComparer.OrdinalIgnoreCase);
+        var hasDefaultCheckBoxStyle = App.Current.Resources.TryGetValue("DefaultCheckBoxStyle", out var defaultCheckBoxStyleResource);
+        var defaultCheckBoxStyle = hasDefaultCheckBoxStyle ? defaultCheckBoxStyleResource as Style : null;
+        var hasPrimaryTextBrush = App.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var primaryTextBrushResource);
+        var primaryTextBrush = hasPrimaryTextBrush ? primaryTextBrushResource as Brush : null;
+
+        Brush ResolveBrush(string resourceKey, Brush fallback)
+            => App.Current.Resources.TryGetValue(resourceKey, out var resource) && resource is Brush brush ? brush : fallback;
 
         var listContainer = new StackPanel
         {
@@ -487,18 +494,22 @@ public sealed partial class ScriptItemView : Page
                 var checkBox = new CheckBox
                 {
                     Content = flag,
-                    IsChecked = isSelected,
-                    Style = App.Current.Resources["DefaultCheckBoxStyle"] as Style,
-                    Foreground = App.Current.Resources["TextFillColorPrimaryBrush"] as Brush
+                    IsChecked = isSelected
                 };
+
+                if (defaultCheckBoxStyle is not null)
+                    checkBox.Style = defaultCheckBoxStyle;
+
+                if (primaryTextBrush is not null)
+                    checkBox.Foreground = primaryTextBrush;
 
                 var row = new Border
                 {
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(8, 6, 8, 6),
                     Background = isSelected
-                        ? App.Current.Resources["SubtleFillColorSecondaryBrush"] as Brush
-                        : App.Current.Resources["ControlFillColorTransparentBrush"] as Brush,
+                        ? ResolveBrush("SubtleFillColorSecondaryBrush", new SolidColorBrush(Colors.Transparent))
+                        : ResolveBrush("ControlFillColorTransparentBrush", new SolidColorBrush(Colors.Transparent)),
                     Child = checkBox
                 };
 
