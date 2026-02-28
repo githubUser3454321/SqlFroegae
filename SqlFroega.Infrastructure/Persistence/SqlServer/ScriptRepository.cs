@@ -55,7 +55,7 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("SELECT");
         sb.AppendLine("  s.Id,");
         sb.AppendLine("  s.Name,");
-        sb.AppendLine("  s.ScriptKey AS [Key],");
+        sb.AppendLine("  s.NumberId,");
         sb.AppendLine("  CASE s.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
         sb.AppendLine("  s.Module AS MainModule,");
         sb.AppendLine("  COALESCE(s.RelatedModules, N'') AS RelatedModules,");
@@ -159,7 +159,7 @@ public sealed class ScriptRepository : IScriptRepository
         return rows.Select(r => new ScriptListItem(
             r.Id,
             r.Name,
-            r.Key,
+            r.NumberId,
             r.ScopeLabel,
             r.MainModule,
             ParseTags(r.RelatedModules),
@@ -188,7 +188,7 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("    SELECT");
         sb.AppendLine("      s.Id,");
         sb.AppendLine("      s.Name,");
-        sb.AppendLine("      s.ScriptKey AS [Key],");
+        sb.AppendLine("      s.NumberId,");
         sb.AppendLine("      s.Scope,");
         sb.AppendLine("      s.Module AS MainModule,");
         sb.AppendLine("      COALESCE(s.RelatedModules, N'') AS RelatedModules,");
@@ -296,7 +296,7 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("SELECT");
         sb.AppendLine("  vr.Id,");
         sb.AppendLine("  vr.Name,");
-        sb.AppendLine("  vr.[Key],");
+        sb.AppendLine("  vr.NumberId,");
         sb.AppendLine("  CASE vr.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
         sb.AppendLine("  vr.MainModule,");
         sb.AppendLine("  vr.RelatedModules,");
@@ -326,7 +326,7 @@ public sealed class ScriptRepository : IScriptRepository
         return rows.Select(r => new ScriptListItem(
             r.Id,
             r.Name,
-            r.Key,
+            r.NumberId,
             r.ScopeLabel,
             r.MainModule,
             ParseTags(r.RelatedModules),
@@ -343,7 +343,7 @@ public sealed class ScriptRepository : IScriptRepository
         sql.AppendLine("SELECT TOP 1");
         sql.AppendLine("  s.Id,");
         sql.AppendLine("  s.Name,");
-        sql.AppendLine("  s.ScriptKey AS [Key],");
+        sql.AppendLine("  s.NumberId,");
         sql.AppendLine("  s.Content,");
         sql.AppendLine("  CASE s.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
         sql.AppendLine("  s.Module AS MainModule,");
@@ -375,7 +375,7 @@ public sealed class ScriptRepository : IScriptRepository
         return new ScriptDetail(
             row.Id,
             row.Name,
-            row.Key,
+            row.NumberId,
             row.Content,
             row.ScopeLabel,
             row.MainModule,
@@ -533,7 +533,6 @@ MERGE {_opt.ScriptsTable} AS target
 USING (SELECT 
         @resolvedId AS Id,
         @Name AS Name,
-        @Key AS ScriptKey,
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
@@ -546,7 +545,6 @@ ON target.Id = src.Id
 WHEN MATCHED THEN
     UPDATE SET
         Name = src.Name,
-        ScriptKey = src.ScriptKey,
         Content = src.Content,
         Scope = src.Scope,
         CustomerId = src.CustomerId,
@@ -556,8 +554,8 @@ WHEN MATCHED THEN
         Tags = src.Tags,
         IsDeleted = 0{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted{changedByInsertColumn}{reasonInsertColumn})
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0{changedByInsertValue}{reasonInsertValue});
+    INSERT (Id, Name, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 "
@@ -568,7 +566,6 @@ MERGE {_opt.ScriptsTable} AS target
 USING (SELECT 
         @resolvedId AS Id,
         @Name AS Name,
-        @Key AS ScriptKey,
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
@@ -581,7 +578,6 @@ ON target.Id = src.Id
 WHEN MATCHED THEN
     UPDATE SET
         Name = src.Name,
-        ScriptKey = src.ScriptKey,
         Content = src.Content,
         Scope = src.Scope,
         CustomerId = src.CustomerId,
@@ -590,8 +586,8 @@ WHEN MATCHED THEN
         Description = src.Description,
         Tags = src.Tags{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags{changedByInsertColumn}{reasonInsertColumn})
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags{changedByInsertValue}{reasonInsertValue});
+    INSERT (Id, Name, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 ";
@@ -602,7 +598,6 @@ SELECT @resolvedId;
         {
             Id = script.Id,
             script.Name,
-            Key = script.Key,
             script.Content,
             script.Scope,
             script.CustomerId,
@@ -897,7 +892,7 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
     private sealed record ScriptListItemRow(
         Guid Id,
         string Name,
-        string Key,
+        int NumberId,
         string ScopeLabel,
         string? MainModule,
         string RelatedModules,
@@ -910,7 +905,7 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
     private sealed record ScriptDetailRow(
         Guid Id,
         string Name,
-        string Key,
+        int NumberId,
         string Content,
         string ScopeLabel,
         string? MainModule,
@@ -1294,6 +1289,19 @@ END;
 IF COL_LENGTH('{_opt.ScriptsTable}', 'UpdateReason') IS NULL
 BEGIN
     ALTER TABLE {_opt.ScriptsTable} ADD UpdateReason nvarchar(max) NULL;
+END;
+
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'NumberId') IS NULL
+BEGIN
+    DECLARE @sqlAddNumberId nvarchar(max) = N'ALTER TABLE {_opt.ScriptsTable} ADD NumberId int IDENTITY(1,1) NOT NULL;';
+    EXEC(@sqlAddNumberId);
+END;
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'ScriptKey') IS NOT NULL
+BEGIN
+    DECLARE @sqlMakeScriptKeyNullable nvarchar(max) = N'ALTER TABLE {_opt.ScriptsTable} ALTER COLUMN ScriptKey nvarchar(512) NULL;';
+    EXEC(@sqlMakeScriptKeyNullable);
 END;
 
 IF OBJECT_ID('dbo.ScriptViewLog', 'U') IS NULL

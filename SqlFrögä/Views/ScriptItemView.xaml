@@ -87,7 +87,7 @@
 
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Key" Opacity="0.75"/>
-                        <TextBox Text="{Binding Key, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}" />
+                        <TextBox Text="{Binding NumberId, Mode=OneWay}" IsReadOnly="True" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">

@@ -6,7 +6,7 @@ namespace SqlFroega.Application.Models;
 public sealed record ScriptDetail(
     Guid Id,
     string Name,
-    string Key,
+    int NumberId,
     string Content,
     string ScopeLabel,
     string? MainModule,
