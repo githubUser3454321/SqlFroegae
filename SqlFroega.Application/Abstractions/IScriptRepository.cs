@@ -34,6 +34,8 @@ public interface IScriptRepository
 
     Task AddModuleAsync(string moduleName, CancellationToken ct = default);
 
+    Task RenameModuleAsync(string currentModuleName, string newModuleName, CancellationToken ct = default);
+
     Task RemoveModuleAsync(string moduleName, CancellationToken ct = default);
 
     Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(
