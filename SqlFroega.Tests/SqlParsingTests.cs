@@ -167,6 +167,7 @@ WHERE EXISTS (
         {
             _items = items;
         }
+        public Task DeleteAsync(Guid customerId, CancellationToken ct = default) => throw new NotImplementedException();
 
         public Task<IReadOnlyList<CustomerMappingItem>> GetAllAsync(CancellationToken ct = default)
             => Task.FromResult(_items);
