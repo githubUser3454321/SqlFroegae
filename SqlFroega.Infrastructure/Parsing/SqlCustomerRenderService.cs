@@ -3,7 +3,8 @@ using SqlFroega.Application.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,20 +23,19 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
 
     public async Task<string> NormalizeForStorageAsync(string sql, CancellationToken ct = default)
     {
-        ValidateSql(sql);
+        var fragment = ParseSql(sql);
 
         var mappings = await _mappingRepository.GetAllAsync(ct);
         if (mappings.Count == 0)
             return sql;
 
-        var normalized = sql;
+        var rewriter = new SchemaObjectNameRewriter();
         foreach (var mapping in mappings)
         {
-            normalized = ReplaceSchemaPrefix(normalized, mapping.DatabaseUser, mapping.ObjectPrefix, CanonicalDbUser, CanonicalPrefix);
-            normalized = ReplaceDbUserPrefix(normalized, mapping.DatabaseUser, CanonicalDbUser, CanonicalPrefix);
+            rewriter.AddRule(mapping.DatabaseUser, mapping.ObjectPrefix, CanonicalDbUser, CanonicalPrefix);
         }
 
-        return normalized;
+        return rewriter.Rewrite(fragment);
     }
 
     public async Task<string> RenderForCustomerAsync(string sql, string customerCode, CancellationToken ct = default)
@@ -47,41 +47,97 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         if (mapping is null)
             throw new InvalidOperationException($"No customer mapping found for '{customerCode}'.");
 
-        return ReplaceSchemaPrefix(sql, CanonicalDbUser, CanonicalPrefix, mapping.DatabaseUser, mapping.ObjectPrefix);
+        var fragment = ParseSql(sql);
+        var rewriter = new SchemaObjectNameRewriter();
+        rewriter.AddRule(CanonicalDbUser, CanonicalPrefix, mapping.DatabaseUser, mapping.ObjectPrefix);
+        return rewriter.Rewrite(fragment);
     }
 
-    private static void ValidateSql(string sql)
+    private static TSqlFragment ParseSql(string sql)
     {
         var parser = new TSql160Parser(initialQuotedIdentifiers: true);
         using var reader = new StringReader(sql ?? string.Empty);
-        parser.Parse(reader, out IList<ParseError> errors);
+        var fragment = parser.Parse(reader, out IList<ParseError> errors);
 
         if (errors.Count == 0)
-            return;
+            return fragment;
 
         var first = errors[0];
         throw new InvalidOperationException($"SQL parse failed at line {first.Line}, col {first.Column}: {first.Message}");
     }
 
-    private static string ReplaceSchemaPrefix(string sql, string sourceSchema, string sourcePrefix, string targetSchema, string targetPrefix)
+    private sealed class SchemaObjectNameRewriter : TSqlFragmentVisitor
     {
-        if (string.IsNullOrWhiteSpace(sourceSchema) || string.IsNullOrWhiteSpace(sourcePrefix))
-            return sql;
+        private readonly List<RewriteRule> _rules = new();
 
-        var pattern = $@"(?i)(\[?{Regex.Escape(sourceSchema)}\]?\s*\.\s*\[?){Regex.Escape(sourcePrefix)}";
-        return Regex.Replace(sql, pattern, m =>
+        public void AddRule(string sourceSchema, string sourcePrefix, string targetSchema, string targetPrefix)
         {
-            var schemaPart = m.Groups[1].Value;
-            return schemaPart.Replace(sourceSchema, targetSchema, StringComparison.OrdinalIgnoreCase) + targetPrefix;
-        });
-    }
+            if (string.IsNullOrWhiteSpace(sourceSchema) || string.IsNullOrWhiteSpace(sourcePrefix))
+                return;
 
-    private static string ReplaceDbUserPrefix(string sql, string sourceDbUser, string targetSchema, string targetPrefix)
-    {
-        if (string.IsNullOrWhiteSpace(sourceDbUser))
+            _rules.Add(new RewriteRule(
+                sourceSchema.Trim(),
+                sourcePrefix.Trim(),
+                string.IsNullOrWhiteSpace(targetSchema) ? sourceSchema.Trim() : targetSchema.Trim(),
+                string.IsNullOrWhiteSpace(targetPrefix) ? sourcePrefix.Trim() : targetPrefix.Trim()));
+        }
+
+        public string Rewrite(TSqlFragment fragment)
+        {
+            if (_rules.Count == 0)
+                return GetSql(fragment);
+
+            fragment.Accept(this);
+            return GetSql(fragment);
+        }
+
+        public override void ExplicitVisit(NamedTableReference node)
+        {
+            TryRewrite(node.SchemaObject);
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(SchemaObjectName node)
+        {
+            TryRewrite(node);
+            base.ExplicitVisit(node);
+        }
+
+        private void TryRewrite(SchemaObjectName? node)
+        {
+            if (node is null || node.Identifiers.Count < 2)
+                return;
+
+            var schema = node.Identifiers[^2];
+            var obj = node.Identifiers[^1];
+            var currentSchema = schema.Value ?? string.Empty;
+            var currentObject = obj.Value ?? string.Empty;
+
+            var rule = _rules.FirstOrDefault(r =>
+                currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase) &&
+                currentObject.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase));
+
+            if (rule is null)
+                return;
+
+            schema.Value = rule.TargetSchema;
+            obj.Value = rule.TargetPrefix + currentObject[rule.SourcePrefix.Length..];
+        }
+
+        private static string GetSql(TSqlFragment fragment)
+        {
+            var generator = new Sql160ScriptGenerator(new SqlScriptGeneratorOptions
+            {
+                KeywordCasing = KeywordCasing.PreserveCase,
+                IncludeSemicolons = true,
+                NewLineBeforeFromClause = false,
+                NewLineBeforeWhereClause = false
+            });
+
+            generator.GenerateScript(fragment, out var sql);
             return sql;
-
-        var pattern = $@"(?i)\b{Regex.Escape(sourceDbUser)}\s*\.\s*{Regex.Escape(sourceDbUser)}_";
-        return Regex.Replace(sql, pattern, $"{targetSchema}.{targetPrefix}");
+        }
     }
+
+    private sealed record RewriteRule(string SourceSchema, string SourcePrefix, string TargetSchema, string TargetPrefix);
 }

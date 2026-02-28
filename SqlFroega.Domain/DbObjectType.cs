@@ -1,5 +1,4 @@
-﻿
-namespace SqlFroega.Domain;
+﻿namespace SqlFroega.Domain;
 
 public enum DbObjectType
 {
@@ -9,5 +8,6 @@ public enum DbObjectType
     Function = 3,
     Schema = 4,
     Database = 5,
+    Unknown = 98,
     Other = 99
 }
