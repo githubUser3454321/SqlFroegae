@@ -9,7 +9,7 @@ public sealed class ScriptListItem
     public ScriptListItem(
         Guid id,
         string name,
-        string key,
+        int numberId,
         string scopeLabel,
         string? mainModule,
         IReadOnlyList<string> relatedModules,
@@ -20,7 +20,7 @@ public sealed class ScriptListItem
     {
         Id = id;
         Name = name;
-        Key = key;
+        NumberId = numberId;
         ScopeLabel = scopeLabel;
         MainModule = mainModule;
         RelatedModules = relatedModules;
@@ -32,7 +32,7 @@ public sealed class ScriptListItem
 
     public Guid Id { get; set; }
     public string Name { get; set; } = "";
-    public string Key { get; set; } = "";
+    public int NumberId { get; set; }
     public string ScopeLabel { get; set; } = "";
     public string? MainModule { get; set; }
     public IReadOnlyList<string> RelatedModules { get; set; } = Array.Empty<string>();

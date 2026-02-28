@@ -230,7 +230,7 @@
 
                                         <StackPanel>
                                             <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
-                                            <TextBlock Text="{Binding Key}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding NumberId}" Opacity="0.7" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding Description}" Opacity="0.8" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             <TextBlock Text="{Binding DeletedLabel}" Foreground="Tomato" FontSize="12"/>
                                         </StackPanel>

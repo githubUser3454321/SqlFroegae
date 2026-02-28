@@ -6,7 +6,7 @@ namespace SqlFroega.Domain;
 public sealed record Script(
     Guid Id,
     string Name,
-    string Key, // "Path/Key": eindeutiger Key, z.B. "/global/billing/Rebuild.sql"
+    int NumberId,
     string Content,
     ScriptScope Scope,
     Guid? CustomerId,

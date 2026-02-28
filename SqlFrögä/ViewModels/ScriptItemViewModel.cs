@@ -34,7 +34,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
     [ObservableProperty] private string _title = "Script";
     [ObservableProperty] private string _name = "";
-    [ObservableProperty] private string _key = "";
+    [ObservableProperty] private int? _numberId;
     [ObservableProperty] private string _content = "";
     [ObservableProperty] private int _scope = 0; // 0 Global, 1 Customer, 2 Module
     [ObservableProperty] private string? _mainModule;
@@ -72,7 +72,7 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             Title = "New Script";
             Name = "";
-            Key = "";
+            NumberId = null;
             Content = "";
             Scope = 0;
             MainModule = "";
@@ -101,7 +101,7 @@ public partial class ScriptItemViewModel : ObservableObject
             {
                 Title = "Deleted Script (History)";
                 Name = "(deleted)";
-                Key = "(history only)";
+                NumberId = null;
                 Scope = 0;
                 MainModule = "";
                 SetRelatedModules(Array.Empty<string>());
@@ -120,7 +120,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
             Title = "Edit Script";
             Name = detail.Name;
-            Key = detail.Key;
+            NumberId = detail.NumberId;
             Content = NormalizeSqlContent(detail.Content);
             _loadedNormalizedContent = NormalizeSqlContent(detail.Content);
             MainModule = detail.MainModule;
@@ -404,8 +404,6 @@ public partial class ScriptItemViewModel : ObservableObject
                 throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
             if (_id != Guid.Empty && !IsEditUnlocked)
                 throw new InvalidOperationException("Bitte zuerst den Bearbeiten-Button (Unlock) klicken.");
-            if (string.IsNullOrWhiteSpace(Key))
-                throw new InvalidOperationException("Key is required.");
             if (string.IsNullOrWhiteSpace(Content))
                 throw new InvalidOperationException("Content is required.");
             if (RequiresSqlContentChangeReason() && string.IsNullOrWhiteSpace(updateReason))
@@ -451,7 +449,6 @@ public partial class ScriptItemViewModel : ObservableObject
             var dto = new ScriptUpsert(
                 Id: _id == Guid.Empty ? null : _id,
                 Name: Name.Trim(),
-                Key: Key.Trim(),
                 Content: normalizedContent,
                 Scope: Scope,
                 CustomerId: customerId,
@@ -468,6 +465,9 @@ public partial class ScriptItemViewModel : ObservableObject
             _id = newId;
             Title = "Edit Script";
             _loadedNormalizedContent = normalizedContent;
+
+            var refreshed = await _repo.GetByIdAsync(newId);
+            NumberId = refreshed?.NumberId;
 
             if (wasNewScript)
             {
