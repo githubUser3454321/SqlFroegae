@@ -664,7 +664,16 @@ END";
 
         if (parts.Length == 1)
         {
-            tokens.Add($"om.{NormalizeTable(parts[0])}");
+            var objectName = parts[0];
+            tokens.Add($"om.{NormalizeTable(objectName)}");
+
+            if (objectName.Contains('_'))
+            {
+                var inferredSchema = objectName.Split('_', 2)[0];
+                if (!string.IsNullOrWhiteSpace(inferredSchema))
+                    tokens.Add($"{inferredSchema}.{objectName}");
+            }
+
             return tokens.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
         }
 

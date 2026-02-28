@@ -36,6 +36,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
     [ObservableProperty] private string _selectedCustomerCode = "";
     [ObservableProperty] private string _scriptCustomerCode = "";
+    [ObservableProperty] private bool _replaceDatabaseUserAndPrefix = true;
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
@@ -63,6 +64,7 @@ public partial class ScriptItemViewModel : ObservableObject
             TagsText = "";
             ScriptCustomerCode = "";
             IsReadOnlyMode = false;
+            ReplaceDatabaseUserAndPrefix = true;
             Error = null;
             ClearHistory();
             return;
@@ -85,6 +87,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 TagsText = "";
                 ScriptCustomerCode = "";
                 IsReadOnlyMode = true;
+                ReplaceDatabaseUserAndPrefix = false;
 
                 await TryLoadHistoryAsync();
                 Content = HistoryItems.FirstOrDefault()?.Content ?? string.Empty;
@@ -100,6 +103,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Description = detail.Description;
             TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
             IsReadOnlyMode = false;
+            ReplaceDatabaseUserAndPrefix = true;
 
             ScriptCustomerCode = "";
             if (detail.CustomerId.HasValue)
@@ -232,10 +236,18 @@ public partial class ScriptItemViewModel : ObservableObject
                 .ToList();
 
             var normalizedContent = NormalizeSqlContent(Content);
-            if (customerId is null)
+            if (ReplaceDatabaseUserAndPrefix)
             {
-                normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
-                Content = normalizedContent;
+                try
+                {
+                    normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
+                    Content = normalizedContent;
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("Automatic replacement has been disabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    ReplaceDatabaseUserAndPrefix = false;
+                    Error = "Mehrere unterschiedliche Mapping-Paare im Script erkannt. Automatisches Ersetzen wurde deaktiviert.";
+                }
             }
 
             var dto = new ScriptUpsert(

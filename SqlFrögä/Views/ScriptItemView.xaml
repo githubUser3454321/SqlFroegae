@@ -53,6 +53,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -111,7 +112,12 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Grid.Row="2" RowSpacing="6">
+                <CheckBox Grid.Row="2"
+                          Content="DB-User und Prefix ersetzen (inkl. Sicherheitsprüfung auf USE/DB-Qualifier)"
+                          IsChecked="{Binding ReplaceDatabaseUserAndPrefix, Mode=TwoWay}"
+                          IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+
+                <Grid Grid.Row="3" RowSpacing="6">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
