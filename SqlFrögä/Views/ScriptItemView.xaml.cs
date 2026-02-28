@@ -482,10 +482,24 @@ public sealed partial class ScriptItemView : Page
             listContainer.Children.Clear();
             foreach (var flag in matches)
             {
+                var isSelected = selectedSet.Contains(flag);
+
                 var checkBox = new CheckBox
                 {
                     Content = flag,
-                    IsChecked = selectedSet.Contains(flag)
+                    IsChecked = isSelected,
+                    Style = Application.Current.Resources["DefaultCheckBoxStyle"] as Style,
+                    Foreground = Application.Current.Resources["TextFillColorPrimaryBrush"] as Brush
+                };
+
+                var row = new Border
+                {
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(8, 6, 8, 6),
+                    Background = isSelected
+                        ? Application.Current.Resources["SubtleFillColorSecondaryBrush"] as Brush
+                        : Application.Current.Resources["ControlFillColorTransparentBrush"] as Brush,
+                    Child = checkBox
                 };
 
                 checkBox.Checked += (_, _) =>
@@ -500,7 +514,7 @@ public sealed partial class ScriptItemView : Page
                     ApplyFilter(typed);
                 };
 
-                listContainer.Children.Add(checkBox);
+                listContainer.Children.Add(row);
             }
         }
 
