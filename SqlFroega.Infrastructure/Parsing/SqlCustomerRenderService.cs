@@ -102,7 +102,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         private readonly string _sql;
         private readonly List<RewriteRule> _rules = new();
         private readonly List<TextReplacement> _replacements = new();
-        private readonly HashSet<string> _appliedSourceRuleKeys = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _usedSourcePrefixes = new(StringComparer.OrdinalIgnoreCase);
+        private string? _usedQualifiedSourceSchema;
 
         public SqlTextRuleRewriter(string sql)
         {
@@ -138,8 +139,6 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
                 return _sql;
 
             fragment.Accept(this);
-            if (_appliedSourceRuleKeys.Count > 1)
-                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
 
             if (_replacements.Count == 0)
                 return _sql;
@@ -159,21 +158,20 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
 
         private void TryQueueReplacement(SchemaObjectName node)
         {
-            if (node.Identifiers.Count < 1)
-                return;
-
-            if (node.Identifiers.Count >= 3)
+            if (node.Identifiers.Count < 1 || node.Identifiers.Count >= 3)
                 return;
 
             if (node.Identifiers.Count == 1)
             {
                 var obj = node.Identifiers[0];
-                var rule = FindRuleForUnqualifiedObject(obj.Value ?? string.Empty);
+                var objectName = obj.Value ?? string.Empty;
+                var rule = FindRuleForUnqualifiedObject(objectName);
                 if (rule is null)
                     return;
 
-                TrackAppliedRule(rule);
-                var rewrittenObject = rule.TargetPrefix + (obj.Value ?? string.Empty)[rule.SourcePrefix.Length..];
+                EnsurePrefixConsistency(rule.SourcePrefix);
+
+                var rewrittenObject = rule.TargetPrefix + objectName[rule.SourcePrefix.Length..];
                 var replacement = FormatIdentifier(obj, rule.TargetSchema) + "." + FormatIdentifier(obj, rewrittenObject);
                 _replacements.Add(new TextReplacement(node.StartOffset, node.FragmentLength, replacement));
                 return;
@@ -187,19 +185,26 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             if (currentSchema.Equals("sys", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var matchedRules = _rules.Where(r =>
-                currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase) &&
-                currentObject.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+            var matchedRules = _rules
+                .Where(r => currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase)
+                         && currentObject.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
 
             if (matchedRules.Count == 0)
-                return;
+            {
+                if (_rules.Any(r => currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
 
-            var distinctSourceKeys = matchedRules.Select(GetSourceRuleKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (distinctSourceKeys.Count > 1)
+                return;
+            }
+
+            var distinctPrefixes = matchedRules.Select(r => r.SourcePrefix).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (distinctPrefixes.Count > 1)
                 throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
 
             var rule2 = matchedRules[0];
-            TrackAppliedRule(rule2);
+            EnsurePrefixConsistency(rule2.SourcePrefix);
+            EnsureQualifiedSchemaConsistency(rule2.SourceSchema);
 
             var rewrittenObject2 = rule2.TargetPrefix + currentObject[rule2.SourcePrefix.Length..];
             var replacement2 = FormatIdentifier(schema, rule2.TargetSchema) + "." + FormatIdentifier(obj2, rewrittenObject2);
@@ -218,18 +223,31 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             if (matchedRules.Count == 0)
                 return null;
 
-            var distinctSourceKeys = matchedRules.Select(GetSourceRuleKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (distinctSourceKeys.Count > 1)
-                throw new InvalidOperationException("Script contains unqualified object names that match multiple schema/prefix mappings. Automatic replacement has been disabled.");
+            var distinctPrefixes = matchedRules.Select(r => r.SourcePrefix).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (distinctPrefixes.Count > 1)
+                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
 
             return matchedRules[0];
         }
 
-        private void TrackAppliedRule(RewriteRule rule)
-            => _appliedSourceRuleKeys.Add(GetSourceRuleKey(rule));
+        private void EnsurePrefixConsistency(string prefix)
+        {
+            _usedSourcePrefixes.Add(prefix);
+            if (_usedSourcePrefixes.Count > 1)
+                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
+        }
 
-        private static string GetSourceRuleKey(RewriteRule rule)
-            => rule.SourceSchema + "|" + rule.SourcePrefix;
+        private void EnsureQualifiedSchemaConsistency(string schema)
+        {
+            if (_usedQualifiedSourceSchema is null)
+            {
+                _usedQualifiedSourceSchema = schema;
+                return;
+            }
+
+            if (!_usedQualifiedSourceSchema.Equals(schema, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
+        }
 
         private static string FormatIdentifier(Identifier original, string value)
             => original.QuoteType == QuoteType.SquareBracket ? $"[{value}]" : value;

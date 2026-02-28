@@ -107,6 +107,52 @@ public sealed class SqlParsingTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("SELECT * FROM om_db.syn_adkont_sql; SELECT * FROM om_db2.syn2_x;"));
     }
 
+
+    [Fact]
+    public async Task NormalizeForStorage_DoesNotAppendSqlSuffix()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var result = await service.NormalizeForStorageAsync("SELECT * FROM syn_adkont;");
+
+        Assert.Equal("SELECT * FROM om.om_adkont;", result);
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_AllowsUnqualifiedSamePrefixAcrossMultipleSchemas()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var result = await service.NormalizeForStorageAsync("SELECT * FROM syn_testtable; SELECT * FROM om.syn_adkont_sql;");
+
+        Assert.Equal("SELECT * FROM om.om_testtable; SELECT * FROM om.om_adkont_sql;", result);
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_Throws_WhenQualifiedSchemaDiffersForSamePrefix()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("SELECT * FROM om_db.syn_TestTable; SELECT * FROM om.syn_adkont_sql;"));
+    }
+
     [Fact]
     public async Task NormalizeForStorage_DoesNotRewrite_SysObjects()
     {
