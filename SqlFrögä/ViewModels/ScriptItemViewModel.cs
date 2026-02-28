@@ -348,6 +348,7 @@ public partial class ScriptItemViewModel : ObservableObject
             if (!lockResult.Acquired)
                 throw new InvalidOperationException($"Dieser Datensatz wird aktuell von '{lockResult.LockedBy ?? "einem anderen Anwender"}' bearbeitet.");
 
+            _editAwareness = await _repo.GetEditAwarenessAsync(_id, username);
             Error = null;
             IsEditUnlocked = true;
         }
@@ -451,10 +452,29 @@ public partial class ScriptItemViewModel : ObservableObject
                 UpdateReason: string.IsNullOrWhiteSpace(updateReason) ? null : updateReason.Trim()
             );
 
+            var wasNewScript = _id == Guid.Empty;
             var newId = await _repo.UpsertAsync(dto);
             _id = newId;
             Title = "Edit Script";
             _loadedNormalizedContent = normalizedContent;
+
+            if (wasNewScript)
+            {
+                var username = App.CurrentUser?.Username?.Trim();
+                if (string.IsNullOrWhiteSpace(username))
+                    throw new InvalidOperationException("Kein angemeldeter Benutzer gefunden.");
+
+                var lockResult = await _repo.TryAcquireEditLockAsync(newId, username);
+                if (!lockResult.Acquired)
+                {
+                    IsEditUnlocked = false;
+                    throw new InvalidOperationException($"Bearbeitungssperre konnte nach dem Anlegen nicht gesetzt werden, da '{lockResult.LockedBy ?? "ein anderer Anwender"}' den Datensatz hält.");
+                }
+
+                IsEditUnlocked = true;
+                _editAwareness = await _repo.RegisterViewAsync(newId, username);
+                _hasEditAwarenessWarning = false;
+            }
 
             await TryLoadHistoryAsync();
         }
@@ -633,7 +653,8 @@ public partial class ScriptItemViewModel : ObservableObject
         if (_hasEditAwarenessWarning || !IsEditUnlocked || _id == Guid.Empty)
             return;
 
-        var awareness = _editAwareness;
+        var awareness = await _repo.GetEditAwarenessAsync(_id, App.CurrentUser?.Username) ?? _editAwareness;
+        _editAwareness = awareness;
         if (awareness?.LastViewedAt is null || awareness.LastUpdatedAt is null)
             return;
 

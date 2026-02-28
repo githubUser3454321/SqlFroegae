@@ -418,6 +418,23 @@ WHEN NOT MATCHED THEN
         return new ScriptEditAwareness(lastViewedAt, snapshot?.UpdatedAt, snapshot?.UpdatedBy);
     }
 
+    public async Task<ScriptEditAwareness?> GetEditAwarenessAsync(Guid scriptId, string? username, CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        DateTime? lastViewedAt = null;
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            const string getSeenSql = "SELECT TOP 1 LastViewedAt FROM dbo.ScriptViewLog WHERE ScriptId = @scriptId AND Username = @username;";
+            lastViewedAt = await conn.QuerySingleOrDefaultAsync<DateTime?>(
+                new CommandDefinition(getSeenSql, new { scriptId, username = username.Trim() }, cancellationToken: ct));
+        }
+
+        var snapshot = await TryGetLastUpdateSnapshotAsync(conn, scriptId, ct);
+        return new ScriptEditAwareness(lastViewedAt, snapshot?.UpdatedAt, snapshot?.UpdatedBy);
+    }
+
     public async Task<ScriptLockResult> TryAcquireEditLockAsync(Guid scriptId, string username, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
@@ -476,11 +493,17 @@ SELECT CAST(0 AS bit) AS Acquired, @existingOwner AS LockedBy;";
         await conn.ExecuteAsync(new CommandDefinition(sql, new { scriptId, username = username.Trim() }, cancellationToken: ct));
     }
 
-    public async Task ClearEditLocksAsync(CancellationToken ct = default)
+    public async Task ClearEditLocksAsync(string? username, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(username))
+            return;
+
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
-        await conn.ExecuteAsync(new CommandDefinition("DELETE FROM dbo.RecordInUse;", cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM dbo.RecordInUse WHERE LockedBy = @username;",
+            new { username = username.Trim() },
+            cancellationToken: ct));
     }
 
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)

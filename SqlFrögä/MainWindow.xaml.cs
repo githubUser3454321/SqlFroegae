@@ -27,7 +27,7 @@ public sealed partial class MainWindow : Window
         try
         {
             var scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
-            await scriptRepository.ClearEditLocksAsync();
+            await scriptRepository.ClearEditLocksAsync(App.CurrentUser?.Username);
         }
         catch
         {
@@ -57,7 +57,7 @@ public sealed partial class MainWindow : Window
         if (autoLoginUser is not null)
         {
             App.CurrentUser = autoLoginUser;
-            await scriptRepository.ClearEditLocksAsync();
+            await scriptRepository.ClearEditLocksAsync(App.CurrentUser?.Username);
             NavigateToDashboard();
             return;
         }

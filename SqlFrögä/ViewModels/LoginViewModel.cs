@@ -71,7 +71,7 @@ public partial class LoginViewModel : ObservableObject
             }
 
             App.CurrentUser = user;
-            await _scriptRepository.ClearEditLocksAsync();
+            await _scriptRepository.ClearEditLocksAsync(user.Username);
             LoginSucceeded?.Invoke();
         }
         catch (Exception ex)

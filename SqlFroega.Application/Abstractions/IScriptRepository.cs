@@ -47,6 +47,11 @@ public interface IScriptRepository
         string? username,
         CancellationToken ct = default);
 
+    Task<ScriptEditAwareness?> GetEditAwarenessAsync(
+        Guid scriptId,
+        string? username,
+        CancellationToken ct = default);
+
     Task<ScriptLockResult> TryAcquireEditLockAsync(
         Guid scriptId,
         string username,
@@ -57,5 +62,5 @@ public interface IScriptRepository
         string username,
         CancellationToken ct = default);
 
-    Task ClearEditLocksAsync(CancellationToken ct = default);
+    Task ClearEditLocksAsync(string? username, CancellationToken ct = default);
 }
