@@ -86,7 +86,9 @@ Wichtige Parameter:
 - `ModulesTable`
 - optional: `UseFullTextSearch`, `JoinCustomers`, `EnableSoftDelete`
 
-Zusätzliche SQL-Hilfsskripte liegen in `Docs/` (z. B. Seed für Benutzer und Tabelle für „Angemeldet bleiben“).
+Zusätzliche SQL-Hilfsskripte liegen in `Docs/`:
+- `001_seed_schema.sql` erstellt alle von der App genutzten Tabellen.
+- `002_seed_fill_data_optional_users.sql` füllt optionale Demo-/Seed-Daten (inkl. optionalem Benutzer-Block).
 
 ## Build & Test
 
