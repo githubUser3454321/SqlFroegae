@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using SqlFroega.Api.Auth;
 using SqlFroega.Api.Infrastructure;
@@ -53,6 +55,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.ScriptsRead, policy => policy.RequireAssertion(c => HasScope(c.User, "scripts.read", "scripts.write")));
     options.AddPolicy(Policies.ScriptsWrite, policy => policy.RequireAssertion(c => HasScope(c.User, "scripts.write")));
     options.AddPolicy(Policies.MappingsRead, policy => policy.RequireAssertion(c => HasScope(c.User, "mappings.read")));
+    options.AddPolicy(Policies.AdminUsers, policy => policy.RequireAssertion(c => HasScope(c.User, "admin.users")));
 });
 
 builder.Services.AddRateLimiter(options =>
@@ -72,7 +75,28 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+app.UseExceptionHandler(exceptionApp =>
+{
+    exceptionApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerPathFeature>()?.Error;
+        var statusCode = exception is InvalidOperationException
+            ? StatusCodes.Status400BadRequest
+            : StatusCodes.Status500InternalServerError;
+
+        context.Response.StatusCode = statusCode;
+        var problem = new ProblemDetails
+        {
+            Status = statusCode,
+            Title = statusCode == 400 ? "Ungültige Anfrage" : "Serverfehler",
+            Detail = exception?.Message,
+            Instance = context.Request.Path
+        };
+
+        await Results.Problem(problem).ExecuteAsync(context);
+    });
+});
+
 app.UseCorrelationAndAudit();
 
 if (app.Environment.IsDevelopment())
@@ -265,6 +289,13 @@ api.MapGet("/customers/mappings", async (ICustomerMappingRepository customerMapp
     return Results.Ok(items);
 }).RequireAuthorization(Policies.MappingsRead);
 
+api.MapGet("/admin/users", async (IUserRepository userRepository) =>
+{
+    var users = await userRepository.GetAllAsync();
+    var result = users.Select(u => new { u.Id, u.Username, u.IsAdmin, u.IsActive });
+    return Results.Ok(result);
+}).RequireAuthorization(Policies.AdminUsers);
+
 api.MapPost("/render/{customerCode}", async (string customerCode, RenderSqlRequest request, ISqlCustomerRenderService renderService, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request.Sql))
@@ -349,6 +380,7 @@ internal static class Policies
     public const string ScriptsRead = "scripts.read";
     public const string ScriptsWrite = "scripts.write";
     public const string MappingsRead = "mappings.read";
+    public const string AdminUsers = "admin.users";
 }
 
 internal sealed record LoginRequest(string Username, string Password);
@@ -398,3 +430,5 @@ internal sealed class JwtOptions
     public int AccessTokenMinutes { get; init; } = 15;
     public int RefreshTokenHours { get; init; } = 12;
 }
+
+public partial class Program;

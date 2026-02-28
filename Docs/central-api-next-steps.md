@@ -4,7 +4,7 @@ Dieses Dokument beschreibt ein pragmatisches Vorgehen für **eine einzige zentra
 
 ## Umsetzungsstand (aktualisiert)
 
-- **Status gesamt:** **Partialy Done** (v1-Endpoints, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und Produktivhärtung sind weiter offen).
+- **Status gesamt:** **Partialy Done** (v1-Endpoints inkl. Admin-User-Endpoint, JWT + Refresh-Flow, Rate Limiting, Correlation/Audit-Logging und Tenant-Header für Schreiboperationen sind umgesetzt; Client-Adapter und vollständige Produktivhärtung sind weiter offen).
 
 ## Zielbild
 
@@ -45,7 +45,7 @@ Da die API zentral läuft und von mehreren Tools genutzt wird:
   - `scripts.read` **DONE**
   - `scripts.write` **DONE**
   - `mappings.read` **DONE**
-  - `admin.users` **Partialy Done** (Claim wird ausgestellt, kein Admin-Endpoint vorhanden)
+  - `admin.users` **DONE** (Claim + geschützter Endpoint `GET /api/v1/admin/users` vorhanden)
 - Audit-Log pro Request: User, Scope, Endpoint, Timestamp, CorrelationId **DONE**
 
 ## 3) Mandanten-/Kontextmodell für Dienstleisterbetrieb
@@ -63,7 +63,7 @@ Vor SSMS-/FlowLauncher-Integration:
 - Zentrale strukturierte Logs + Tracing (CorrelationId) **DONE**
 - Health-Check Endpunkte (`/health/live`, `/health/ready`) **DONE**
 - Versionierung (`/api/v1/...`) von Anfang an (zu begin mal nur mit v1 arbeiten, es wird bekannt gegeben ab wann wir auf v2 umstellen) **DONE**
-- Einheitliches Error-Format (ProblemDetails) **Partialy Done** (ProblemDetails aktiviert, Error-Mapping noch nicht vollständig zentralisiert)
+- Einheitliches Error-Format (ProblemDetails) **DONE** (globale Exception-Umsetzung auf ProblemDetails + ValidationProblem in Endpunkten)
 
 ## 5) SSMS- und FlowLauncher als dünne Adapter
 
@@ -103,7 +103,7 @@ Vor SSMS-/FlowLauncher-Integration:
 
 ## 8) Definition of Done (v1)
 
-- API ist versioniert, dokumentiert und überwacht **Partialy Done**
+- API ist versioniert, dokumentiert und überwacht **DONE**
 - Extensions laufen ohne direkte DB-Credentials **NOT DONE**
 - Read-Use-Cases in SSMS/FlowLauncher produktiv nutzbar **NOT DONE**
 - Schreib-Use-Cases haben Locking, Audit und nachvollziehbare Fehlerantworten **Partialy Done**
