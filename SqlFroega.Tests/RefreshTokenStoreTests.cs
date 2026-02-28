@@ -1,4 +1,5 @@
 using SqlFroega.Api.Auth;
+using Xunit;
 
 namespace SqlFroega.Tests;
 
