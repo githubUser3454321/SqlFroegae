@@ -38,9 +38,8 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string _selectedCustomerCode = "";
     [ObservableProperty] private string _mappingCustomerCode = "";
     [ObservableProperty] private string _mappingCustomerName = "";
-    [ObservableProperty] private string _mappingSchemaName = "om";
-    [ObservableProperty] private string _mappingObjectPrefix = "om_";
     [ObservableProperty] private string _mappingDatabaseUser = "om";
+    [ObservableProperty] private string _mappingObjectPrefix = "om_";
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
@@ -137,13 +136,14 @@ public partial class ScriptItemViewModel : ObservableObject
             throw new InvalidOperationException("Customer code and name are required for mapping.");
 
         var existing = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, MappingCustomerCode.Trim(), StringComparison.OrdinalIgnoreCase));
-        var item = new CustomerMappingItem(
-            CustomerId: existing?.CustomerId ?? Guid.NewGuid(),
-            CustomerCode: MappingCustomerCode.Trim(),
-            CustomerName: MappingCustomerName.Trim(),
-            SchemaName: string.IsNullOrWhiteSpace(MappingSchemaName) ? "om" : MappingSchemaName.Trim(),
-            ObjectPrefix: string.IsNullOrWhiteSpace(MappingObjectPrefix) ? "om_" : MappingObjectPrefix.Trim(),
-            DatabaseUser: string.IsNullOrWhiteSpace(MappingDatabaseUser) ? "om" : MappingDatabaseUser.Trim());
+        var item = new CustomerMappingItem
+        {
+            CustomerId = existing?.CustomerId ?? Guid.NewGuid(),
+            CustomerCode = MappingCustomerCode.Trim(),
+            CustomerName = MappingCustomerName.Trim(),
+            DatabaseUser = string.IsNullOrWhiteSpace(MappingDatabaseUser) ? "om" : MappingDatabaseUser.Trim(),
+            ObjectPrefix = string.IsNullOrWhiteSpace(MappingObjectPrefix) ? "om_" : MappingObjectPrefix.Trim()
+        };
 
         await _mappingRepository.UpsertAsync(item);
         await LoadMappingsAsync();

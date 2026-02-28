@@ -10,9 +10,7 @@ public sealed class CustomerMappingItem
 
     public string CustomerName { get; set; } = string.Empty;
 
-    public string SchemaName { get; set; } = string.Empty;
+    public string DatabaseUser { get; set; } = string.Empty;
 
     public string ObjectPrefix { get; set; } = string.Empty;
-
-    public string DatabaseUser { get; set; } = string.Empty;
 }

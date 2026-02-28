@@ -135,16 +135,14 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <TextBox Grid.Column="0" PlaceholderText="CustomerCode" Text="{Binding MappingCustomerCode, Mode=TwoWay}"/>
                 <TextBox Grid.Column="1" PlaceholderText="CustomerName" Text="{Binding MappingCustomerName, Mode=TwoWay}"/>
-                <TextBox Grid.Column="2" PlaceholderText="Schema" Text="{Binding MappingSchemaName, Mode=TwoWay}"/>
+                <TextBox Grid.Column="2" PlaceholderText="DB User" Text="{Binding MappingDatabaseUser, Mode=TwoWay}"/>
                 <TextBox Grid.Column="3" PlaceholderText="Object Prefix" Text="{Binding MappingObjectPrefix, Mode=TwoWay}"/>
-                <TextBox Grid.Column="4" PlaceholderText="DB User" Text="{Binding MappingDatabaseUser, Mode=TwoWay}"/>
-                <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="6">
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="6">
                     <Button Content="Save Mapping" Command="{Binding UpsertMappingCommand}"/>
                     <Button Content="Refresh" Command="{Binding RefreshMappingsCommand}"/>
                 </StackPanel>

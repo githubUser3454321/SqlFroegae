@@ -110,7 +110,7 @@
 **Ziel:** Script abhängig vom Kundenkontext angepasst rendern.
 
 **Ist:**
-- Kunden-Mapping ist jetzt konkret umgesetzt (`CustomerCode`, `SchemaName`, `ObjectPrefix`, `DatabaseUser`) inkl. persistenter SQL-Tabelle `dbo.CustomerMappings`.
+- Kunden-Mapping ist jetzt konkret umgesetzt (`CustomerCode`, `DatabaseUser`, `ObjectPrefix`) inkl. persistenter SQL-Tabelle `dbo.CustomerMappings`.
 - Beim Speichern ohne `CustomerId` wird SQL vor Persistenz mit Microsoft ScriptDom geparst/validiert und anschließend auf kanonische Tenant-Notation (`om.om_...`) normalisiert.
 - Beim Speichern mit gesetzter `CustomerId` bleibt SQL unverändert (as-is).
 - In der Script-Detailansicht gibt es neben „Copy“ ein Kundenkürzel-Feld (AutoSuggest) + „Copy Rendered“, um Platzhalter direkt in den Zielkunden-Kontext zu übersetzen.

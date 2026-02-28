@@ -11,7 +11,7 @@ namespace SqlFroega.Infrastructure.Parsing;
 
 public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
 {
-    private const string CanonicalSchema = "om";
+    private const string CanonicalDbUser = "om";
     private const string CanonicalPrefix = "om_";
     private readonly ICustomerMappingRepository _mappingRepository;
 
@@ -31,8 +31,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         var normalized = sql;
         foreach (var mapping in mappings)
         {
-            normalized = ReplaceSchemaPrefix(normalized, mapping.SchemaName, mapping.ObjectPrefix, CanonicalSchema, CanonicalPrefix);
-            normalized = ReplaceDbUserPrefix(normalized, mapping.DatabaseUser, CanonicalSchema, CanonicalPrefix);
+            normalized = ReplaceSchemaPrefix(normalized, mapping.DatabaseUser, mapping.ObjectPrefix, CanonicalDbUser, CanonicalPrefix);
+            normalized = ReplaceDbUserPrefix(normalized, mapping.DatabaseUser, CanonicalDbUser, CanonicalPrefix);
         }
 
         return normalized;
@@ -47,7 +47,7 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         if (mapping is null)
             throw new InvalidOperationException($"No customer mapping found for '{customerCode}'.");
 
-        return ReplaceSchemaPrefix(sql, CanonicalSchema, CanonicalPrefix, mapping.SchemaName, mapping.ObjectPrefix);
+        return ReplaceSchemaPrefix(sql, CanonicalDbUser, CanonicalPrefix, mapping.DatabaseUser, mapping.ObjectPrefix);
     }
 
     private static void ValidateSql(string sql)
