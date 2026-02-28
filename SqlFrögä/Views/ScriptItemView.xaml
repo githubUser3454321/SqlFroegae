@@ -94,12 +94,28 @@
 
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Main-Modul" Opacity="0.75"/>
-                        <TextBox Text="{Binding MainModule, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <AutoSuggestBox x:Name="MainModuleAutoSuggest"
+                                        PlaceholderText="Modul auswählen"
+                                        Text="{Binding MainModule, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        TextChanged="MainModuleAutoSuggest_TextChanged"
+                                        SuggestionChosen="MainModuleAutoSuggest_SuggestionChosen"
+                                        IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="Related Modules (comma separated)" Opacity="0.75"/>
-                        <TextBox Text="{Binding RelatedModulesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <TextBlock Text="Related Modules" Opacity="0.75"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding RelatedModulesText}"
+                                     IsReadOnly="True"
+                                     Tapped="RelatedModulesTextBox_Tapped"/>
+                            <Button Grid.Column="1" Content="Bearbeiten"
+                                    Click="EditRelatedModules_Click"
+                                    IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                        </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
