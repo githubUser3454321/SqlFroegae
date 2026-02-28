@@ -18,9 +18,9 @@ public sealed class SqlParsingTests
     }
 
     [Theory]
-    [InlineData("SELECT * FROM [abc].[abc_table]", "SELECT * FROM [om].[om_table];")]
-    [InlineData("SELECT * FROM abc.abc_table", "SELECT * FROM om.om_table;")]
-    [InlineData("SELECT *\nFROM [AbC] . [AbC_Table]", "SELECT * FROM [om].[om_Table];")]
+    [InlineData("SELECT * FROM [abc].[abc_table]", "SELECT * FROM [om].[om_table]")]
+    [InlineData("SELECT * FROM abc.abc_table", "SELECT * FROM om.om_table")]
+    [InlineData("SELECT *\nFROM [AbC] . [AbC_Table]", "SELECT *\nFROM [om].[om_Table]")]
     public async Task NormalizeForStorage_Rewrites_AstBased(string sql, string expected)
     {
         var mappings = new List<CustomerMappingItem>
@@ -32,6 +32,49 @@ public sealed class SqlParsingTests
         var result = await service.NormalizeForStorageAsync(sql);
 
         Assert.Equal(expected, result);
+    }
+
+
+    [Fact]
+    public async Task NormalizeForStorage_Rejects_UseStatement()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("USE OtherDb; SELECT * FROM om_db.syn_adkont_sql;"));
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_Rejects_DatabaseQualifiedObjectName()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("SELECT * FROM OtherDb.om_db.syn_adkont_sql;"));
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_Rewrites_Objects_ButNotColumns()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var sql = "SELECT omT.[Column] FROM om_db.syn_adkont_sql AS omT WHERE omT.syn_status = 1;";
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Equal("SELECT omT.[Column] FROM om.om_adkont_sql AS omT WHERE omT.syn_status = 1;", result);
     }
 
     [Fact]
@@ -97,6 +140,18 @@ SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
 
         var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { input })!);
         Assert.Contains(expectedToken, tokens, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildObjectSearchTokens_InferSchema_FromSingleToken()
+    {
+        var method = typeof(SqlFroega.Infrastructure.Persistence.SqlServer.ScriptRepository)
+            .GetMethod("BuildObjectSearchTokens", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+
+        var tokens = Assert.IsAssignableFrom<IReadOnlyList<string>>(method!.Invoke(null, new object[] { "syn_adkont_sql" })!);
+        Assert.Contains("om_db.syn_adkont_sql", tokens, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
