@@ -18,6 +18,7 @@ public partial class ScriptItemViewModel : ObservableObject
     private readonly ICustomerMappingRepository _mappingRepository;
     private readonly ISqlCustomerRenderService _renderService;
     private Guid _id;
+    private string _loadedNormalizedContent = string.Empty;
 
     public ObservableCollection<ScriptHistoryItem> HistoryItems { get; } = new();
     public ObservableCollection<CustomerMappingItem> CustomerMappings { get; } = new();
@@ -76,6 +77,7 @@ public partial class ScriptItemViewModel : ObservableObject
             ReplaceDatabaseUserAndPrefix = true;
             Error = null;
             ClearHistory();
+            _loadedNormalizedContent = NormalizeSqlContent(Content);
             return;
         }
 
@@ -101,6 +103,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
                 await TryLoadHistoryAsync();
                 Content = HistoryItems.FirstOrDefault()?.Content ?? string.Empty;
+                _loadedNormalizedContent = NormalizeSqlContent(Content);
                 Error = "Script was deleted. You can inspect history but not save this view.";
                 return;
             }
@@ -109,6 +112,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Name = detail.Name;
             Key = detail.Key;
             Content = NormalizeSqlContent(detail.Content);
+            _loadedNormalizedContent = NormalizeSqlContent(detail.Content);
             MainModule = detail.MainModule;
             SetRelatedModules(detail.RelatedModules ?? Array.Empty<string>());
             Description = detail.Description;
@@ -291,6 +295,18 @@ public partial class ScriptItemViewModel : ObservableObject
 
     [RelayCommand]
     private async Task SaveAsync()
+        => await SaveWithMetadataAsync(null);
+
+    public bool RequiresSqlContentChangeReason()
+    {
+        if (_id == Guid.Empty || IsReadOnlyMode)
+            return false;
+
+        var currentNormalized = NormalizeSqlContent(Content);
+        return !string.Equals(_loadedNormalizedContent, currentNormalized, StringComparison.Ordinal);
+    }
+
+    public async Task SaveWithMetadataAsync(string? updateReason)
     {
         try
         {
@@ -305,6 +321,8 @@ public partial class ScriptItemViewModel : ObservableObject
                 throw new InvalidOperationException("Key is required.");
             if (string.IsNullOrWhiteSpace(Content))
                 throw new InvalidOperationException("Content is required.");
+            if (RequiresSqlContentChangeReason() && string.IsNullOrWhiteSpace(updateReason))
+                throw new InvalidOperationException("Bitte einen Grund für die SQL-Änderung angeben.");
 
             if (!string.IsNullOrWhiteSpace(MainModule))
                 EnsureModuleExists(MainModule.Trim());
@@ -353,12 +371,15 @@ public partial class ScriptItemViewModel : ObservableObject
                 MainModule: string.IsNullOrWhiteSpace(MainModule) ? null : MainModule.Trim(),
                 RelatedModules: SelectedRelatedModules.ToList(),
                 Description: string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
-                Tags: tags
+                Tags: tags,
+                UpdatedBy: App.CurrentUser?.Username?.Trim(),
+                UpdateReason: string.IsNullOrWhiteSpace(updateReason) ? null : updateReason.Trim()
             );
 
             var newId = await _repo.UpsertAsync(dto);
             _id = newId;
             Title = "Edit Script";
+            _loadedNormalizedContent = normalizedContent;
 
             await TryLoadHistoryAsync();
         }
