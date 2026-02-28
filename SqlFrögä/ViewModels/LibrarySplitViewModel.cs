@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
@@ -45,6 +46,11 @@ public partial class LibrarySplitViewModel : ObservableObject
 
 
     public string ResultsCountText => Results.Count == 0 ? "No results" : $"{Results.Count} results";
+
+    public Visibility AdminButtonVisibility => App.CurrentUser?.IsAdmin == true
+        ? Visibility.Visible
+        : Visibility.Collapsed;
+
 
     public LibrarySplitViewModel()
     {
@@ -135,6 +141,12 @@ public partial class LibrarySplitViewModel : ObservableObject
     [RelayCommand]
     private void OpenCustomerMappingAdmin()
     {
+        if (App.CurrentUser?.IsAdmin != true)
+        {
+            Error = "Keine Berechtigung für Admin-Bereich.";
+            return;
+        }
+
         if (_detailFrame is null) return;
         Selected = null;
         _detailFrame.Navigate(typeof(CustomerMappingAdminView));
@@ -143,9 +155,29 @@ public partial class LibrarySplitViewModel : ObservableObject
     [RelayCommand]
     private void OpenModuleAdmin()
     {
+        if (App.CurrentUser?.IsAdmin != true)
+        {
+            Error = "Keine Berechtigung für Admin-Bereich.";
+            return;
+        }
+
         if (_detailFrame is null) return;
         Selected = null;
         _detailFrame.Navigate(typeof(ModuleAdminView));
+    }
+
+    [RelayCommand]
+    private void OpenUserManagementAdmin()
+    {
+        if (App.CurrentUser?.IsAdmin != true)
+        {
+            Error = "Keine Berechtigung für Admin-Bereich.";
+            return;
+        }
+
+        if (_detailFrame is null) return;
+        Selected = null;
+        _detailFrame.Navigate(typeof(UserManagementAdminView));
     }
 
     [RelayCommand]

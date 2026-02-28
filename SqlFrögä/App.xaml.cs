@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using SqlFroega.Application.Abstractions;
+using SqlFroega.Application.Models;
 using SqlFroega.Infrastructure.Parsing;
+using SqlFroega.Infrastructure.Persistence;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
 using System;
 
@@ -11,6 +13,8 @@ public partial class App : Microsoft.UI.Xaml.Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
     public static Window? MainWindow { get; private set; }
+    public static UserAccount? CurrentUser { get; set; }
+
     public App()
     {
         InitializeComponent();
@@ -33,6 +37,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
         services.AddScoped<IScriptRepository, ScriptRepository>();
         services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
+        services.AddSingleton<IUserRepository, InMemoryUserRepository>();
         services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
         Services = services.BuildServiceProvider();

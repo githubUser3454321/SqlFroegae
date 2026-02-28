@@ -63,6 +63,11 @@ public sealed partial class LibrarySplitView : Page
         VM.OpenModuleAdminCommand.Execute(null);
     }
 
+
+    private void UserManagementAdmin_Click(object sender, RoutedEventArgs e)
+    {
+        VM.OpenUserManagementAdminCommand.Execute(null);
+    }
     private async Task<bool> ConfirmDeleteAsync()
     {
         var dialog = new ContentDialog

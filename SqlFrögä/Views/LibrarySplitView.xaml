@@ -45,13 +45,15 @@
                     <TextBlock Text="T-SQL Script Library" Opacity="0.75"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" Content="Admin">
+                <Button Grid.Column="1" Content="Admin" Visibility="{Binding AdminButtonVisibility}">
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuFlyoutItem Text="Kunden-Mapping Verwaltung"
                                             Click="CustomerMappingAdmin_Click"/>
                             <MenuFlyoutItem Text="Modul Verwaltung"
                                             Click="ModuleAdmin_Click"/>
+                            <MenuFlyoutItem Text="User Management"
+                                            Click="UserManagementAdmin_Click"/>
                         </MenuFlyout>
                     </Button.Flyout>
                 </Button>

@@ -1,0 +1,62 @@
+<Page
+    x:Class="SqlFroega.Views.UserManagementAdminView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SqlFroega.ViewModels"
+    xmlns:models="using:SqlFroega.Application.Models"
+    Background="{ThemeResource AppPageBackgroundBrush}">
+
+    <Page.DataContext>
+        <vm:UserManagementAdminViewModel/>
+    </Page.DataContext>
+
+    <Grid Padding="12" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="User Management" FontSize="24" FontWeight="SemiBold"/>
+
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0" PlaceholderText="Benutzername" Text="{Binding NewUsername, Mode=TwoWay}"/>
+            <PasswordBox Grid.Column="1" PlaceholderText="Passwort" PasswordChanged="NewPassword_PasswordChanged"/>
+            <CheckBox Grid.Column="2" Content="Admin" IsChecked="{Binding NewIsAdmin, Mode=TwoWay}" VerticalAlignment="Center"/>
+            <Button Grid.Column="3" Content="Add user" Command="{Binding AddUserCommand}"/>
+            <Button Grid.Column="4" Content="Refresh" Command="{Binding RefreshCommand}"/>
+        </Grid>
+
+        <ListView Grid.Row="2" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="models:UserAccount">
+                    <Grid ColumnSpacing="12" Padding="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="{x:Bind Username}"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind IsAdmin}" Margin="0,0,12,0"/>
+                        <TextBlock Grid.Column="2" Text="{x:Bind IsActive}"/>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
+            <Button Content="Deactivate user" Command="{Binding DeactivateSelectedCommand}"/>
+            <TextBlock Text="{Binding Error}" Foreground="DarkRed"/>
+        </StackPanel>
+    </Grid>
+</Page>
