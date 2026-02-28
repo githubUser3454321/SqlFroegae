@@ -114,7 +114,7 @@
                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
 
-                    <Expander Grid.Row="3" Grid.ColumnSpan="2" Header="Tag- & Modul-Katalog" IsExpanded="True">
+                    <Expander Grid.Row="3" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="True">
                         <StackPanel Spacing="8" Padding="0,8,0,0">
                             <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
 
