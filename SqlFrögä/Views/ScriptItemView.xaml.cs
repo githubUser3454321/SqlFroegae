@@ -11,14 +11,25 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 
 namespace SqlFroega.Views;
 
 public sealed partial class ScriptItemView : Page
 {
+    private readonly Dictionary<Button, DragPointerState> _dragPointers = new();
+    private const double DragStartThreshold = 6;
+
     public ScriptItemView()
     {
         InitializeComponent();
+    }
+
+    private sealed class DragPointerState
+    {
+        public uint PointerId { get; init; }
+        public Point StartPoint { get; init; }
+        public bool IsDragging { get; set; }
     }
 
     private ScriptItemViewModel VM => (ScriptItemViewModel)DataContext;
@@ -126,6 +137,63 @@ public sealed partial class ScriptItemView : Page
             .OrderBy(x => x.CustomerCode, StringComparer.OrdinalIgnoreCase)
             .Take(25)
             .ToList();
+    }
+
+    private void CopyDragSource_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is not Button button)
+            return;
+
+        var point = e.GetCurrentPoint(button);
+        if (!point.Properties.IsLeftButtonPressed)
+            return;
+
+        _dragPointers[button] = new DragPointerState
+        {
+            PointerId = e.Pointer.PointerId,
+            StartPoint = point.Position,
+            IsDragging = false
+        };
+    }
+
+    private async void CopyDragSource_PointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is not Button button)
+            return;
+
+        if (!_dragPointers.TryGetValue(button, out var state))
+            return;
+
+        if (state.IsDragging || state.PointerId != e.Pointer.PointerId)
+            return;
+
+        var point = e.GetCurrentPoint(button);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            _dragPointers.Remove(button);
+            return;
+        }
+
+        var dx = point.Position.X - state.StartPoint.X;
+        var dy = point.Position.Y - state.StartPoint.Y;
+        var distanceSquared = dx * dx + dy * dy;
+        if (distanceSquared < DragStartThreshold * DragStartThreshold)
+            return;
+
+        state.IsDragging = true;
+        await button.StartDragAsync(point);
+    }
+
+    private void CopyDragSource_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is Button button)
+            _dragPointers.Remove(button);
+    }
+
+    private void CopyDragSource_PointerCanceled(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is Button button)
+            _dragPointers.Remove(button);
     }
 
 
