@@ -50,6 +50,14 @@
             <SolidColorBrush x:Key="SystemAccentColorDark2" Color="#FF2467B1" />
             <SolidColorBrush x:Key="SystemAccentColorDark3" Color="#FF1C4F86" />
 
+            <!-- Improve checkmark contrast for checked/indeterminate CheckBox states. -->
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminate" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePointerOver" Color="#FF0B1D3A" />
+            <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundIndeterminatePressed" Color="#FF0B1D3A" />
+
             <converters:BooleanNegationConverter x:Key="BooleanNegationConverter"/>
         </ResourceDictionary>
     </Application.Resources>
