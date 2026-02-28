@@ -100,9 +100,10 @@
 **Ziel:** Abfragen wie „Welche Scripts referenzieren Tabelle X?“
 
 **Ist:**
-- Keine Parser-/Referenzsuch-Implementierung sichtbar.
+- Beim Speichern werden Referenzen über ScriptDom-AST extrahiert und idempotent in `dbo.ScriptObjectRefs` neu aufgebaut.
+- Backend-API `FindByReferencedObjectAsync` liefert Scripts für ein referenziertes Objekt (Basis für spätere UI-Suche).
 
-**Status:** ⛔ **Nicht umgesetzt**
+**Status:** ✅ **Umgesetzt**
 
 ---
 
@@ -111,7 +112,7 @@
 
 **Ist:**
 - Kunden-Mapping ist jetzt konkret umgesetzt (`CustomerCode`, `DatabaseUser`, `ObjectPrefix`) inkl. persistenter SQL-Tabelle `dbo.CustomerMappings`.
-- Beim Speichern ohne `CustomerId` wird SQL vor Persistenz mit Microsoft ScriptDom geparst/validiert und anschließend auf kanonische Tenant-Notation (`om.om_...`) normalisiert.
+- Beim Speichern ohne `CustomerId` wird SQL mit Microsoft ScriptDom geparst/validiert und AST-basiert auf kanonische Tenant-Notation (`om.om_...`) normalisiert (kein Regex-Primärpfad).
 - Beim Speichern mit gesetzter `CustomerId` bleibt SQL unverändert (as-is).
 - In der Script-Detailansicht gibt es neben „Copy“ ein Kundenkürzel-Feld (AutoSuggest) + „Copy Rendered“, um Platzhalter direkt in den Zielkunden-Kontext zu übersetzen.
 - Eine einfache Mapping-Maske (anlegen/refresh) ist in der Detailansicht vorhanden.

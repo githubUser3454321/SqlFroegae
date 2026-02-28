@@ -29,4 +29,8 @@ public interface IScriptRepository
     Task<ScriptMetadataCatalog> GetMetadataCatalogAsync(
         bool includeDeleted = false,
         CancellationToken ct = default);
+
+    Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(
+        string objectName,
+        CancellationToken ct = default);
 }
