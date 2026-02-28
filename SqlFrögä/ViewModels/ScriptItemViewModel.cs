@@ -654,7 +654,7 @@ public partial class ScriptItemViewModel : ObservableObject
         => OnPropertyChanged(nameof(IsEditingEnabled));
 
     partial void OnNameChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
-    partial void OnKeyChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnNumberIdChanged(int? value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnContentChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnDescriptionChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnMainModuleChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
