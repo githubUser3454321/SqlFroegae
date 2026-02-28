@@ -16,4 +16,7 @@
     <ProjectReference Include="..\SqlFroega.Infrastructure\SqlFroega.Infrastructure.csproj" />
     <ProjectReference Include="..\SqlFroega.Api\SqlFroega.Api.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Images\" />
+  </ItemGroup>
 </Project>
