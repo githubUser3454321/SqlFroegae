@@ -41,4 +41,21 @@ public interface IScriptRepository
     Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(
         string objectName,
         CancellationToken ct = default);
+
+    Task<ScriptEditAwareness?> RegisterViewAsync(
+        Guid scriptId,
+        string? username,
+        CancellationToken ct = default);
+
+    Task<ScriptLockResult> TryAcquireEditLockAsync(
+        Guid scriptId,
+        string username,
+        CancellationToken ct = default);
+
+    Task ReleaseEditLockAsync(
+        Guid scriptId,
+        string username,
+        CancellationToken ct = default);
+
+    Task ClearEditLocksAsync(CancellationToken ct = default);
 }

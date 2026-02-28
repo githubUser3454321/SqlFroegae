@@ -10,6 +10,7 @@ namespace SqlFroega.ViewModels;
 public partial class LoginViewModel : ObservableObject
 {
     private readonly IUserRepository _userRepository;
+    private readonly IScriptRepository _scriptRepository;
 
     [ObservableProperty] private string _username = string.Empty;
     [ObservableProperty] private string _password = string.Empty;
@@ -22,6 +23,7 @@ public partial class LoginViewModel : ObservableObject
     public LoginViewModel()
     {
         _userRepository = App.Services.GetRequiredService<IUserRepository>();
+        _scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
     }
 
     [RelayCommand]
@@ -69,6 +71,7 @@ public partial class LoginViewModel : ObservableObject
             }
 
             App.CurrentUser = user;
+            await _scriptRepository.ClearEditLocksAsync();
             LoginSucceeded?.Invoke();
         }
         catch (Exception ex)

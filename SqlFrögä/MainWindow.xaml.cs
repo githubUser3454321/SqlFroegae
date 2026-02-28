@@ -18,7 +18,21 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Activated += MainWindow_Activated;
+        Closed += MainWindow_Closed;
         SetWindowIcon();
+    }
+
+    private async void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        try
+        {
+            var scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
+            await scriptRepository.ClearEditLocksAsync();
+        }
+        catch
+        {
+            // Ignore cleanup errors during shutdown.
+        }
     }
 
     public void NavigateToDashboard()
@@ -37,11 +51,13 @@ public sealed partial class MainWindow : Window
         Activated -= MainWindow_Activated;
 
         var userRepository = App.Services.GetRequiredService<IUserRepository>();
+        var scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
         var autoLoginUser = await userRepository.FindActiveByCurrentDeviceAsync();
 
         if (autoLoginUser is not null)
         {
             App.CurrentUser = autoLoginUser;
+            await scriptRepository.ClearEditLocksAsync();
             NavigateToDashboard();
             return;
         }

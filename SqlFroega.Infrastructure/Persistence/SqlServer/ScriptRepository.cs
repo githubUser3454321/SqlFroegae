@@ -387,6 +387,102 @@ public sealed class ScriptRepository : IScriptRepository
         );
     }
 
+    public async Task<ScriptEditAwareness?> RegisterViewAsync(Guid scriptId, string? username, CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        DateTime? lastViewedAt = null;
+
+        if (!string.IsNullOrWhiteSpace(username))
+        {
+            var normalizedUser = username.Trim();
+            const string getSeenSql = "SELECT TOP 1 LastViewedAt FROM dbo.ScriptViewLog WHERE ScriptId = @scriptId AND Username = @username;";
+            lastViewedAt = await conn.QuerySingleOrDefaultAsync<DateTime?>(
+                new CommandDefinition(getSeenSql, new { scriptId, username = normalizedUser }, cancellationToken: ct));
+
+            const string upsertSeenSql = @"
+MERGE dbo.ScriptViewLog AS target
+USING (SELECT @scriptId AS ScriptId, @username AS Username) src
+ON target.ScriptId = src.ScriptId AND target.Username = src.Username
+WHEN MATCHED THEN
+    UPDATE SET LastViewedAt = SYSUTCDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (ScriptId, Username, LastViewedAt)
+    VALUES (src.ScriptId, src.Username, SYSUTCDATETIME());";
+
+            await conn.ExecuteAsync(new CommandDefinition(upsertSeenSql, new { scriptId, username = normalizedUser }, cancellationToken: ct));
+        }
+
+        var snapshot = await TryGetLastUpdateSnapshotAsync(conn, scriptId, ct);
+        return new ScriptEditAwareness(lastViewedAt, snapshot?.UpdatedAt, snapshot?.UpdatedBy);
+    }
+
+    public async Task<ScriptLockResult> TryAcquireEditLockAsync(Guid scriptId, string username, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            throw new InvalidOperationException("Username is required.");
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        const string sql = @"
+SET XACT_ABORT ON;
+BEGIN TRAN;
+
+DECLARE @existingOwner nvarchar(256);
+SELECT @existingOwner = LockedBy
+FROM dbo.RecordInUse WITH (UPDLOCK, HOLDLOCK)
+WHERE ScriptId = @scriptId;
+
+IF @existingOwner IS NULL
+BEGIN
+    INSERT INTO dbo.RecordInUse (ScriptId, LockedBy, LockedAt)
+    VALUES (@scriptId, @username, SYSUTCDATETIME());
+    COMMIT;
+    SELECT CAST(1 AS bit) AS Acquired, CAST(NULL AS nvarchar(256)) AS LockedBy;
+    RETURN;
+END
+
+IF @existingOwner = @username
+BEGIN
+    UPDATE dbo.RecordInUse
+    SET LockedAt = SYSUTCDATETIME()
+    WHERE ScriptId = @scriptId;
+
+    COMMIT;
+    SELECT CAST(1 AS bit) AS Acquired, CAST(NULL AS nvarchar(256)) AS LockedBy;
+    RETURN;
+END
+
+COMMIT;
+SELECT CAST(0 AS bit) AS Acquired, @existingOwner AS LockedBy;";
+
+        var result = await conn.QuerySingleAsync<ScriptLockResult>(
+            new CommandDefinition(sql, new { scriptId, username = username.Trim() }, cancellationToken: ct));
+
+        return result;
+    }
+
+    public async Task ReleaseEditLockAsync(Guid scriptId, string username, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            return;
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        const string sql = "DELETE FROM dbo.RecordInUse WHERE ScriptId = @scriptId AND LockedBy = @username;";
+        await conn.ExecuteAsync(new CommandDefinition(sql, new { scriptId, username = username.Trim() }, cancellationToken: ct));
+    }
+
+    public async Task ClearEditLocksAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+        await conn.ExecuteAsync(new CommandDefinition("DELETE FROM dbo.RecordInUse;", cancellationToken: ct));
+    }
+
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
         var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
@@ -836,6 +932,11 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         string? ChangeReasonColumn
     );
 
+    private sealed record LastUpdateSnapshot(
+        DateTime UpdatedAt,
+        string? UpdatedBy
+    );
+
     public async Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(string objectName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(objectName))
@@ -1170,6 +1271,27 @@ END;
 IF COL_LENGTH('{_opt.ScriptsTable}', 'UpdateReason') IS NULL
 BEGIN
     ALTER TABLE {_opt.ScriptsTable} ADD UpdateReason nvarchar(max) NULL;
+END;
+
+IF OBJECT_ID('dbo.ScriptViewLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ScriptViewLog
+    (
+        ScriptId uniqueidentifier NOT NULL,
+        Username nvarchar(256) NOT NULL,
+        LastViewedAt datetime2 NOT NULL,
+        CONSTRAINT PK_ScriptViewLog PRIMARY KEY (ScriptId, Username)
+    );
+END;
+
+IF OBJECT_ID('dbo.RecordInUse', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RecordInUse
+    (
+        ScriptId uniqueidentifier NOT NULL PRIMARY KEY,
+        LockedBy nvarchar(256) NOT NULL,
+        LockedAt datetime2 NOT NULL
+    );
 END;";
 
         await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
@@ -1224,5 +1346,53 @@ WHERE ss.name = @schemaName AND t.name = @tableName;
             return null;
 
         return new TemporalInfo(schemaName, tableName, metadata.ValidFromColumn, metadata.ValidToColumn);
+    }
+
+    private async Task<LastUpdateSnapshot?> TryGetLastUpdateSnapshotAsync(System.Data.Common.DbConnection conn, Guid scriptId, CancellationToken ct)
+    {
+        var (schemaName, tableName) = SplitSchemaAndTable(_opt.ScriptsTable);
+
+        const string metadataSql = """
+SELECT TOP 1
+    CAST(t.temporal_type AS int) AS TemporalType,
+    startCol.name AS ValidFromColumn,
+    endCol.name AS ValidToColumn,
+    CASE
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'ChangedBy') IS NOT NULL THEN 'ChangedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'ModifiedBy') IS NOT NULL THEN 'ModifiedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'UpdatedBy') IS NOT NULL THEN 'UpdatedBy'
+        WHEN COL_LENGTH(QUOTENAME(ss.name) + '.' + QUOTENAME(t.name), 'LastModifiedBy') IS NOT NULL THEN 'LastModifiedBy'
+        ELSE NULL
+    END AS ChangedByColumn,
+    CAST(NULL AS nvarchar(256)) AS ChangeReasonColumn
+FROM sys.tables t
+INNER JOIN sys.schemas ss ON ss.schema_id = t.schema_id
+LEFT JOIN sys.periods p ON p.object_id = t.object_id
+LEFT JOIN sys.columns startCol ON startCol.object_id = t.object_id AND startCol.column_id = p.start_column_id
+LEFT JOIN sys.columns endCol ON endCol.object_id = t.object_id AND endCol.column_id = p.end_column_id
+WHERE ss.name = @schemaName AND t.name = @tableName;
+""";
+
+        var metadata = await conn.QuerySingleOrDefaultAsync<TemporalMetadataRow>(
+            new CommandDefinition(metadataSql, new { schemaName, tableName }, cancellationToken: ct));
+
+        if (metadata is null || metadata.TemporalType != 2 || string.IsNullOrWhiteSpace(metadata.ValidFromColumn))
+            return null;
+
+        var fullTable = $"{QuoteIdentifier(schemaName)}.{QuoteIdentifier(tableName)}";
+        var validFromColumn = QuoteIdentifier(metadata.ValidFromColumn);
+        var changedByExpr = metadata.ChangedByColumn is null
+            ? "CAST(NULL AS nvarchar(256))"
+            : $"CONVERT(nvarchar(256), s.{QuoteIdentifier(metadata.ChangedByColumn)})";
+
+        var sql = $@"
+SELECT TOP 1
+    CAST(s.{validFromColumn} AS datetime2) AS UpdatedAt,
+    {changedByExpr} AS UpdatedBy
+FROM {fullTable} s
+WHERE s.Id = @scriptId;";
+
+        return await conn.QuerySingleOrDefaultAsync<LastUpdateSnapshot>(
+            new CommandDefinition(sql, new { scriptId }, cancellationToken: ct));
     }
 }

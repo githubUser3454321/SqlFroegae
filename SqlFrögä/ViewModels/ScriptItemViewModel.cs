@@ -19,6 +19,8 @@ public partial class ScriptItemViewModel : ObservableObject
     private readonly ISqlCustomerRenderService _renderService;
     private Guid _id;
     private string _loadedNormalizedContent = string.Empty;
+    private ScriptEditAwareness? _editAwareness;
+    private bool _hasEditAwarenessWarning;
 
     public ObservableCollection<ScriptHistoryItem> HistoryItems { get; } = new();
     public ObservableCollection<CustomerMappingItem> CustomerMappings { get; } = new();
@@ -40,10 +42,15 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string? _description;
     [ObservableProperty] private string _flagsText = "";
     [ObservableProperty] private bool _isReadOnlyMode;
+    [ObservableProperty] private bool _isEditUnlocked;
 
     [ObservableProperty] private string _selectedCustomerCode = "";
     [ObservableProperty] private string _scriptCustomerCode = "";
     [ObservableProperty] private bool _replaceDatabaseUserAndPrefix = true;
+
+    public event Func<string, Task>? WarningRequested;
+
+    public bool IsEditingEnabled => !IsReadOnlyMode && (_id == Guid.Empty || IsEditUnlocked);
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
@@ -74,8 +81,11 @@ public partial class ScriptItemViewModel : ObservableObject
             SetFlags(Array.Empty<string>());
             ScriptCustomerCode = "";
             IsReadOnlyMode = false;
+            IsEditUnlocked = true;
             ReplaceDatabaseUserAndPrefix = true;
             Error = null;
+            _editAwareness = null;
+            _hasEditAwarenessWarning = false;
             ClearHistory();
             _loadedNormalizedContent = NormalizeSqlContent(Content);
             return;
@@ -118,7 +128,10 @@ public partial class ScriptItemViewModel : ObservableObject
             Description = detail.Description;
             SetFlags(detail.Tags ?? Array.Empty<string>());
             IsReadOnlyMode = false;
+            IsEditUnlocked = false;
             ReplaceDatabaseUserAndPrefix = true;
+            _editAwareness = await _repo.RegisterViewAsync(id, App.CurrentUser?.Username);
+            _hasEditAwarenessWarning = false;
 
             ScriptCustomerCode = "";
             if (detail.CustomerId.HasValue)
@@ -316,6 +329,47 @@ public partial class ScriptItemViewModel : ObservableObject
     private async Task SaveAsync()
         => await SaveWithMetadataAsync(null);
 
+    [RelayCommand]
+    private async Task AcquireEditLockAsync()
+    {
+        try
+        {
+            if (_id == Guid.Empty || IsReadOnlyMode)
+            {
+                IsEditUnlocked = true;
+                return;
+            }
+
+            var username = App.CurrentUser?.Username?.Trim();
+            if (string.IsNullOrWhiteSpace(username))
+                throw new InvalidOperationException("Kein angemeldeter Benutzer gefunden.");
+
+            var lockResult = await _repo.TryAcquireEditLockAsync(_id, username);
+            if (!lockResult.Acquired)
+                throw new InvalidOperationException($"Dieser Datensatz wird aktuell von '{lockResult.LockedBy ?? "einem anderen Anwender"}' bearbeitet.");
+
+            Error = null;
+            IsEditUnlocked = true;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+    public async Task ReleaseEditLockAsync()
+    {
+        if (_id == Guid.Empty || !IsEditUnlocked)
+            return;
+
+        var username = App.CurrentUser?.Username?.Trim();
+        if (string.IsNullOrWhiteSpace(username))
+            return;
+
+        await _repo.ReleaseEditLockAsync(_id, username);
+        IsEditUnlocked = false;
+    }
+
     public bool RequiresSqlContentChangeReason()
     {
         if (_id == Guid.Empty || IsReadOnlyMode)
@@ -336,6 +390,8 @@ public partial class ScriptItemViewModel : ObservableObject
                 throw new InvalidOperationException("Name is required.");
             if (IsReadOnlyMode)
                 throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
+            if (_id != Guid.Empty && !IsEditUnlocked)
+                throw new InvalidOperationException("Bitte zuerst den Bearbeiten-Button (Unlock) klicken.");
             if (string.IsNullOrWhiteSpace(Key))
                 throw new InvalidOperationException("Key is required.");
             if (string.IsNullOrWhiteSpace(Content))
@@ -558,5 +614,47 @@ public partial class ScriptItemViewModel : ObservableObject
             .Replace("\\r\\n", "\r\n", StringComparison.Ordinal)
             .Replace("\\n", "\n", StringComparison.Ordinal)
             .Replace("\\r", "\r", StringComparison.Ordinal);
+    }
+
+    partial void OnIsReadOnlyModeChanged(bool value)
+        => OnPropertyChanged(nameof(IsEditingEnabled));
+
+    partial void OnIsEditUnlockedChanged(bool value)
+        => OnPropertyChanged(nameof(IsEditingEnabled));
+
+    partial void OnNameChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnKeyChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnContentChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnDescriptionChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnMainModuleChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
+
+    private async Task EnsureEditAwarenessWarningAsync()
+    {
+        if (_hasEditAwarenessWarning || !IsEditUnlocked || _id == Guid.Empty)
+            return;
+
+        var awareness = _editAwareness;
+        if (awareness?.LastViewedAt is null || awareness.LastUpdatedAt is null)
+            return;
+
+        var username = App.CurrentUser?.Username?.Trim() ?? string.Empty;
+        if (string.Equals(awareness.LastUpdatedBy?.Trim(), username, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (awareness.LastUpdatedAt <= awareness.LastViewedAt)
+            return;
+
+        var age = DateTime.UtcNow - awareness.LastUpdatedAt.Value;
+        if (age > TimeSpan.FromDays(10))
+            return;
+
+        _hasEditAwarenessWarning = true;
+
+        var days = Math.Max(0, (int)Math.Floor(age.TotalDays));
+        var message = $"Achtung: Der Datensatz wurde von '{awareness.LastUpdatedBy ?? "einem anderen Anwender"}' vor {days} Tagen aktualisiert. " +
+                      "Du könntest Änderungen überschreiben, wenn dein SQL-Script nicht auf der aktuellen Version basiert.";
+
+        if (WarningRequested is not null)
+            await WarningRequested.Invoke(message);
     }
 }
