@@ -13,10 +13,15 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        RootFrame.Navigate(typeof(LibrarySplitView));
+        RootFrame.Navigate(typeof(LoginView));
         SetWindowIcon();
     }
 
+
+    public void NavigateToDashboard()
+    {
+        RootFrame.Navigate(typeof(LibrarySplitView));
+    }
     private void SetWindowIcon()
     {
         var hWnd = WindowNative.GetWindowHandle(this);

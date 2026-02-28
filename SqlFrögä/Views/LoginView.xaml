@@ -1,0 +1,40 @@
+<Page
+    x:Class="SqlFroega.Views.LoginView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SqlFroega.ViewModels"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.DataContext>
+        <vm:LoginViewModel/>
+    </Page.DataContext>
+
+    <Grid>
+        <Border
+            Width="460"
+            Padding="24"
+            CornerRadius="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+            <StackPanel Spacing="12">
+                <TextBlock Text="Login" FontSize="28" FontWeight="SemiBold"/>
+                <TextBlock Text="Bitte mit Benutzername und Passwort anmelden." TextWrapping="WrapWholeWords"/>
+
+                <TextBox
+                    PlaceholderText="Benutzername"
+                    Text="{Binding Username, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <PasswordBox
+                    PlaceholderText="Passwort"
+                    PasswordChanged="PasswordBox_PasswordChanged"/>
+
+                <Button Content="Anmelden" Command="{Binding LoginCommand}"/>
+
+                <TextBlock Foreground="DarkRed" Text="{Binding Error}" TextWrapping="WrapWholeWords"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Page>
