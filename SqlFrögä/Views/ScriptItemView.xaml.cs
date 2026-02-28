@@ -239,16 +239,18 @@ public sealed partial class ScriptItemView : Page
     private async Task ShowFlagsDialogAsync()
     {
         var selectedFlags = new ObservableCollection<string>(VM.SelectedFlags);
-        var filteredFlags = new ObservableCollection<string>();
         var selectedSet = new HashSet<string>(selectedFlags, StringComparer.OrdinalIgnoreCase);
-        var syncingSelection = false;
 
-        var list = new ListView
+        var listContainer = new StackPanel
+        {
+            Spacing = 4
+        };
+
+        var listScroll = new ScrollViewer
         {
             Height = 260,
-            SelectionMode = ListViewSelectionMode.Multiple,
-            IsItemClickEnabled = false,
-            ItemsSource = filteredFlags
+            Content = listContainer,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
         void ApplyFilter(string typed)
@@ -256,62 +258,40 @@ public sealed partial class ScriptItemView : Page
             var matches = VM.AvailableFlags
                 .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(selectedSet.Contains)
+                .ThenBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            filteredFlags.Clear();
+            listContainer.Children.Clear();
             foreach (var flag in matches)
-                filteredFlags.Add(flag);
+            {
+                var checkBox = new CheckBox
+                {
+                    Content = flag,
+                    IsChecked = selectedSet.Contains(flag)
+                };
 
-            syncingSelection = true;
-            try
-            {
-                list.SelectedItems.Clear();
-                foreach (var flag in filteredFlags.Where(selectedSet.Contains))
-                    list.SelectedItems.Add(flag);
-            }
-            finally
-            {
-                syncingSelection = false;
+                checkBox.Checked += (_, _) =>
+                {
+                    selectedSet.Add(flag);
+                    ApplyFilter(typed);
+                };
+
+                checkBox.Unchecked += (_, _) =>
+                {
+                    selectedSet.Remove(flag);
+                    ApplyFilter(typed);
+                };
+
+                listContainer.Children.Add(checkBox);
             }
         }
 
-        var search = new AutoSuggestBox { PlaceholderText = "Flag suchen", Width = 420 };
-        search.TextChanged += (_, e) =>
+        var search = new TextBox { PlaceholderText = "Flag suchen", Width = 420 };
+        search.TextChanged += (_, _) =>
         {
-            if (e.Reason == AutoSuggestionBoxTextChangeReason.SuggestionChosen)
-                return;
-
             var typed = search.Text?.Trim() ?? string.Empty;
-            search.ItemsSource = VM.AvailableFlags
-                .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                .Take(25)
-                .ToList();
-
             ApplyFilter(typed);
-        };
-
-        search.SuggestionChosen += (_, e) =>
-        {
-            if (e.SelectedItem is not string flag)
-                return;
-
-            search.Text = flag;
-            ApplyFilter(flag);
-        };
-
-        list.SelectionChanged += (_, e) =>
-        {
-            if (syncingSelection)
-                return;
-
-            foreach (var added in e.AddedItems.OfType<string>())
-                selectedSet.Add(added);
-
-            foreach (var removed in e.RemovedItems.OfType<string>())
-                selectedSet.Remove(removed);
         };
 
         var createButton = new Button { Content = "Neu erstellen", HorizontalAlignment = HorizontalAlignment.Left };
@@ -332,7 +312,7 @@ public sealed partial class ScriptItemView : Page
         content.Children.Add(search);
         content.Children.Add(createButton);
         content.Children.Add(new TextBlock { Text = "Flags auswählen (Mehrfachauswahl möglich)", Opacity = 0.75 });
-        content.Children.Add(list);
+        content.Children.Add(listScroll);
 
         var dialog = new ContentDialog
         {
