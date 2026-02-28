@@ -23,6 +23,8 @@ public partial class ScriptItemViewModel : ObservableObject
     public ObservableCollection<CustomerMappingItem> CustomerMappings { get; } = new();
     public ObservableCollection<string> AvailableModules { get; } = new();
     public ObservableCollection<string> SelectedRelatedModules { get; } = new();
+    public ObservableCollection<string> AvailableFlags { get; } = new();
+    public ObservableCollection<string> SelectedFlags { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
@@ -35,7 +37,7 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string? _mainModule;
     [ObservableProperty] private string _relatedModulesText = "";
     [ObservableProperty] private string? _description;
-    [ObservableProperty] private string _tagsText = "";
+    [ObservableProperty] private string _flagsText = "";
     [ObservableProperty] private bool _isReadOnlyMode;
 
     [ObservableProperty] private string _selectedCustomerCode = "";
@@ -56,6 +58,7 @@ public partial class ScriptItemViewModel : ObservableObject
         _id = id;
         await LoadMappingsAsync();
         await LoadModulesAsync();
+        await LoadFlagsAsync();
 
         if (id == Guid.Empty)
         {
@@ -67,7 +70,7 @@ public partial class ScriptItemViewModel : ObservableObject
             MainModule = "";
             SetRelatedModules(Array.Empty<string>());
             Description = "";
-            TagsText = "";
+            SetFlags(Array.Empty<string>());
             ScriptCustomerCode = "";
             IsReadOnlyMode = false;
             ReplaceDatabaseUserAndPrefix = true;
@@ -91,7 +94,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 MainModule = "";
                 SetRelatedModules(Array.Empty<string>());
                 Description = "Record was deleted. Read-only temporal history is shown.";
-                TagsText = "";
+                SetFlags(Array.Empty<string>());
                 ScriptCustomerCode = "";
                 IsReadOnlyMode = true;
                 ReplaceDatabaseUserAndPrefix = false;
@@ -109,7 +112,7 @@ public partial class ScriptItemViewModel : ObservableObject
             MainModule = detail.MainModule;
             SetRelatedModules(detail.RelatedModules ?? Array.Empty<string>());
             Description = detail.Description;
-            TagsText = string.Join(", ", detail.Tags ?? Array.Empty<string>());
+            SetFlags(detail.Tags ?? Array.Empty<string>());
             IsReadOnlyMode = false;
             ReplaceDatabaseUserAndPrefix = true;
 
@@ -168,6 +171,53 @@ public partial class ScriptItemViewModel : ObservableObject
 
         SelectedRelatedModules.Remove(existing);
         UpdateRelatedModulesText();
+    }
+
+    [RelayCommand]
+    private void AddFlag(string? flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+            return;
+
+        var normalized = flag.Trim();
+        EnsureFlagExists(normalized);
+
+        if (SelectedFlags.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        SelectedFlags.Add(normalized);
+        UpdateFlagsText();
+    }
+
+    [RelayCommand]
+    private void CreateFlag(string? flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+            return;
+
+        var normalized = flag.Trim();
+
+        if (!AvailableFlags.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            AvailableFlags.Add(normalized);
+
+        if (!SelectedFlags.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            SelectedFlags.Add(normalized);
+
+        UpdateFlagsText();
+    }
+
+    [RelayCommand]
+    private void RemoveFlag(string? flag)
+    {
+        if (string.IsNullOrWhiteSpace(flag))
+            return;
+
+        var existing = SelectedFlags.FirstOrDefault(x => string.Equals(x, flag, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+            return;
+
+        SelectedFlags.Remove(existing);
+        UpdateFlagsText();
     }
 
     [RelayCommand]
@@ -273,10 +323,9 @@ public partial class ScriptItemViewModel : ObservableObject
                 customerId = mapping.CustomerId;
             }
 
-            var tags = (TagsText ?? "")
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Where(t => !string.IsNullOrWhiteSpace(t))
+            var tags = SelectedFlags
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             var normalizedContent = NormalizeSqlContent(Content);
@@ -355,6 +404,20 @@ public partial class ScriptItemViewModel : ObservableObject
             AvailableModules.Add(module);
     }
 
+    private async Task LoadFlagsAsync()
+    {
+        var metadata = await _repo.GetMetadataCatalogAsync();
+        AvailableFlags.Clear();
+        foreach (var flag in metadata.Tags
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        {
+            AvailableFlags.Add(flag);
+        }
+    }
+
     private void SetRelatedModules(IEnumerable<string> modules)
     {
         SelectedRelatedModules.Clear();
@@ -375,12 +438,43 @@ public partial class ScriptItemViewModel : ObservableObject
         RelatedModulesText = string.Join(", ", SelectedRelatedModules);
     }
 
+    private void SetFlags(IEnumerable<string> flags)
+    {
+        SelectedFlags.Clear();
+
+        foreach (var flag in flags
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!AvailableFlags.Any(x => string.Equals(x, flag, StringComparison.OrdinalIgnoreCase)))
+                AvailableFlags.Add(flag);
+
+            SelectedFlags.Add(flag);
+        }
+
+        UpdateFlagsText();
+    }
+
+    private void UpdateFlagsText()
+    {
+        FlagsText = string.Join(", ", SelectedFlags.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+    }
+
     private void EnsureModuleExists(string moduleName)
     {
         if (AvailableModules.Any(x => string.Equals(x, moduleName, StringComparison.OrdinalIgnoreCase)))
             return;
 
         throw new InvalidOperationException($"Modul '{moduleName}' ist nicht in der Modulverwaltung vorhanden.");
+    }
+
+    private void EnsureFlagExists(string flag)
+    {
+        if (AvailableFlags.Any(x => string.Equals(x, flag, StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        throw new InvalidOperationException($"Flag '{flag}' ist nicht vorhanden. Bitte zuerst 'Neu erstellen' verwenden.");
     }
 
     private async Task LoadHistoryCoreAsync()

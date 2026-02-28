@@ -89,10 +89,9 @@
 
                 <Grid Grid.Row="1" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="1.2*"/>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="0.8*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
@@ -122,11 +121,6 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Tags (comma separated)" Opacity="0.75"/>
-                        <TextBox Text="{Binding TagsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="3">
                         <TextBlock Text="Kundenkürzel (z.B. KDN)" Opacity="0.75"/>
                         <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. KDN)"
                                         x:Name="ScriptCustomerCodeAutoSuggest"
@@ -149,6 +143,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text="SQL Content" Opacity="0.75"/>
@@ -163,6 +158,23 @@
                              MinHeight="260"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+
+                    <StackPanel Grid.Row="2" Margin="0,6,0,0">
+                        <TextBlock Text="Flags" Opacity="0.75"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding FlagsText}"
+                                     IsReadOnly="True"
+                                     Tapped="FlagsTextBox_Tapped"/>
+                            <Button Grid.Column="1"
+                                    Content="Flag hinzufügen"
+                                    Click="EditFlags_Click"
+                                    IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
+                        </Grid>
+                    </StackPanel>
                 </Grid>
             </Grid>
         </Border>
