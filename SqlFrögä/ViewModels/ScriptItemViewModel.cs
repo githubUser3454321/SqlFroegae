@@ -232,11 +232,6 @@ public partial class ScriptItemViewModel : ObservableObject
                 .ToList();
 
             var normalizedContent = NormalizeSqlContent(Content);
-            if (customerId is null)
-            {
-                normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
-                Content = normalizedContent;
-            }
 
             var dto = new ScriptUpsert(
                 Id: _id == Guid.Empty ? null : _id,
