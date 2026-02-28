@@ -16,11 +16,16 @@ namespace SqlFroega.ViewModels;
 public partial class LibrarySplitViewModel : ObservableObject
 {
     private readonly IScriptRepository _repo;
+    private readonly ICustomerMappingRepository _customerMappingRepository;
     private Frame? _detailFrame;
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
-    public ObservableCollection<string> AvailableModules { get; } = new();
+    public ObservableCollection<string> AvailableMainModules { get; } = new();
+    public ObservableCollection<string> AvailableRelatedModules { get; } = new();
+    public ObservableCollection<string> FilteredMainModules { get; } = new();
+    public ObservableCollection<string> FilteredRelatedModules { get; } = new();
     public ObservableCollection<string> AvailableTags { get; } = new();
+    public ObservableCollection<string> FilteredTags { get; } = new();
 
     [ObservableProperty] private string _queryText = "";
     [ObservableProperty] private ScriptListItem? _selected;
@@ -29,9 +34,13 @@ public partial class LibrarySplitViewModel : ObservableObject
 
     [ObservableProperty] private int _scopeFilterIndex;
     [ObservableProperty] private string _customerIdFilterText = "";
-    [ObservableProperty] private string _moduleFilterText = "";
+    [ObservableProperty] private string _mainModuleFilterText = "";
+    [ObservableProperty] private string _relatedModuleFilterText = "";
+    [ObservableProperty] private string _customerCodeFilterText = "";
     [ObservableProperty] private string _tagsFilterText = "";
     [ObservableProperty] private string _objectFilterText = "";
+    [ObservableProperty] private string _moduleCatalogSearchText = "";
+    [ObservableProperty] private string _tagCatalogSearchText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
 
@@ -40,6 +49,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     public LibrarySplitViewModel()
     {
         _repo = App.Services.GetRequiredService<IScriptRepository>();
+        _customerMappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
     }
 
     public void AttachDetailFrame(Frame frame) => _detailFrame = frame;
@@ -52,12 +62,20 @@ public partial class LibrarySplitViewModel : ObservableObject
             IsBusy = true;
             Error = null;
 
-            Guid? customerId = null;
-            if (!string.IsNullOrWhiteSpace(CustomerIdFilterText))
+            var customerId = await ResolveCustomerIdFilterAsync();
+
+            var searchText = QueryText;
+
+            if (!string.IsNullOrWhiteSpace(QueryText)
+                && string.IsNullOrWhiteSpace(CustomerIdFilterText)
+                && string.IsNullOrWhiteSpace(CustomerCodeFilterText))
             {
-                if (!Guid.TryParse(CustomerIdFilterText.Trim(), out var parsed))
-                    throw new InvalidOperationException("CustomerId filter is not a valid GUID.");
-                customerId = parsed;
+                var mappedCustomer = await _customerMappingRepository.GetByCodeAsync(QueryText.Trim());
+                if (mappedCustomer is not null)
+                {
+                    customerId = mappedCustomer.CustomerId;
+                    searchText = null;
+                }
             }
 
             IReadOnlyList<string>? tags = null;
@@ -79,14 +97,16 @@ public partial class LibrarySplitViewModel : ObservableObject
                     _ => null
                 },
                 CustomerId: customerId,
-                Module: string.IsNullOrWhiteSpace(ModuleFilterText) ? null : ModuleFilterText.Trim(),
+                Module: null,
+                MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
+                RelatedModule: string.IsNullOrWhiteSpace(RelatedModuleFilterText) ? null : RelatedModuleFilterText.Trim(),
                 Tags: tags,
                 ReferencedObject: string.IsNullOrWhiteSpace(ObjectFilterText) ? null : ObjectFilterText.Trim(),
                 IncludeDeleted: IncludeDeleted,
                 SearchHistory: SearchInHistory
             );
 
-            var items = await _repo.SearchAsync(QueryText, filters, take: 200, skip: 0);
+            var items = await _repo.SearchAsync(searchText, filters, take: 200, skip: 0);
 
             Results.Clear();
             foreach (var it in items)
@@ -195,7 +215,16 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(module))
             return;
 
-        ModuleFilterText = module.Trim();
+        MainModuleFilterText = module.Trim();
+    }
+
+    [RelayCommand]
+    private void ApplyRelatedModuleFilter(string? module)
+    {
+        if (string.IsNullOrWhiteSpace(module))
+            return;
+
+        RelatedModuleFilterText = module.Trim();
     }
 
     [RelayCommand]
@@ -223,13 +252,81 @@ public partial class LibrarySplitViewModel : ObservableObject
     {
         var metadata = await _repo.GetMetadataCatalogAsync(IncludeDeleted);
 
-        AvailableModules.Clear();
-        foreach (var module in metadata.Modules.Concat(metadata.RelatedModules).Distinct(StringComparer.OrdinalIgnoreCase))
-            AvailableModules.Add(module);
+        AvailableMainModules.Clear();
+        foreach (var module in metadata.Modules)
+            AvailableMainModules.Add(module);
+
+        AvailableRelatedModules.Clear();
+        foreach (var module in metadata.RelatedModules)
+            AvailableRelatedModules.Add(module);
 
         AvailableTags.Clear();
         foreach (var tag in metadata.Tags)
             AvailableTags.Add(tag);
+
+        ApplyCatalogFilters();
+    }
+
+    partial void OnModuleCatalogSearchTextChanged(string value) => ApplyCatalogFilters();
+
+    partial void OnTagCatalogSearchTextChanged(string value) => ApplyCatalogFilters();
+
+    private void ApplyCatalogFilters()
+    {
+        ApplyCatalogFilter(AvailableMainModules, FilteredMainModules, ModuleCatalogSearchText);
+        ApplyCatalogFilter(AvailableRelatedModules, FilteredRelatedModules, ModuleCatalogSearchText);
+        ApplyCatalogFilter(AvailableTags, FilteredTags, TagCatalogSearchText);
+    }
+
+    private static void ApplyCatalogFilter(IEnumerable<string> source, ObservableCollection<string> target, string? filter)
+    {
+        var typed = filter?.Trim() ?? string.Empty;
+        var matches = source
+            .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        target.Clear();
+        foreach (var value in matches)
+            target.Add(value);
+    }
+
+    private async Task<Guid?> ResolveCustomerIdFilterAsync()
+    {
+        var guidInput = CustomerIdFilterText?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(guidInput))
+        {
+            if (!Guid.TryParse(guidInput, out var parsed))
+                throw new InvalidOperationException("CustomerId filter is not a valid GUID.");
+
+            return parsed;
+        }
+
+        var codeInput = CustomerCodeFilterText?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(codeInput))
+        {
+            var codeMapping = await _customerMappingRepository.GetByCodeAsync(codeInput);
+            if (codeMapping is null)
+                throw new InvalidOperationException($"Kundenkürzel '{codeInput}' wurde nicht gefunden.");
+
+            return codeMapping.CustomerId;
+        }
+
+        return await TryResolveCustomerIdFromQueryTextAsync();
+    }
+
+    private async Task<Guid?> TryResolveCustomerIdFromQueryTextAsync()
+    {
+        var query = QueryText?.Trim() ?? string.Empty;
+        if (Guid.TryParse(query, out var queryGuid))
+            return queryGuid;
+
+        if (string.IsNullOrWhiteSpace(query))
+            return null;
+
+        var mapping = await _customerMappingRepository.GetByCodeAsync(query);
+        return mapping?.CustomerId;
     }
 
     private void NavigateDetail(Guid id)

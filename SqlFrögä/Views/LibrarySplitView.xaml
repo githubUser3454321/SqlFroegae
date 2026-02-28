@@ -75,7 +75,7 @@
                     </Grid.ColumnDefinitions>
 
                     <TextBox Grid.Column="0"
-                             PlaceholderText="Suche (Name, Beschreibung, Content)…"
+                             PlaceholderText="Globale Suche (Volltext, Module, Kundenkürzel, Tags)…"
                              Text="{Binding QueryText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              KeyDown="QueryTextBox_KeyDown"/>
 
@@ -85,9 +85,10 @@
                 </Grid>
             </Border>
 
-            <Expander Grid.Row="2" Header="Filter" IsExpanded="True">
+            <Expander Grid.Row="2" Header="Erweiterte Suche" IsExpanded="False">
                 <Grid Padding="0,10,0,0" RowSpacing="8" ColumnSpacing="8">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -107,36 +108,47 @@
                     </ComboBox>
 
                     <TextBox Grid.Row="0" Grid.Column="1"
-                             PlaceholderText="Module"
-                             Text="{Binding ModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <TextBox Grid.Row="1" Grid.Column="0"
-                             PlaceholderText="CustomerId (GUID)"
-                             Text="{Binding CustomerIdFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <TextBox Grid.Row="1" Grid.Column="1"
                              PlaceholderText="Tags, komma-getrennt"
                              Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                    <TextBox Grid.Row="1" Grid.Column="0"
+                             PlaceholderText="Kundenkürzel"
+                             Text="{Binding CustomerCodeFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox Grid.Row="1" Grid.Column="1"
+                             PlaceholderText="CustomerId (GUID)"
+                             Text="{Binding CustomerIdFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox Grid.Row="2" Grid.Column="0"
+                             PlaceholderText="Main-Modul"
+                             Text="{Binding MainModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox Grid.Row="2" Grid.Column="1"
+                             PlaceholderText="Related-Modul"
+                             Text="{Binding RelatedModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                              PlaceholderText="Objektsuche (z. B. om_adkont_sql, om_adkont_sql.TestSpalte oder om.om_adkont_sql)"
                              Text="{Binding ObjectFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                    <CheckBox Grid.Row="3" Grid.Column="0"
+                    <CheckBox Grid.Row="4" Grid.Column="0"
                               Content="Gelöschte Datensätze anzeigen (Temporal)"
                               IsChecked="{Binding IncludeDeleted, Mode=TwoWay}"/>
 
-                    <CheckBox Grid.Row="3" Grid.Column="1"
+                    <CheckBox Grid.Row="4" Grid.Column="1"
                               Content="Auch in History-Versionen suchen"
                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
-
-                    <Expander Grid.Row="4" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="True">
+                    <Expander Grid.Row="5" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
                         <StackPanel Spacing="8" Padding="0,8,0,0">
                             <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
 
-                            <TextBlock Text="Module" FontWeight="SemiBold"/>
-                            <ListView ItemsSource="{Binding AvailableModules}" SelectionMode="None" MaxHeight="160">
+                            <TextBlock Text="Modul-Katalog" FontWeight="SemiBold"/>
+                            <TextBox PlaceholderText="Module filtern"
+                                     Text="{Binding ModuleCatalogSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                            <TextBlock Text="Main-Module" Opacity="0.75"/>
+                            <ListView ItemsSource="{Binding FilteredMainModules}" SelectionMode="None" MaxHeight="120">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Button Content="{Binding}" HorizontalAlignment="Stretch"
@@ -146,8 +158,21 @@
                                 </ListView.ItemTemplate>
                             </ListView>
 
+                            <TextBlock Text="Related-Module" Opacity="0.75"/>
+                            <ListView ItemsSource="{Binding FilteredRelatedModules}" SelectionMode="None" MaxHeight="120">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding}" HorizontalAlignment="Stretch"
+                                                Command="{Binding DataContext.ApplyRelatedModuleFilterCommand, ElementName=RootPage}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+
                             <TextBlock Text="Tags" FontWeight="SemiBold"/>
-                            <ListView ItemsSource="{Binding AvailableTags}" SelectionMode="None" MaxHeight="160">
+                            <TextBox PlaceholderText="Tags filtern"
+                                     Text="{Binding TagCatalogSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <ListView ItemsSource="{Binding FilteredTags}" SelectionMode="None" MaxHeight="160">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Button Content="{Binding}" HorizontalAlignment="Stretch"

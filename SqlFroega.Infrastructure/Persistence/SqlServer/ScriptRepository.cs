@@ -94,6 +94,18 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@module", filters.Module);
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.MainModule))
+        {
+            sb.AppendLine("AND s.Module = @mainModule");
+            p.Add("@mainModule", filters.MainModule);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.RelatedModule))
+        {
+            sb.AppendLine("AND COALESCE(s.RelatedModules, N'') LIKE '%' + @relatedModule + '%'");
+            p.Add("@relatedModule", filters.RelatedModule);
+        }
+
         if (filters.Tags is { Count: > 0 })
         {
             for (int i = 0; i < filters.Tags.Count; i++)
@@ -109,12 +121,13 @@ public sealed class ScriptRepository : IScriptRepository
             queryText = queryText.Trim();
             if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
             {
-                sb.AppendLine("AND (CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q))");
+                sb.AppendLine("AND (CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q) OR s.Module LIKE '%' + @qlike + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @qlike + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @qlike + '%')");
                 p.Add("@q", queryText);
+                p.Add("@qlike", queryText);
             }
             else
             {
-                sb.AppendLine("AND (s.Content LIKE '%' + @q + '%' OR s.Name LIKE '%' + @q + '%' OR s.Description LIKE '%' + @q + '%')");
+                sb.AppendLine("AND (s.Content LIKE '%' + @q + '%' OR s.Name LIKE '%' + @q + '%' OR s.Description LIKE '%' + @q + '%' OR s.Module LIKE '%' + @q + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @q + '%')");
                 p.Add("@q", queryText);
             }
         }
@@ -208,6 +221,18 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@module", filters.Module);
         }
 
+        if (!string.IsNullOrWhiteSpace(filters.MainModule))
+        {
+            sb.AppendLine("      AND s.Module = @mainModule");
+            p.Add("@mainModule", filters.MainModule);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.RelatedModule))
+        {
+            sb.AppendLine("      AND COALESCE(s.RelatedModules, N'') LIKE '%' + @relatedModule + '%'");
+            p.Add("@relatedModule", filters.RelatedModule);
+        }
+
         if (filters.Tags is { Count: > 0 })
         {
             for (int i = 0; i < filters.Tags.Count; i++)
@@ -226,13 +251,13 @@ public sealed class ScriptRepository : IScriptRepository
             if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
             {
                 sb.AppendLine("      AND (");
-                sb.AppendLine("          CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q)");
+                sb.AppendLine("          CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q) OR s.Module LIKE '%' + @q + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @q + '%'");
                 if (filters.SearchHistory)
                 {
                     sb.AppendLine("          OR EXISTS (");
                     sb.AppendLine($"              SELECT 1 FROM {fullTable} FOR SYSTEM_TIME ALL AS hs");
                     sb.AppendLine("              WHERE hs.Id = s.Id");
-                    sb.AppendLine("                AND (CONTAINS(hs.Content, @q) OR CONTAINS(hs.Name, @q) OR CONTAINS(hs.Description, @q))");
+                    sb.AppendLine("                AND (CONTAINS(hs.Content, @q) OR CONTAINS(hs.Name, @q) OR CONTAINS(hs.Description, @q) OR hs.Module LIKE '%' + @q + '%' OR COALESCE(hs.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(hs.Tags, N'') LIKE '%' + @q + '%')");
                     sb.AppendLine("          )");
                 }
                 sb.AppendLine("      )");
@@ -240,13 +265,13 @@ public sealed class ScriptRepository : IScriptRepository
             else
             {
                 sb.AppendLine("      AND (");
-                sb.AppendLine("          s.Content LIKE '%' + @q + '%' OR s.Name LIKE '%' + @q + '%' OR s.Description LIKE '%' + @q + '%'");
+                sb.AppendLine("          s.Content LIKE '%' + @q + '%' OR s.Name LIKE '%' + @q + '%' OR s.Description LIKE '%' + @q + '%' OR s.Module LIKE '%' + @q + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @q + '%'");
                 if (filters.SearchHistory)
                 {
                     sb.AppendLine("          OR EXISTS (");
                     sb.AppendLine($"              SELECT 1 FROM {fullTable} FOR SYSTEM_TIME ALL AS hs");
                     sb.AppendLine("              WHERE hs.Id = s.Id");
-                    sb.AppendLine("                AND (hs.Content LIKE '%' + @q + '%' OR hs.Name LIKE '%' + @q + '%' OR hs.Description LIKE '%' + @q + '%')");
+                    sb.AppendLine("                AND (hs.Content LIKE '%' + @q + '%' OR hs.Name LIKE '%' + @q + '%' OR hs.Description LIKE '%' + @q + '%' OR hs.Module LIKE '%' + @q + '%' OR COALESCE(hs.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(hs.Tags, N'') LIKE '%' + @q + '%')");
                     sb.AppendLine("          )");
                 }
                 sb.AppendLine("      )");
