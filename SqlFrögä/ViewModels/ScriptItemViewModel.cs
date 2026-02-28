@@ -229,7 +229,7 @@ public partial class ScriptItemViewModel : ObservableObject
     {
         try
         {
-            var rendered = await BuildRenderedSqlAsync();
+            var rendered = await GetRenderedCopyTextAsync();
             if (string.IsNullOrWhiteSpace(rendered))
                 return;
 
@@ -272,12 +272,31 @@ public partial class ScriptItemViewModel : ObservableObject
     [RelayCommand]
     private void Copy()
     {
-        if (string.IsNullOrWhiteSpace(Content))
+        var text = GetCopyText();
+        if (string.IsNullOrWhiteSpace(text))
             return;
 
         var dp = new DataPackage();
-        dp.SetText(Content);
+        dp.SetText(text);
         Clipboard.SetContent(dp);
+    }
+
+    public string? GetCopyText()
+        => string.IsNullOrWhiteSpace(Content) ? null : Content;
+
+    public async Task<string?> GetRenderedCopyTextAsync()
+    {
+        try
+        {
+            var rendered = await BuildRenderedSqlAsync();
+            Error = null;
+            return string.IsNullOrWhiteSpace(rendered) ? null : rendered;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            return null;
+        }
     }
 
     [RelayCommand]

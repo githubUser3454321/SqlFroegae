@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace SqlFroega.Views;
 
@@ -100,6 +101,41 @@ public sealed partial class ScriptItemView : Page
             .ToList();
     }
 
+
+
+    private void CopyButton_DragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        var text = VM.GetCopyText();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            args.Cancel = true;
+            return;
+        }
+
+        args.Data.SetText(text);
+        args.AllowedOperations = DataPackageOperation.Copy;
+    }
+
+    private async void CopyRenderedButton_DragStarting(UIElement sender, DragStartingEventArgs args)
+    {
+        var deferral = args.GetDeferral();
+        try
+        {
+            var text = await VM.GetRenderedCopyTextAsync();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                args.Cancel = true;
+                return;
+            }
+
+            args.Data.SetText(text);
+            args.AllowedOperations = DataPackageOperation.Copy;
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {

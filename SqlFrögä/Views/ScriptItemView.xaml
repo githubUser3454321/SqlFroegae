@@ -41,8 +41,16 @@
                             GotFocus="CustomerCodeAutoSuggest_GotFocus"
                             DisplayMemberPath="CustomerCode"
                             TextMemberPath="CustomerCode"/>
-            <Button Grid.Column="3" Content="Copy" Command="{Binding CopyCommand}" />
-            <Button Grid.Column="4" Content="Copy Rendered" Command="{Binding CopyRenderedCommand}"/>
+            <Button Grid.Column="3"
+                    Content="Copy"
+                    Command="{Binding CopyCommand}"
+                    CanDrag="True"
+                    DragStarting="CopyButton_DragStarting" />
+            <Button Grid.Column="4"
+                    Content="Copy Rendered"
+                    Command="{Binding CopyRenderedCommand}"
+                    CanDrag="True"
+                    DragStarting="CopyRenderedButton_DragStarting"/>
         </Grid>
 
         <Border Grid.Row="1"
