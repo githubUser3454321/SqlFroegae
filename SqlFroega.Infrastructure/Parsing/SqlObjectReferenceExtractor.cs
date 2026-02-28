@@ -29,6 +29,7 @@ public sealed class SqlObjectReferenceExtractor
     private sealed class ReferenceVisitor : TSqlFragmentVisitor
     {
         private readonly List<DbObjectRef> _refs = new();
+        private readonly Stack<SchemaObjectName?> _tableContext = new();
 
         public override void ExplicitVisit(NamedTableReference node)
         {
@@ -82,13 +83,31 @@ public sealed class SqlObjectReferenceExtractor
         public override void ExplicitVisit(CreateTableStatement node)
         {
             Add(node.SchemaObjectName, DbObjectType.Table);
-            base.ExplicitVisit(node);
+
+            _tableContext.Push(node.SchemaObjectName);
+            try
+            {
+                base.ExplicitVisit(node);
+            }
+            finally
+            {
+                _tableContext.Pop();
+            }
         }
 
         public override void ExplicitVisit(AlterTableStatement node)
         {
             Add(node.SchemaObjectName, DbObjectType.Table);
-            base.ExplicitVisit(node);
+
+            _tableContext.Push(node.SchemaObjectName);
+            try
+            {
+                base.ExplicitVisit(node);
+            }
+            finally
+            {
+                _tableContext.Pop();
+            }
         }
 
         public override void ExplicitVisit(ColumnDefinition node)
@@ -99,9 +118,7 @@ public sealed class SqlObjectReferenceExtractor
                 return;
             }
 
-            var createTable = FindAncestor<CreateTableStatement>(node);
-            var alterTable = FindAncestor<AlterTableStatement>(node);
-            var tableName = createTable?.SchemaObjectName ?? alterTable?.SchemaObjectName;
+            var tableName = _tableContext.Count > 0 ? _tableContext.Peek() : null;
 
             if (tableName is not null && tableName.Identifiers.Count >= 2)
             {
@@ -114,21 +131,6 @@ public sealed class SqlObjectReferenceExtractor
             }
 
             base.ExplicitVisit(node);
-        }
-
-        private static TNode? FindAncestor<TNode>(TSqlFragment node)
-            where TNode : TSqlFragment
-        {
-            var current = node.Parent;
-            while (current is not null)
-            {
-                if (current is TNode match)
-                    return match;
-
-                current = current.Parent;
-            }
-
-            return null;
         }
 
         public override void ExplicitVisit(ColumnReferenceExpression node)
