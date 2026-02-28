@@ -91,6 +91,64 @@ public sealed class SqlObjectReferenceExtractor
             base.ExplicitVisit(node);
         }
 
+        public override void ExplicitVisit(ColumnDefinition node)
+        {
+            if (node.ColumnIdentifier is null)
+            {
+                base.ExplicitVisit(node);
+                return;
+            }
+
+            var createTable = FindAncestor<CreateTableStatement>(node);
+            var alterTable = FindAncestor<AlterTableStatement>(node);
+            var tableName = createTable?.SchemaObjectName ?? alterTable?.SchemaObjectName;
+
+            if (tableName is not null && tableName.Identifiers.Count >= 2)
+            {
+                var schema = tableName.Identifiers[^2].Value;
+                var table = tableName.Identifiers[^1].Value;
+                var column = node.ColumnIdentifier.Value;
+
+                if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table) && !string.IsNullOrWhiteSpace(column))
+                    _refs.Add(new DbObjectRef($"{schema}.{table}.{column}", DbObjectType.Column));
+            }
+
+            base.ExplicitVisit(node);
+        }
+
+        private static TNode? FindAncestor<TNode>(TSqlFragment node)
+            where TNode : TSqlFragment
+        {
+            var current = node.Parent;
+            while (current is not null)
+            {
+                if (current is TNode match)
+                    return match;
+
+                current = current.Parent;
+            }
+
+            return null;
+        }
+
+        public override void ExplicitVisit(ColumnReferenceExpression node)
+        {
+            if (node.MultiPartIdentifier?.Identifiers is not { Count: >= 3 } ids)
+            {
+                base.ExplicitVisit(node);
+                return;
+            }
+
+            var schema = ids[^3].Value;
+            var table = ids[^2].Value;
+            var column = ids[^1].Value;
+
+            if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table) && !string.IsNullOrWhiteSpace(column))
+                _refs.Add(new DbObjectRef($"{schema}.{table}.{column}", DbObjectType.Column));
+
+            base.ExplicitVisit(node);
+        }
+
         private void Add(SchemaObjectName? name, DbObjectType type)
         {
             if (name is null || name.Identifiers.Count < 2)

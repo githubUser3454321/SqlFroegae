@@ -55,6 +55,23 @@ JOIN om.om_third t3 ON t3.Id = o.Id;";
     }
 
     [Fact]
+    public void Extractor_FindsColumns_InCreateTableAndQualifiedSelect()
+    {
+        var sql = @"
+CREATE TABLE om.om_adkont_sql (
+    KontoId int,
+    Name nvarchar(200)
+);
+SELECT om.om_adkont_sql.KontoId FROM om.om_adkont_sql;";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.KontoId" && r.Type == DbObjectType.Column);
+        Assert.Contains(refs, r => r.Name == "om.om_adkont_sql.Name" && r.Type == DbObjectType.Column);
+    }
+
+    [Fact]
     public void Extractor_DoesNotAnalyze_DynamicSqlContent()
     {
         var sql = "DECLARE @sql nvarchar(max) = N'SELECT * FROM om.om_dynamic'; EXEC(@sql);";
