@@ -488,8 +488,8 @@ public sealed partial class ScriptItemView : Page
                 {
                     Content = flag,
                     IsChecked = isSelected,
-                    Style = Application.Current.Resources["DefaultCheckBoxStyle"] as Style,
-                    Foreground = Application.Current.Resources["TextFillColorPrimaryBrush"] as Brush
+                    Style = App.Current.Resources["DefaultCheckBoxStyle"] as Style,
+                    Foreground = App.Current.Resources["TextFillColorPrimaryBrush"] as Brush
                 };
 
                 var row = new Border
@@ -497,8 +497,8 @@ public sealed partial class ScriptItemView : Page
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(8, 6, 8, 6),
                     Background = isSelected
-                        ? Application.Current.Resources["SubtleFillColorSecondaryBrush"] as Brush
-                        : Application.Current.Resources["ControlFillColorTransparentBrush"] as Brush,
+                        ? App.Current.Resources["SubtleFillColorSecondaryBrush"] as Brush
+                        : App.Current.Resources["ControlFillColorTransparentBrush"] as Brush,
                     Child = checkBox
                 };
 

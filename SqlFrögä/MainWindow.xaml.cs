@@ -16,6 +16,12 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
+        {
+            throw new InvalidOperationException(
+                "Hoppla! Diese Funktion benötigt Windows 10 (Version 1809) [mindestens 10.0.17763]oder neuer. Bitte aktualisiere dein Betriebssystem, um dieses Feature nutzen zu können.");
+        }
+
         InitializeComponent();
         Activated += MainWindow_Activated;
         Closed += MainWindow_Closed;
