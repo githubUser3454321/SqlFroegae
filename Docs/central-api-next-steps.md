@@ -108,3 +108,15 @@ Vor SSMS-/FlowLauncher-Integration:
 - Extensions laufen ohne direkte DB-Credentials **NOT DONE**
 - Read-Use-Cases in SSMS/FlowLauncher produktiv nutzbar **NOT DONE**
 - Schreib-Use-Cases haben Locking, Audit und nachvollziehbare Fehlerantworten **DONE** (Write-Validierung + 409-Conflict für Lock-Kollisionen + Audit vorhanden)
+
+## 9) Priorisierung: FlowLauncher vor SSMS
+
+Da FlowLauncher aktuell höhere Priorität hat, ist die konkrete Ausführung in diesem Dokument ausgelagert:
+
+- [FlowLauncher-Extension: Umsetzungsplan](flowlauncher-extension-plan.md)
+
+Kurzregel für die nächsten Sprints:
+
+1. FlowLauncher read-only (Suche + Copy SQL + Copy Rendered SQL) produktiv machen.
+2. FlowLauncher stabilisieren (Caching/Retry/Telemetry).
+3. SSMS-Adapter erst danach aufsetzen.

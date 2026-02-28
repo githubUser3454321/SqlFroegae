@@ -102,6 +102,8 @@ Hinweis: Bei ungültiger oder fehlender INI zeigt die App eine Fehlermeldung und
 
 Zusätzliche API-Roadmap für eine zentral deployte API: `Docs/central-api-next-steps.md`.
 
+FlowLauncher-Priorisierungsplan (v1 zuerst): `Docs/flowlauncher-extension-plan.md`.
+
 Zusätzliche SQL-Hilfsskripte liegen in `Docs/`:
 - `001_seed_schema.sql` erstellt alle von der App genutzten Tabellen.
 - `002_seed_fill_data_optional_users.sql` füllt optionale Demo-/Seed-Daten (inkl. optionalem Benutzer-Block).
