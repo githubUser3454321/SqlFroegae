@@ -348,8 +348,9 @@ public partial class ScriptItemViewModel : ObservableObject
             if (!lockResult.Acquired)
                 throw new InvalidOperationException($"Dieser Datensatz wird aktuell von '{lockResult.LockedBy ?? "einem anderen Anwender"}' bearbeitet.");
 
+            var awarenessBeforeReload = _editAwareness;
             await ReloadCurrentRecordAsync();
-            _editAwareness = await _repo.GetEditAwarenessAsync(_id, username);
+            _editAwareness = awarenessBeforeReload ?? await _repo.GetEditAwarenessAsync(_id, username);
             Error = null;
             IsEditUnlocked = true;
         }
