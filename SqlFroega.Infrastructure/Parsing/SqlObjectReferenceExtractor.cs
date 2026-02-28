@@ -28,12 +28,34 @@ public sealed class SqlObjectReferenceExtractor
 
     private sealed class ReferenceVisitor : TSqlFragmentVisitor
     {
+        private readonly record struct TableRef(string Schema, string Table);
+
         private readonly List<DbObjectRef> _refs = new();
         private readonly Stack<SchemaObjectName?> _tableContext = new();
+        private readonly Stack<Dictionary<string, TableRef>> _queryScope = new();
+
+        public ReferenceVisitor()
+        {
+            _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        public override void ExplicitVisit(QuerySpecification node)
+        {
+            _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
+            try
+            {
+                base.ExplicitVisit(node);
+            }
+            finally
+            {
+                _queryScope.Pop();
+            }
+        }
 
         public override void ExplicitVisit(NamedTableReference node)
         {
             Add(node.SchemaObject, DbObjectType.Table);
+            RegisterTableLookupKeys(node.SchemaObject, node.Alias?.Value);
             base.ExplicitVisit(node);
         }
 
@@ -135,20 +157,67 @@ public sealed class SqlObjectReferenceExtractor
 
         public override void ExplicitVisit(ColumnReferenceExpression node)
         {
-            if (node.MultiPartIdentifier?.Identifiers is not { Count: >= 3 } ids)
+            if (node.MultiPartIdentifier?.Identifiers is not { Count: >= 2 } ids)
             {
                 base.ExplicitVisit(node);
                 return;
             }
 
-            var schema = ids[^3].Value;
-            var table = ids[^2].Value;
-            var column = ids[^1].Value;
+            if (ids.Count >= 3)
+            {
+                var schema = ids[^3].Value;
+                var table = ids[^2].Value;
+                var column = ids[^1].Value;
 
-            if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table) && !string.IsNullOrWhiteSpace(column))
-                _refs.Add(new DbObjectRef($"{schema}.{table}.{column}", DbObjectType.Column));
+                if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table) && !string.IsNullOrWhiteSpace(column))
+                    _refs.Add(new DbObjectRef($"{schema}.{table}.{column}", DbObjectType.Column));
+            }
+            else
+            {
+                var qualifier = ids[^2].Value;
+                var column = ids[^1].Value;
+
+                if (!string.IsNullOrWhiteSpace(qualifier)
+                    && !string.IsNullOrWhiteSpace(column)
+                    && TryResolveQualifier(qualifier, out var tableRef))
+                {
+                    _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                }
+            }
 
             base.ExplicitVisit(node);
+        }
+
+        private void RegisterTableLookupKeys(SchemaObjectName? schemaObjectName, string? alias)
+        {
+            if (schemaObjectName is null || schemaObjectName.Identifiers.Count < 2 || _queryScope.Count == 0)
+                return;
+
+            var schema = schemaObjectName.Identifiers[^2].Value;
+            var table = schemaObjectName.Identifiers[^1].Value;
+            if (string.IsNullOrWhiteSpace(schema) || string.IsNullOrWhiteSpace(table))
+                return;
+
+            var currentScope = _queryScope.Peek();
+            var tableRef = new TableRef(schema, table);
+
+            currentScope[table] = tableRef;
+            currentScope[$"{schema}.{table}"] = tableRef;
+
+            if (!string.IsNullOrWhiteSpace(alias))
+                currentScope[alias] = tableRef;
+        }
+
+        private bool TryResolveQualifier(string qualifier, out TableRef tableRef)
+        {
+            foreach (var scope in _queryScope)
+            {
+                if (scope.TryGetValue(qualifier, out tableRef))
+                    return true;
+            }
+
+            tableRef = default;
+            return false;
         }
 
         private void Add(SchemaObjectName? name, DbObjectType type)
