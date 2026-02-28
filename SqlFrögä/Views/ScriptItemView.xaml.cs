@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,22 +28,34 @@ public sealed partial class ScriptItemView : Page
             await VM.LoadAsync(id);
     }
 
+    private void MainModuleAutoSuggest_GotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is AutoSuggestBox autoSuggest)
+            UpdateModuleSuggestions(autoSuggest, autoSuggest.Text);
+    }
+
     private void MainModuleAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
     {
         if (args.Reason == AutoSuggestionBoxTextChangeReason.SuggestionChosen)
             return;
 
-        var typed = sender.Text?.Trim() ?? string.Empty;
-        sender.ItemsSource = VM.AvailableModules
-            .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
-            .Take(25)
-            .ToList();
+        UpdateModuleSuggestions(sender, sender.Text);
     }
 
     private void MainModuleAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
     {
         if (args.SelectedItem is string moduleName)
             VM.MainModule = moduleName;
+    }
+
+    private void UpdateModuleSuggestions(AutoSuggestBox control, string? typedText)
+    {
+        var typed = typedText?.Trim() ?? string.Empty;
+        control.ItemsSource = VM.AvailableModules
+            .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(25)
+            .ToList();
     }
 
     private async void EditRelatedModules_Click(object sender, RoutedEventArgs e) => await ShowRelatedModulesDialogAsync();
@@ -55,8 +68,33 @@ public sealed partial class ScriptItemView : Page
 
     private async Task ShowRelatedModulesDialogAsync()
     {
-        var selectedModule = string.Empty;
         var selectedModules = new ObservableCollection<string>(VM.SelectedRelatedModules);
+        var filteredModules = new ObservableCollection<string>();
+        var selectedSet = new HashSet<string>(selectedModules, StringComparer.OrdinalIgnoreCase);
+
+        var moduleList = new ListView
+        {
+            Height = 260,
+            SelectionMode = ListViewSelectionMode.Multiple,
+            IsItemClickEnabled = false,
+            ItemsSource = filteredModules
+        };
+
+        void ApplyFilter(string typed)
+        {
+            var matches = VM.AvailableModules
+                .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            filteredModules.Clear();
+            foreach (var module in matches)
+                filteredModules.Add(module);
+
+            moduleList.SelectedItems.Clear();
+            foreach (var module in filteredModules.Where(selectedSet.Contains))
+                moduleList.SelectedItems.Add(module);
+        }
 
         var search = new AutoSuggestBox { PlaceholderText = "Modul suchen", Width = 420 };
         search.TextChanged += (_, e) =>
@@ -65,79 +103,39 @@ public sealed partial class ScriptItemView : Page
                 return;
 
             var typed = search.Text?.Trim() ?? string.Empty;
-            search.ItemsSource = VM.AvailableModules
+            var suggestions = VM.AvailableModules
                 .Where(x => string.IsNullOrWhiteSpace(typed) || x.Contains(typed, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(25)
                 .ToList();
+
+            search.ItemsSource = suggestions;
+            ApplyFilter(typed);
         };
 
         search.SuggestionChosen += (_, e) =>
         {
-            if (e.SelectedItem is string moduleName)
-            {
-                selectedModule = moduleName;
-                search.Text = moduleName;
-            }
-        };
-
-        var modulesPanel = new StackPanel { Spacing = 6 };
-        var modulesScroller = new ScrollViewer
-        {
-            Height = 260,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Content = modulesPanel
-        };
-
-        async Task RemoveModuleAsync(string moduleName)
-        {
-            var confirmDialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "Related Modul entfernen?",
-                Content = $"Soll das Modul '{moduleName}' aus der Related-Liste entfernt werden?",
-                PrimaryButtonText = "Entfernen",
-                CloseButtonText = "Abbrechen",
-                DefaultButton = ContentDialogButton.Close
-            };
-
-            var result = await confirmDialog.ShowAsync();
-            if (result != ContentDialogResult.Primary)
+            if (e.SelectedItem is not string moduleName)
                 return;
 
-            var existing = selectedModules.FirstOrDefault(x => string.Equals(x, moduleName, StringComparison.OrdinalIgnoreCase));
-            if (existing is not null)
-            {
-                selectedModules.Remove(existing);
-                RenderModuleRows();
-            }
-        }
+            search.Text = moduleName;
+            ApplyFilter(moduleName);
+        };
 
-        void RenderModuleRows()
+        moduleList.SelectionChanged += (_, _) =>
         {
-            modulesPanel.Children.Clear();
-            foreach (var module in selectedModules)
-            {
-                var row = new Grid { ColumnSpacing = 8 };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            selectedSet = moduleList.SelectedItems
+                .OfType<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        };
 
-                row.Children.Add(new TextBlock { Text = module, VerticalAlignment = VerticalAlignment.Center });
-
-                var deleteButton = new Button { Content = "✕", Tag = module };
-                deleteButton.Click += async (_, _) => await RemoveModuleAsync(module);
-                Grid.SetColumn(deleteButton, 1);
-                row.Children.Add(deleteButton);
-
-                modulesPanel.Children.Add(row);
-            }
-        }
-
-        RenderModuleRows();
+        ApplyFilter(string.Empty);
 
         var content = new StackPanel { Spacing = 10 };
         content.Children.Add(search);
-        content.Children.Add(new TextBlock { Text = "Bereits verknüpfte Module", Opacity = 0.75 });
-        content.Children.Add(modulesScroller);
+        content.Children.Add(new TextBlock { Text = "Module auswählen (Mehrfachauswahl möglich)", Opacity = 0.75 });
+        content.Children.Add(moduleList);
 
         var dialog = new ContentDialog
         {
@@ -151,13 +149,9 @@ public sealed partial class ScriptItemView : Page
 
         dialog.PrimaryButtonClick += (_, _) =>
         {
-            var newModule = string.IsNullOrWhiteSpace(selectedModule) ? search.Text?.Trim() ?? string.Empty : selectedModule;
-            if (!string.IsNullOrWhiteSpace(newModule)
-                && VM.AvailableModules.Any(x => string.Equals(x, newModule, StringComparison.OrdinalIgnoreCase))
-                && !selectedModules.Any(x => string.Equals(x, newModule, StringComparison.OrdinalIgnoreCase)))
-            {
-                selectedModules.Add(newModule);
-            }
+            selectedModules.Clear();
+            foreach (var module in selectedSet.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                selectedModules.Add(module);
 
             VM.SelectedRelatedModules.Clear();
             foreach (var module in selectedModules)

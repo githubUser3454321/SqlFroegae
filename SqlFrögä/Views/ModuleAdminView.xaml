@@ -46,7 +46,13 @@
                     BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     Padding="8">
-                <ListView ItemsSource="{Binding Modules}" SelectedItem="{Binding Selected, Mode=TwoWay}"/>
+                <ListView ItemsSource="{Binding Modules}" SelectedItem="{Binding Selected, Mode=TwoWay}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
             </Border>
 
             <Border Grid.Column="1"
@@ -58,7 +64,7 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="Modulname" Opacity="0.75"/>
                     <TextBox Text="{Binding ModuleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                    <TextBlock Text="Neue Module dürfen ausschließlich hier angelegt werden." Opacity="0.75" TextWrapping="WrapWholeWords"/>
+                    <TextBlock Text="Neue Module hier anlegen oder bestehende links auswählen und umbenennen." Opacity="0.75" TextWrapping="WrapWholeWords"/>
                 </StackPanel>
             </Border>
         </Grid>

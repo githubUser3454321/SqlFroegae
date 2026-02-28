@@ -99,6 +99,7 @@
                                         Text="{Binding MainModule, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                         TextChanged="MainModuleAutoSuggest_TextChanged"
                                         SuggestionChosen="MainModuleAutoSuggest_SuggestionChosen"
+                                        GotFocus="MainModuleAutoSuggest_GotFocus"
                                         IsEnabled="{Binding IsReadOnlyMode, Converter={StaticResource BooleanNegationConverter}}"/>
                     </StackPanel>
 
