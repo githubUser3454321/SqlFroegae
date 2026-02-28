@@ -14,9 +14,12 @@ namespace SqlFroega.ViewModels;
 public partial class ScriptItemViewModel : ObservableObject
 {
     private readonly IScriptRepository _repo;
+    private readonly ICustomerMappingRepository _mappingRepository;
+    private readonly ISqlCustomerRenderService _renderService;
     private Guid _id;
 
     public ObservableCollection<ScriptHistoryItem> HistoryItems { get; } = new();
+    public ObservableCollection<CustomerMappingItem> CustomerMappings { get; } = new();
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
@@ -32,16 +35,26 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string _customerIdText = "";
     [ObservableProperty] private bool _isReadOnlyMode;
 
+    [ObservableProperty] private string _selectedCustomerCode = "";
+    [ObservableProperty] private string _mappingCustomerCode = "";
+    [ObservableProperty] private string _mappingCustomerName = "";
+    [ObservableProperty] private string _mappingSchemaName = "om";
+    [ObservableProperty] private string _mappingObjectPrefix = "om_";
+    [ObservableProperty] private string _mappingDatabaseUser = "om";
+
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
     public ScriptItemViewModel()
     {
         _repo = App.Services.GetRequiredService<IScriptRepository>();
+        _mappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
+        _renderService = App.Services.GetRequiredService<ISqlCustomerRenderService>();
     }
 
     public async Task LoadAsync(Guid id)
     {
         _id = id;
+        await LoadMappingsAsync();
 
         if (id == Guid.Empty)
         {
@@ -112,6 +125,40 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task RefreshMappingsAsync() => await LoadMappingsAsync();
+
+    [RelayCommand]
+    private async Task UpsertMappingAsync()
+    {
+        if (string.IsNullOrWhiteSpace(MappingCustomerCode) || string.IsNullOrWhiteSpace(MappingCustomerName))
+            throw new InvalidOperationException("Customer code and name are required for mapping.");
+
+        var existing = CustomerMappings.FirstOrDefault(x => string.Equals(x.CustomerCode, MappingCustomerCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        var item = new CustomerMappingItem(
+            CustomerId: existing?.CustomerId ?? Guid.NewGuid(),
+            CustomerCode: MappingCustomerCode.Trim(),
+            CustomerName: MappingCustomerName.Trim(),
+            SchemaName: string.IsNullOrWhiteSpace(MappingSchemaName) ? "om" : MappingSchemaName.Trim(),
+            ObjectPrefix: string.IsNullOrWhiteSpace(MappingObjectPrefix) ? "om_" : MappingObjectPrefix.Trim(),
+            DatabaseUser: string.IsNullOrWhiteSpace(MappingDatabaseUser) ? "om" : MappingDatabaseUser.Trim());
+
+        await _mappingRepository.UpsertAsync(item);
+        await LoadMappingsAsync();
+    }
+
+    [RelayCommand]
+    private async Task CopyRenderedAsync()
+    {
+        var rendered = await BuildRenderedSqlAsync();
+        if (string.IsNullOrWhiteSpace(rendered))
+            return;
+
+        var dp = new DataPackage();
+        dp.SetText(rendered);
+        Clipboard.SetContent(dp);
     }
 
     [RelayCommand]
@@ -195,7 +242,11 @@ public partial class ScriptItemViewModel : ObservableObject
                 .ToList();
 
             var normalizedContent = NormalizeSqlContent(Content);
-            Content = normalizedContent;
+            if (customerId is null)
+            {
+                normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
+                Content = normalizedContent;
+            }
 
             var dto = new ScriptUpsert(
                 Id: _id == Guid.Empty ? null : _id,
@@ -223,6 +274,23 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task<string> BuildRenderedSqlAsync()
+    {
+        var sql = NormalizeSqlContent(Content);
+        if (string.IsNullOrWhiteSpace(SelectedCustomerCode))
+            return sql;
+
+        return await _renderService.RenderForCustomerAsync(sql, SelectedCustomerCode.Trim());
+    }
+
+    private async Task LoadMappingsAsync()
+    {
+        var mappings = await _mappingRepository.GetAllAsync();
+        CustomerMappings.Clear();
+        foreach (var mapping in mappings)
+            CustomerMappings.Add(mapping);
     }
 
     private async Task LoadHistoryCoreAsync()
