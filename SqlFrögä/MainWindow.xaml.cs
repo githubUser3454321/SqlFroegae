@@ -1,7 +1,9 @@
-using System.IO;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using SqlFroega.Views;
+using System;
+using System.IO;
 using WinRT.Interop;
 
 namespace SqlFroega;
@@ -18,13 +20,14 @@ public sealed partial class MainWindow : Window
     private void SetWindowIcon()
     {
         var hWnd = WindowNative.GetWindowHandle(this);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hWnd);
+        var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
         var appWindow = AppWindow.GetFromWindowId(windowId);
-
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "SqlFrögä.ico");
+        
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "SqlFroga.ico");
         if (File.Exists(iconPath))
         {
             appWindow.SetIcon(iconPath);
         }
+       
     }
 }
