@@ -6,6 +6,7 @@ using SqlFroega.Application.Abstractions;
 using SqlFroega.Views;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using WinRT.Interop;
 
 namespace SqlFroega;
@@ -19,7 +20,7 @@ public sealed partial class MainWindow : Window
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 17763))
         {
             throw new InvalidOperationException(
-                "Hoppla! Diese Funktion benötigt Windows 10 (Version 1809) [mindestens 10.0.17763]oder neuer. Bitte aktualisiere dein Betriebssystem, um dieses Feature nutzen zu können.");
+                "Hoppla! Diese Funktion benï¿½tigt Windows 10 (Version 1809) [mindestens 10.0.17763]oder neuer. Bitte aktualisiere dein Betriebssystem, um dieses Feature nutzen zu kï¿½nnen.");
         }
 
         InitializeComponent();
@@ -32,6 +33,11 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            if (!App.ServicesReady)
+            {
+                return;
+            }
+
             var scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
             await scriptRepository.ClearEditLocksAsync(App.CurrentUser?.Username);
         }
@@ -48,7 +54,12 @@ public sealed partial class MainWindow : Window
 
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        if (_startupNavigationDone)
+        await TryStartNavigationAsync();
+    }
+
+    public async Task TryStartNavigationAsync()
+    {
+        if (_startupNavigationDone || !App.ServicesReady)
         {
             return;
         }
