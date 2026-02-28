@@ -77,6 +77,51 @@ public sealed class SqlParsingTests
         Assert.Equal("SELECT omT.[Column] FROM om.om_adkont_sql AS omT WHERE omT.syn_status = 1;", result);
     }
 
+
+    [Fact]
+    public async Task NormalizeForStorage_Rewrites_UnqualifiedObjectName()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var result = await service.NormalizeForStorageAsync("SELECT * FROM syn_adkont_sql;");
+
+        Assert.Equal("SELECT * FROM om.om_adkont_sql;", result);
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_Throws_OnMixedSourceMappingsInScript()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om_db2", ObjectPrefix = "syn2_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("SELECT * FROM om_db.syn_adkont_sql; SELECT * FROM om_db2.syn2_x;"));
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_DoesNotRewrite_SysObjects()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "sys", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var result = await service.NormalizeForStorageAsync("SELECT * FROM sys.syn_objects;");
+
+        Assert.Equal("SELECT * FROM sys.syn_objects;", result);
+    }
+
     [Fact]
     public void Extractor_FindsReferences_InJoinAliasAndCte()
     {

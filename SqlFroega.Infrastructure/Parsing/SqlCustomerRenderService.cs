@@ -102,6 +102,7 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         private readonly string _sql;
         private readonly List<RewriteRule> _rules = new();
         private readonly List<TextReplacement> _replacements = new();
+        private readonly HashSet<string> _appliedSourceRuleKeys = new(StringComparer.OrdinalIgnoreCase);
 
         public SqlTextRuleRewriter(string sql)
         {
@@ -113,11 +114,22 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             if (string.IsNullOrWhiteSpace(sourceSchema) || string.IsNullOrWhiteSpace(sourcePrefix))
                 return;
 
-            _rules.Add(new RewriteRule(
+            var normalized = new RewriteRule(
                 sourceSchema.Trim(),
                 sourcePrefix.Trim(),
                 string.IsNullOrWhiteSpace(targetSchema) ? sourceSchema.Trim() : targetSchema.Trim(),
-                string.IsNullOrWhiteSpace(targetPrefix) ? sourcePrefix.Trim() : targetPrefix.Trim()));
+                string.IsNullOrWhiteSpace(targetPrefix) ? sourcePrefix.Trim() : targetPrefix.Trim());
+
+            if (normalized.SourceSchema.Equals("sys", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            if (_rules.Any(x => x.SourceSchema.Equals(normalized.SourceSchema, StringComparison.OrdinalIgnoreCase)
+                && x.SourcePrefix.Equals(normalized.SourcePrefix, StringComparison.OrdinalIgnoreCase)
+                && x.TargetSchema.Equals(normalized.TargetSchema, StringComparison.OrdinalIgnoreCase)
+                && x.TargetPrefix.Equals(normalized.TargetPrefix, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            _rules.Add(normalized);
         }
 
         public string Rewrite(TSqlFragment fragment)
@@ -126,6 +138,9 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
                 return _sql;
 
             fragment.Accept(this);
+            if (_appliedSourceRuleKeys.Count > 1)
+                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
+
             if (_replacements.Count == 0)
                 return _sql;
 
@@ -144,25 +159,77 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
 
         private void TryQueueReplacement(SchemaObjectName node)
         {
-            if (node.Identifiers.Count < 2)
+            if (node.Identifiers.Count < 1)
                 return;
+
+            if (node.Identifiers.Count >= 3)
+                return;
+
+            if (node.Identifiers.Count == 1)
+            {
+                var obj = node.Identifiers[0];
+                var rule = FindRuleForUnqualifiedObject(obj.Value ?? string.Empty);
+                if (rule is null)
+                    return;
+
+                TrackAppliedRule(rule);
+                var rewrittenObject = rule.TargetPrefix + (obj.Value ?? string.Empty)[rule.SourcePrefix.Length..];
+                var replacement = FormatIdentifier(obj, rule.TargetSchema) + "." + FormatIdentifier(obj, rewrittenObject);
+                _replacements.Add(new TextReplacement(node.StartOffset, node.FragmentLength, replacement));
+                return;
+            }
 
             var schema = node.Identifiers[^2];
-            var obj = node.Identifiers[^1];
+            var obj2 = node.Identifiers[^1];
             var currentSchema = schema.Value ?? string.Empty;
-            var currentObject = obj.Value ?? string.Empty;
+            var currentObject = obj2.Value ?? string.Empty;
 
-            var rule = _rules.FirstOrDefault(r =>
-                currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase) &&
-                currentObject.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase));
-
-            if (rule is null)
+            if (currentSchema.Equals("sys", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            var rewrittenObject = rule.TargetPrefix + currentObject[rule.SourcePrefix.Length..];
-            var replacement = FormatIdentifier(schema, rule.TargetSchema) + "." + FormatIdentifier(obj, rewrittenObject);
-            _replacements.Add(new TextReplacement(node.StartOffset, node.FragmentLength, replacement));
+            var matchedRules = _rules.Where(r =>
+                currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase) &&
+                currentObject.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase)).ToList();
+
+            if (matchedRules.Count == 0)
+                return;
+
+            var distinctSourceKeys = matchedRules.Select(GetSourceRuleKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (distinctSourceKeys.Count > 1)
+                throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
+
+            var rule2 = matchedRules[0];
+            TrackAppliedRule(rule2);
+
+            var rewrittenObject2 = rule2.TargetPrefix + currentObject[rule2.SourcePrefix.Length..];
+            var replacement2 = FormatIdentifier(schema, rule2.TargetSchema) + "." + FormatIdentifier(obj2, rewrittenObject2);
+            _replacements.Add(new TextReplacement(node.StartOffset, node.FragmentLength, replacement2));
         }
+
+        private RewriteRule? FindRuleForUnqualifiedObject(string objectName)
+        {
+            if (string.IsNullOrWhiteSpace(objectName))
+                return null;
+
+            var matchedRules = _rules
+                .Where(r => objectName.StartsWith(r.SourcePrefix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (matchedRules.Count == 0)
+                return null;
+
+            var distinctSourceKeys = matchedRules.Select(GetSourceRuleKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (distinctSourceKeys.Count > 1)
+                throw new InvalidOperationException("Script contains unqualified object names that match multiple schema/prefix mappings. Automatic replacement has been disabled.");
+
+            return matchedRules[0];
+        }
+
+        private void TrackAppliedRule(RewriteRule rule)
+            => _appliedSourceRuleKeys.Add(GetSourceRuleKey(rule));
+
+        private static string GetSourceRuleKey(RewriteRule rule)
+            => rule.SourceSchema + "|" + rule.SourcePrefix;
 
         private static string FormatIdentifier(Identifier original, string value)
             => original.QuoteType == QuoteType.SquareBracket ? $"[{value}]" : value;

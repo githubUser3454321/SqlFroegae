@@ -238,8 +238,16 @@ public partial class ScriptItemViewModel : ObservableObject
             var normalizedContent = NormalizeSqlContent(Content);
             if (ReplaceDatabaseUserAndPrefix)
             {
-                normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
-                Content = normalizedContent;
+                try
+                {
+                    normalizedContent = await _renderService.NormalizeForStorageAsync(normalizedContent);
+                    Content = normalizedContent;
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("Automatic replacement has been disabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    ReplaceDatabaseUserAndPrefix = false;
+                    Error = "Mehrere unterschiedliche Mapping-Paare im Script erkannt. Automatisches Ersetzen wurde deaktiviert.";
+                }
             }
 
             var dto = new ScriptUpsert(
