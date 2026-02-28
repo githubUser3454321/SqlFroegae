@@ -30,6 +30,12 @@ public interface IScriptRepository
         bool includeDeleted = false,
         CancellationToken ct = default);
 
+    Task<IReadOnlyList<string>> GetManagedModulesAsync(CancellationToken ct = default);
+
+    Task AddModuleAsync(string moduleName, CancellationToken ct = default);
+
+    Task RemoveModuleAsync(string moduleName, CancellationToken ct = default);
+
     Task<IReadOnlyList<ScriptReferenceItem>> FindByReferencedObjectAsync(
         string objectName,
         CancellationToken ct = default);

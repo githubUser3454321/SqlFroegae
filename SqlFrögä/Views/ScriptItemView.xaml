@@ -89,19 +89,25 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Module" Opacity="0.75"/>
-                        <TextBox Text="{Binding Module, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                        <TextBlock Text="Main-Modul" Opacity="0.75"/>
+                        <TextBox Text="{Binding MainModule, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
+                        <TextBlock Text="Related Modules (comma separated)" Opacity="0.75"/>
+                        <TextBox Text="{Binding RelatedModulesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
                         <TextBlock Text="Tags (comma separated)" Opacity="0.75"/>
                         <TextBox Text="{Binding TagsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsReadOnlyMode}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2">
+                    <StackPanel Grid.Column="3">
                         <TextBlock Text="Kundenkürzel (z.B. KDN)" Opacity="0.75"/>
                         <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. KDN)"
                                         Text="{Binding ScriptCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

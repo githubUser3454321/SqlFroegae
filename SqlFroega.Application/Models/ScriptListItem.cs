@@ -11,7 +11,8 @@ public sealed class ScriptListItem
         string name,
         string key,
         string scopeLabel,
-        string? module,
+        string? mainModule,
+        IReadOnlyList<string> relatedModules,
         string? customerName,
         string? description,
         IReadOnlyList<string> readOnlyList,
@@ -21,7 +22,8 @@ public sealed class ScriptListItem
         Name = name;
         Key = key;
         ScopeLabel = scopeLabel;
-        Module = module;
+        MainModule = mainModule;
+        RelatedModules = relatedModules;
         CustomerName = customerName;
         Description = description;
         Tags = readOnlyList;
@@ -32,7 +34,8 @@ public sealed class ScriptListItem
     public string Name { get; set; } = "";
     public string Key { get; set; } = "";
     public string ScopeLabel { get; set; } = "";
-    public string? Module { get; set; }
+    public string? MainModule { get; set; }
+    public IReadOnlyList<string> RelatedModules { get; set; } = Array.Empty<string>();
     public string? CustomerName { get; set; }
     public string? Description { get; set; }
     public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();

@@ -57,7 +57,8 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("  s.Name,");
         sb.AppendLine("  s.ScriptKey AS [Key],");
         sb.AppendLine("  CASE s.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
-        sb.AppendLine("  s.Module,");
+        sb.AppendLine("  s.Module AS MainModule,");
+        sb.AppendLine("  COALESCE(s.RelatedModules, N'') AS RelatedModules,");
         if (_opt.JoinCustomers)
             sb.AppendLine("  c.Name AS CustomerName,");
         else
@@ -89,7 +90,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.Module))
         {
-            sb.AppendLine("AND s.Module = @module");
+            sb.AppendLine("AND (s.Module = @module OR COALESCE(s.RelatedModules, N'') LIKE '%' + @module + '%')");
             p.Add("@module", filters.Module);
         }
 
@@ -129,6 +130,7 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
             await EnsureScriptRefsTableAsync(conn, ct);
 
@@ -139,7 +141,8 @@ public sealed class ScriptRepository : IScriptRepository
             r.Name,
             r.Key,
             r.ScopeLabel,
-            r.Module,
+            r.MainModule,
+            ParseTags(r.RelatedModules),
             r.CustomerName,
             r.Description,
             ParseTags(r.Tags),
@@ -167,7 +170,8 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("      s.Name,");
         sb.AppendLine("      s.ScriptKey AS [Key],");
         sb.AppendLine("      s.Scope,");
-        sb.AppendLine("      s.Module,");
+        sb.AppendLine("      s.Module AS MainModule,");
+        sb.AppendLine("      COALESCE(s.RelatedModules, N'') AS RelatedModules,");
         sb.AppendLine("      s.CustomerId,");
         sb.AppendLine("      s.Description,");
         sb.AppendLine("      COALESCE(s.Tags, N'') AS Tags,");
@@ -193,7 +197,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (!string.IsNullOrWhiteSpace(filters.Module))
         {
-            sb.AppendLine("      AND s.Module = @module");
+            sb.AppendLine("      AND (s.Module = @module OR COALESCE(s.RelatedModules, N'') LIKE '%' + @module + '%')");
             p.Add("@module", filters.Module);
         }
 
@@ -255,7 +259,8 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("  vr.Name,");
         sb.AppendLine("  vr.[Key],");
         sb.AppendLine("  CASE vr.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
-        sb.AppendLine("  vr.Module,");
+        sb.AppendLine("  vr.MainModule,");
+        sb.AppendLine("  vr.RelatedModules,");
         if (_opt.JoinCustomers)
             sb.AppendLine("  c.Name AS CustomerName,");
         else
@@ -273,6 +278,7 @@ public sealed class ScriptRepository : IScriptRepository
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
         if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
             await EnsureScriptRefsTableAsync(conn, ct);
 
@@ -283,7 +289,8 @@ public sealed class ScriptRepository : IScriptRepository
             r.Name,
             r.Key,
             r.ScopeLabel,
-            r.Module,
+            r.MainModule,
+            ParseTags(r.RelatedModules),
             r.CustomerName,
             r.Description,
             ParseTags(r.Tags),
@@ -300,7 +307,8 @@ public sealed class ScriptRepository : IScriptRepository
         sql.AppendLine("  s.ScriptKey AS [Key],");
         sql.AppendLine("  s.Content,");
         sql.AppendLine("  CASE s.Scope WHEN 0 THEN 'Global' WHEN 1 THEN 'Customer' WHEN 2 THEN 'Module' ELSE 'Unknown' END AS ScopeLabel,");
-        sql.AppendLine("  s.Module,");
+        sql.AppendLine("  s.Module AS MainModule,");
+        sql.AppendLine("  COALESCE(s.RelatedModules, N'') AS RelatedModules,");
         sql.AppendLine("  s.CustomerId,");
         if (_opt.JoinCustomers)
             sql.AppendLine("  c.Name AS CustomerName,");
@@ -318,6 +326,7 @@ public sealed class ScriptRepository : IScriptRepository
             sql.AppendLine(";");
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
         var row = await conn.QuerySingleOrDefaultAsync<ScriptDetailRow>(
             new CommandDefinition(sql.ToString(), new { id }, cancellationToken: ct));
 
@@ -330,7 +339,8 @@ public sealed class ScriptRepository : IScriptRepository
             row.Key,
             row.Content,
             row.ScopeLabel,
-            row.Module,
+            row.MainModule,
+            ParseTags(row.RelatedModules),
             row.CustomerId,
             row.CustomerName,
             row.Description,
@@ -354,7 +364,8 @@ USING (SELECT
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
-        @Module AS Module,
+        @MainModule AS Module,
+        @RelatedModules AS RelatedModules,
         @Description AS Description,
         @Tags AS Tags
 ) AS src
@@ -367,12 +378,13 @@ WHEN MATCHED THEN
         Scope = src.Scope,
         CustomerId = src.CustomerId,
         Module = src.Module,
+        RelatedModules = src.RelatedModules,
         Description = src.Description,
         Tags = src.Tags,
         IsDeleted = 0
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, Description, Tags, IsDeleted)
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.Description, src.Tags, 0);
+    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted)
+    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0);
 
 SELECT @resolvedId;
 "
@@ -387,7 +399,8 @@ USING (SELECT
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
-        @Module AS Module,
+        @MainModule AS Module,
+        @RelatedModules AS RelatedModules,
         @Description AS Description,
         @Tags AS Tags
 ) AS src
@@ -400,11 +413,12 @@ WHEN MATCHED THEN
         Scope = src.Scope,
         CustomerId = src.CustomerId,
         Module = src.Module,
+        RelatedModules = src.RelatedModules,
         Description = src.Description,
         Tags = src.Tags
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, Description, Tags)
-    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.Description, src.Tags);
+    INSERT (Id, Name, ScriptKey, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags)
+    VALUES (src.Id, src.Name, src.ScriptKey, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags);
 
 SELECT @resolvedId;
 ";
@@ -419,12 +433,14 @@ SELECT @resolvedId;
             script.Content,
             script.Scope,
             script.CustomerId,
-            script.Module,
+            MainModule = script.MainModule,
+            RelatedModules = ToTagsStorage(script.RelatedModules),
             script.Description,
             Tags = tagsText
         };
 
         await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
         var id = await conn.ExecuteScalarAsync<Guid>(new CommandDefinition(sql, args, cancellationToken: ct));
 
         var refs = _referenceExtractor.Extract(script.Content);
@@ -504,10 +520,27 @@ ORDER BY s.{validFromColumn} DESC;";
     {
         var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
 
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
         var sb = new StringBuilder();
-        sb.AppendLine("SELECT DISTINCT LTRIM(RTRIM(s.Module)) AS Value");
+        sb.AppendLine("SELECT DISTINCT Value FROM (");
+        sb.AppendLine("    SELECT LTRIM(RTRIM(m.Name)) AS Value");
+        sb.AppendLine($"    FROM {_opt.ModulesTable} m");
+        sb.AppendLine("    UNION");
+        sb.AppendLine("    SELECT LTRIM(RTRIM(s.Module)) AS Value");
+        sb.AppendLine($"    FROM {_opt.ScriptsTable} s");
+        sb.AppendLine("    WHERE s.Module IS NOT NULL");
+        if (useSoftDelete)
+            sb.AppendLine("      AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
+        sb.AppendLine(") src");
+        sb.AppendLine("WHERE LTRIM(RTRIM(Value)) <> N''");
+        sb.AppendLine("ORDER BY Value ASC;");
+
+        sb.AppendLine("SELECT DISTINCT LTRIM(RTRIM(split.value)) AS Value");
         sb.AppendLine($"FROM {_opt.ScriptsTable} s");
-        sb.AppendLine("WHERE s.Module IS NOT NULL AND LTRIM(RTRIM(s.Module)) <> N''");
+        sb.AppendLine("CROSS APPLY STRING_SPLIT(REPLACE(REPLACE(REPLACE(COALESCE(s.RelatedModules, N''), '[', N''), ']', N''), CHAR(34), N''), ',') split");
+        sb.AppendLine("WHERE LTRIM(RTRIM(split.value)) <> N''");
         if (useSoftDelete)
             sb.AppendLine("  AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
         sb.AppendLine("ORDER BY Value ASC;");
@@ -520,16 +553,61 @@ ORDER BY s.{validFromColumn} DESC;";
             sb.AppendLine("  AND (COALESCE(s.IsDeleted, 0) = 0 OR @includeDeleted = 1)");
         sb.AppendLine("ORDER BY Value ASC;");
 
-        await using var conn = await _connFactory.OpenAsync(ct);
         using var multi = await conn.QueryMultipleAsync(new CommandDefinition(
             sb.ToString(),
             new { includeDeleted },
             cancellationToken: ct));
 
-        var modules = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var managedModules = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var relatedModules = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var tags = (await multi.ReadAsync<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-        return new ScriptMetadataCatalog(modules, tags);
+        return new ScriptMetadataCatalog(managedModules, relatedModules, tags);
+    }
+
+    public async Task<IReadOnlyList<string>> GetManagedModulesAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        var sql = $"SELECT LTRIM(RTRIM(m.Name)) FROM {_opt.ModulesTable} m WHERE LTRIM(RTRIM(m.Name)) <> N'' ORDER BY m.Name";
+        var modules = await conn.QueryAsync<string>(new CommandDefinition(sql, cancellationToken: ct));
+        return modules.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    public async Task AddModuleAsync(string moduleName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            throw new InvalidOperationException("Module name is required.");
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        var sql = $@"IF NOT EXISTS (SELECT 1 FROM {_opt.ModulesTable} WHERE Name = @moduleName)
+INSERT INTO {_opt.ModulesTable} (Name) VALUES (@moduleName);";
+        await conn.ExecuteAsync(new CommandDefinition(sql, new { moduleName = moduleName.Trim() }, cancellationToken: ct));
+    }
+
+    public async Task RemoveModuleAsync(string moduleName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(moduleName))
+            return;
+
+        var normalized = moduleName.Trim();
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        var scriptsSql = $@"
+UPDATE {_opt.ScriptsTable}
+SET Module = CASE WHEN Module = @moduleName THEN NULL ELSE Module END,
+    RelatedModules = CASE
+        WHEN COALESCE(RelatedModules, N'') = N'' THEN RelatedModules
+        ELSE REPLACE(REPLACE(REPLACE(COALESCE(RelatedModules, N''), CONCAT('"', @moduleName, '"'), N''), ',,', ','), '[,', '[')
+    END
+WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleName + '%';";
+
+        await conn.ExecuteAsync(new CommandDefinition(scriptsSql, new { moduleName = normalized }, cancellationToken: ct));
+        await conn.ExecuteAsync(new CommandDefinition($"DELETE FROM {_opt.ModulesTable} WHERE Name = @moduleName", new { moduleName = normalized }, cancellationToken: ct));
     }
 
     private sealed record ScriptListItemRow(
@@ -537,7 +615,8 @@ ORDER BY s.{validFromColumn} DESC;";
         string Name,
         string Key,
         string ScopeLabel,
-        string? Module,
+        string? MainModule,
+        string RelatedModules,
         string? CustomerName,
         string? Description,
         string Tags,
@@ -550,7 +629,8 @@ ORDER BY s.{validFromColumn} DESC;";
         string Key,
         string Content,
         string ScopeLabel,
-        string? Module,
+        string? MainModule,
+        string RelatedModules,
         Guid? CustomerId,
         string? CustomerName,
         string? Description,
@@ -789,6 +869,25 @@ SELECT CASE
 
         _supportsSoftDelete = result;
         return result;
+    }
+
+    private async Task EnsureModuleSchemaAsync(System.Data.Common.DbConnection conn, CancellationToken ct)
+    {
+        var sql = $@"
+IF OBJECT_ID('{_opt.ModulesTable}', 'U') IS NULL
+BEGIN
+    CREATE TABLE {_opt.ModulesTable}
+    (
+        Name nvarchar(128) NOT NULL PRIMARY KEY
+    );
+END;
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'RelatedModules') IS NULL
+BEGIN
+    ALTER TABLE {_opt.ScriptsTable} ADD RelatedModules nvarchar(max) NULL;
+END;";
+
+        await conn.ExecuteAsync(new CommandDefinition(sql, cancellationToken: ct));
     }
 
     private static (string Schema, string Table) SplitSchemaAndTable(string rawTable)
