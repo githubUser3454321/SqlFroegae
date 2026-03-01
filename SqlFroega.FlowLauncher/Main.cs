@@ -8,6 +8,8 @@ namespace SqlFroega.FlowLauncher;
 
 public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 {
+    private static readonly TimeSpan CopyOperationTimeout = TimeSpan.FromSeconds(15);
+
     private readonly PluginSettings _settings = new();
     private readonly ConcurrentDictionary<string, CacheEntry> _searchCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -91,13 +93,13 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
             {
                 Title = "Copy SQL",
                 SubTitle = "Original SQL in die Zwischenablage kopieren",
-                Action = _ => CopyOriginalSql(script.Id)
+                Action = _ => QueueCopy(() => CopyOriginalSql(script.Id))
             },
             new()
             {
                 Title = "Copy Rendered SQL",
                 SubTitle = "Gerendertes SQL (mit CustomerCode)",
-                Action = _ => CopyRenderedSql(script.Id)
+                Action = _ => QueueCopy(() => CopyRenderedSql(script.Id))
             }
         };
     }
@@ -115,7 +117,8 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
     {
         try
         {
-            var detail = _api!.GetScriptDetailAsync(scriptId, CancellationToken.None).GetAwaiter().GetResult();
+            using var cts = new CancellationTokenSource(CopyOperationTimeout);
+            var detail = _api!.GetScriptDetailAsync(scriptId, cts.Token).GetAwaiter().GetResult();
             if (detail is null)
             {
                 _context?.API.ShowMsg("SqlFroega", "Skript nicht gefunden.");
@@ -137,21 +140,23 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
     {
         try
         {
-            var detail = _api!.GetScriptDetailAsync(scriptId, CancellationToken.None).GetAwaiter().GetResult();
+            using var cts = new CancellationTokenSource(CopyOperationTimeout);
+
+            var detail = _api!.GetScriptDetailAsync(scriptId, cts.Token).GetAwaiter().GetResult();
             if (detail is null)
             {
                 _context?.API.ShowMsg("SqlFroega", "Skript nicht gefunden.");
                 return false;
             }
 
-            var customerCode = ResolveCustomerCode();
+            var customerCode = ResolveCustomerCode(cts.Token);
             if (string.IsNullOrWhiteSpace(customerCode))
             {
                 _context?.API.ShowMsg("SqlFroega", "Kein customerCode gesetzt (DefaultCustomerCode oder Mappings).\n");
                 return false;
             }
 
-            var rendered = _api.RenderSqlAsync(customerCode, detail.Content, CancellationToken.None).GetAwaiter().GetResult();
+            var rendered = _api.RenderSqlAsync(customerCode, detail.Content, cts.Token).GetAwaiter().GetResult();
             if (rendered is null)
             {
                 _context?.API.ShowMsg("SqlFroega", "Rendern fehlgeschlagen.");
@@ -169,14 +174,14 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
         }
     }
 
-    private string ResolveCustomerCode()
+    private string ResolveCustomerCode(CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(_settings.DefaultCustomerCode))
         {
             return _settings.DefaultCustomerCode.Trim();
         }
 
-        var mappings = _api!.GetCustomerMappingsAsync(CancellationToken.None).GetAwaiter().GetResult();
+        var mappings = _api!.GetCustomerMappingsAsync(ct).GetAwaiter().GetResult();
         return mappings.FirstOrDefault()?.CustomerCode ?? string.Empty;
     }
 
@@ -220,7 +225,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
             SubTitle = $"#{script.NumberId} · {script.ScopeLabel} · {script.MainModule ?? "-"}",
             IcoPath = "Images/app.png",
             ContextData = script,
-            Action = _ => CopyOriginalSql(script.Id)
+            Action = _ => QueueCopy(() => CopyOriginalSql(script.Id))
         };
     }
 
@@ -228,12 +233,18 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private void SaveSettings()
     {
-        _context?.API.SaveSettingJsonStorage<PluginSettings>();
+        _context?.API.SaveSettingJsonStorage(_settings);
         _api = new SqlFroegaApiClient(new HttpClient
         {
             BaseAddress = new Uri(NormalizeBaseUrl(_settings.ApiBaseUrl)),
             Timeout = TimeSpan.FromSeconds(12)
         }, _settings);
+    }
+
+    private bool QueueCopy(Func<bool> copyAction)
+    {
+        _ = Task.Run(copyAction);
+        return true;
     }
 
     private static void CopySettings(PluginSettings source, PluginSettings target)
