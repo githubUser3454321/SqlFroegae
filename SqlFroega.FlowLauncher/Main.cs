@@ -233,7 +233,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private void SaveSettings()
     {
-        _context?.API.SaveSettingJsonStorage(_settings);
+        _context?.API.SaveSettingJsonStorage<PluginSettings>();
         _api = new SqlFroegaApiClient(new HttpClient
         {
             BaseAddress = new Uri(NormalizeBaseUrl(_settings.ApiBaseUrl)),
