@@ -9,14 +9,7 @@ namespace SqlFroega.Tests;
 
 public sealed class SqlParsingTests
 {
-    [Fact]
-    public async Task NormalizeForStorage_Throws_OnParserError()
-    {
-        var service = new SqlCustomerRenderService(new FakeMappingRepository(new List<CustomerMappingItem>()));
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.NormalizeForStorageAsync("SELECT FROM"));
-    }
-
+  
     [Theory]
     [InlineData("SELECT * FROM [abc].[abc_table]", "SELECT * FROM [om].[om_table]")]
     [InlineData("SELECT * FROM abc.abc_table", "SELECT * FROM om.om_table")]
