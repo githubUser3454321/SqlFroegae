@@ -213,8 +213,11 @@ public sealed partial class ScriptItemView : Page
         if (e.Key != VirtualKey.Tab || sender is not TextBox textBox || textBox.IsReadOnly)
             return;
 
+        var selectionStart = textBox.SelectionStart;
         e.Handled = true;
         textBox.SelectedText = "\t";
+        textBox.SelectionStart = selectionStart + 1;
+        textBox.SelectionLength = 0;
     }
 
 
