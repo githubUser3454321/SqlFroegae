@@ -3,7 +3,12 @@
 **SqlFrögä** ist eine WinUI-3-Desktopanwendung (.NET 8) zur zentralen Verwaltung von SQL-Skripten in SQL Server.
 Der Fokus liegt auf **schneller Auffindbarkeit**, **kontrollierter Bearbeitung** und **kundenabhängiger SQL-Generierung**.
 
-## Überblick
+## Was ist SqlFrögä?
+
+Mit SqlFrögä können Teams SQL-Skripte an einem zentralen Ort verwalten, gezielt durchsuchen und versionssicher bearbeiten.
+Die Anwendung unterstützt dabei typische Arbeitsabläufe rund um modulbezogene Skripte, kundenspezifische Anpassungen und kontrollierte Freigaben.
+
+## Projektüberblick
 
 Das Projekt ist als mehrschichtige Lösung aufgebaut:
 
@@ -14,7 +19,7 @@ Das Projekt ist als mehrschichtige Lösung aufgebaut:
 - `SqlFroega.Tests/` – Unit- und Integrationsnahe Tests
 - `SqlFroega.FlowLauncher/` – FlowLauncher-Plugin (read-only Suche + Copy-Workflows)
 
-## Aktuelle Features
+## Features
 
 ### 1) Skriptbibliothek & Suche
 
@@ -105,6 +110,11 @@ Zusätzliche API-Roadmap für eine zentral deployte API: `Docs/central-api-next-
 
 FlowLauncher-Priorisierungsplan (v1 zuerst): `Docs/flowlauncher-extension-plan.md`.
 
+## Erweiterungen
+
+- FlowLauncher-Erweiterung: **[SqlFroega.FlowLauncher README](SqlFroega.FlowLauncher/README.md)**
+- Eine **SSMS-Erweiterung** ist geplant (aktueller Stand: Konzept-/Planungsphase).
+
 Zusätzliche SQL-Hilfsskripte liegen in `Docs/`:
 - `001_seed_schema.sql` erstellt alle von der App genutzten Tabellen.
 - `002_seed_fill_data_optional_users.sql` füllt optionale Demo-/Seed-Daten (inkl. optionalem Benutzer-Block).
@@ -130,4 +140,3 @@ Bei Bedarf kann die README im nächsten Schritt um ein kurzes Architekturdiagram
 ## API-Dokumentation
 
 Die ausführliche API-Dokumentation findest du hier: **[SqlFroega.Api README](SqlFroega.Api/README.md)**.
-
