@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.AppLifecycle;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using SqlFroega.Configuration;
@@ -30,6 +31,7 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
     {
         InitializeComponent();
+        AppInstance.GetCurrent().Activated += OnAppActivated;
     }
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -39,9 +41,9 @@ public partial class App : Microsoft.UI.Xaml.Application
         _ = InitializeServicesAsync();
     }
 
-    protected override void OnActivated(IActivatedEventArgs args)
+    private void OnAppActivated(object? sender, AppActivationArguments args)
     {
-        if (args is ProtocolActivatedEventArgs protocolArgs)
+        if (args.Kind == ExtendedActivationKind.Protocol && args.Data is IProtocolActivatedEventArgs protocolArgs)
         {
             CaptureDeepLink(protocolArgs.Uri);
         }
