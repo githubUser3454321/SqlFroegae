@@ -1,4 +1,4 @@
-# SqlFrögä (SqlFroega)
+# SqlFrögä
 
 **SqlFrögä** ist eine WinUI-3-Desktopanwendung (.NET 8) zur zentralen Verwaltung von SQL-Skripten in SQL Server.
 Der Fokus liegt auf **schneller Auffindbarkeit**, **kontrollierter Bearbeitung** und **kundenabhängiger SQL-Generierung**.
