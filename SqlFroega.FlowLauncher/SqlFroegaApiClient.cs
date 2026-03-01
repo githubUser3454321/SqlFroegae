@@ -45,23 +45,36 @@ internal sealed class SqlFroegaApiClient
 
     private async Task<T?> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct)
     {
+        var op = DebugLog.Begin("api", $"{method.Method} {path}");
         await EnsureAccessTokenAsync(ct);
 
-        var response = await SendInternalAsync(method, path, body, retryOnUnauthorized: true, ct);
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        try
         {
-            throw new InvalidOperationException("Authentifizierung fehlgeschlagen. Bitte Plugin-Settings prüfen.");
+            var response = await SendInternalAsync(method, path, body, retryOnUnauthorized: true, ct);
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new InvalidOperationException("Authentifizierung fehlgeschlagen. Bitte Plugin-Settings prüfen.");
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            if (response.Content.Headers.ContentLength is 0)
+            {
+                DebugLog.End(op, "no-content");
+                return default;
+            }
+
+            await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
+            var result = await JsonSerializer.DeserializeAsync<T>(contentStream, JsonOptions, ct);
+            DebugLog.End(op, "success");
+            return result;
         }
-
-        response.EnsureSuccessStatusCode();
-
-        if (response.Content.Headers.ContentLength is 0)
+        catch (Exception ex)
         {
-            return default;
+            DebugLog.Error("api", ex, $"{method.Method} {path}");
+            DebugLog.End(op, "failed");
+            throw;
         }
-
-        await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync<T>(contentStream, JsonOptions, ct);
     }
 
     private async Task<HttpResponseMessage> SendInternalAsync(HttpMethod method, string path, object? body, bool retryOnUnauthorized, CancellationToken ct)
@@ -86,6 +99,8 @@ internal sealed class SqlFroegaApiClient
         {
             return response;
         }
+
+        DebugLog.Write("api", $"Unauthorized for {method.Method} {path}, refreshing token");
 
         response.Dispose();
 
@@ -157,6 +172,7 @@ internal sealed class SqlFroegaApiClient
 
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
+        DebugLog.Write("api", "Login succeeded");
 
         await using var contentStream = await response.Content.ReadAsStreamAsync(ct);
         var loginResponse = await JsonSerializer.DeserializeAsync<LoginResponse>(contentStream, JsonOptions, ct)

@@ -22,7 +22,13 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
     public void Init(PluginInitContext context)
     {
         _context = context;
-        _settings = context.API.LoadSettingJsonStorage<PluginSettings>() ?? new PluginSettings();
+        var pluginDirectory = context.CurrentPluginMetadata.PluginDirectory;
+        var flowSettings = context.API.LoadSettingJsonStorage<PluginSettings>() ?? new PluginSettings();
+        var fallbackSettings = SettingsPersistence.LoadFromFile(pluginDirectory);
+        _settings = MergeSettings(flowSettings, fallbackSettings);
+
+        DebugLog.Configure(pluginDirectory, _settings.EnableDebugLogging);
+        DebugLog.Write("init", "Plugin initialized");
 
         var httpClient = new HttpClient
         {
@@ -117,6 +123,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private bool CopyOriginalSql(Guid scriptId)
     {
+        var op = DebugLog.Begin("copy", "CopyOriginalSql");
         try
         {
             using var cts = new CancellationTokenSource(CopyOperationTimeout);
@@ -129,10 +136,13 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
             CopyToClipboard(detail.Content);
             _context?.API.ShowMsg("SqlFroega", $"{detail.Name}: SQL kopiert");
+            DebugLog.End(op, "success");
             return true;
         }
         catch (Exception ex)
         {
+            DebugLog.Error("copy", ex, "CopyOriginalSql");
+            DebugLog.End(op, "failed");
             _context?.API.ShowMsg("SqlFroega", ex.Message);
             return false;
         }
@@ -140,6 +150,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private bool CopyRenderedSql(Guid scriptId)
     {
+        var op = DebugLog.Begin("copy", "CopyRenderedSql");
         try
         {
             using var cts = new CancellationTokenSource(CopyOperationTimeout);
@@ -167,10 +178,13 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
             CopyToClipboard(rendered.RenderedSql);
             _context?.API.ShowMsg("SqlFroega", $"{detail.Name}: Rendered SQL für {rendered.CustomerCode} kopiert");
+            DebugLog.End(op, "success");
             return true;
         }
         catch (Exception ex)
         {
+            DebugLog.Error("copy", ex, "CopyRenderedSql");
+            DebugLog.End(op, "failed");
             _context?.API.ShowMsg("SqlFroega", ex.Message);
             return false;
         }
@@ -235,7 +249,14 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private void SaveSettings()
     {
+        DebugLog.Write("settings", "Saving plugin settings");
         _context?.API.SaveSettingJsonStorage<PluginSettings>();
+        if (_context is not null)
+        {
+            SettingsPersistence.SaveToFile(_context.CurrentPluginMetadata.PluginDirectory, _settings);
+            DebugLog.Configure(_context.CurrentPluginMetadata.PluginDirectory, _settings.EnableDebugLogging);
+        }
+
         _api = new SqlFroegaApiClient(new HttpClient
         {
             BaseAddress = new Uri(NormalizeBaseUrl(_settings.ApiBaseUrl)),
@@ -251,7 +272,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
             return true;
         }
 
-        _ = Task.Run(() =>
+        var thread = new Thread(() =>
         {
             try
             {
@@ -261,20 +282,41 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
             {
                 Interlocked.Exchange(ref _copyInProgress, 0);
             }
-        });
+        })
+        {
+            IsBackground = true,
+            Name = "SqlFroega.CopyWorker"
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
 
         return true;
     }
 
     private void CopyToClipboard(string text)
     {
-        if (_context?.API is not null)
+        DebugLog.Write("clipboard", $"CopyToClipboard length={(text ?? string.Empty).Length}");
+        ClipboardHelper.SetText(text);
+    }
+
+    private static PluginSettings MergeSettings(PluginSettings primary, PluginSettings fallback)
+    {
+        if (!IsDefault(primary))
         {
-            _context.API.CopyToClipboard(text ?? string.Empty);
-            return;
+            return primary;
         }
 
-        ClipboardHelper.SetText(text);
+        return fallback;
+    }
+
+    private static bool IsDefault(PluginSettings settings)
+    {
+        return string.Equals(settings.ApiBaseUrl, "http://localhost:5000", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(settings.Username)
+            && string.IsNullOrWhiteSpace(settings.Password)
+            && string.IsNullOrWhiteSpace(settings.DefaultTenantContext)
+            && string.IsNullOrWhiteSpace(settings.DefaultCustomerCode)
+            && settings.SearchCacheSeconds == 60;
     }
 
     private sealed record CacheEntry(DateTimeOffset Timestamp, List<Result> Results);
