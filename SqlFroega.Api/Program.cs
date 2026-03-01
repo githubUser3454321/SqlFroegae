@@ -17,6 +17,14 @@ using SqlFroega.Infrastructure.Persistence.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var sqlConnectionString = builder.Configuration.GetValue<string>("SqlServer:ConnectionString");
+if (string.IsNullOrWhiteSpace(sqlConnectionString))
+{
+    throw new InvalidOperationException(
+        "SqlServer:ConnectionString fehlt. Setze einen gültigen Wert in appsettings(.Development).json " +
+        "oder als Umgebungsvariable 'SqlServer__ConnectionString'.");
+}
+
 builder.Services.Configure<SqlServerOptions>(builder.Configuration.GetSection("SqlServer"));
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
