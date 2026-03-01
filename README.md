@@ -106,10 +106,6 @@ Wichtige Parameter in `[SqlServer]`:
 
 Hinweis: Bei ungültiger oder fehlender INI zeigt die App eine Fehlermeldung und fordert erneut zur Dateiauswahl auf.
 
-Zusätzliche API-Roadmap für eine zentral deployte API: `Docs/central-api-next-steps.md`.
-
-FlowLauncher-Priorisierungsplan (v1 zuerst): `Docs/flowlauncher-extension-plan.md`.
-
 ## Erweiterungen
 
 - FlowLauncher-Erweiterung: **[SqlFroega.FlowLauncher README](SqlFroega.FlowLauncher/README.md)**
