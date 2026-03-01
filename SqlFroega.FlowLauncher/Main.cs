@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin;
 
@@ -10,17 +11,18 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 {
     private static readonly TimeSpan CopyOperationTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly PluginSettings _settings = new();
+    private PluginSettings _settings = new();
     private readonly ConcurrentDictionary<string, CacheEntry> _searchCache = new(StringComparer.OrdinalIgnoreCase);
 
     private SqlFroegaApiClient? _api;
     private PluginInitContext? _context;
     private DateTimeOffset _lastApiSearchAt = DateTimeOffset.MinValue;
+    private int _copyInProgress;
 
     public void Init(PluginInitContext context)
     {
         _context = context;
-        context.API.LoadSettingJsonStorage<PluginSettings>()?.Let(loaded => CopySettings(loaded, _settings));
+        _settings = context.API.LoadSettingJsonStorage<PluginSettings>() ?? new PluginSettings();
 
         var httpClient = new HttpClient
         {
@@ -125,7 +127,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
                 return false;
             }
 
-            ClipboardHelper.SetText(detail.Content);
+            CopyToClipboard(detail.Content);
             _context?.API.ShowMsg("SqlFroega", $"{detail.Name}: SQL kopiert");
             return true;
         }
@@ -163,7 +165,7 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
                 return false;
             }
 
-            ClipboardHelper.SetText(rendered.RenderedSql);
+            CopyToClipboard(rendered.RenderedSql);
             _context?.API.ShowMsg("SqlFroega", $"{detail.Name}: Rendered SQL für {rendered.CustomerCode} kopiert");
             return true;
         }
@@ -243,31 +245,37 @@ public sealed class Main : IPlugin, IContextMenu, ISettingProvider, IPluginI18n
 
     private bool QueueCopy(Func<bool> copyAction)
     {
-        _ = Task.Run(copyAction);
+        if (Interlocked.CompareExchange(ref _copyInProgress, 1, 0) != 0)
+        {
+            _context?.API.ShowMsg("SqlFroega", "Kopiervorgang läuft bereits. Bitte kurz warten.");
+            return true;
+        }
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                copyAction();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _copyInProgress, 0);
+            }
+        });
+
         return true;
     }
 
-    private static void CopySettings(PluginSettings source, PluginSettings target)
+    private void CopyToClipboard(string text)
     {
-        target.ApiBaseUrl = source.ApiBaseUrl;
-        target.Username = source.Username;
-        target.Password = source.Password;
-        target.DefaultTenantContext = source.DefaultTenantContext;
-        target.DefaultCustomerCode = source.DefaultCustomerCode;
-        target.SearchCacheSeconds = source.SearchCacheSeconds;
+        if (_context?.API is not null)
+        {
+            _context.API.CopyToClipboard(text ?? string.Empty);
+            return;
+        }
+
+        ClipboardHelper.SetText(text);
     }
 
     private sealed record CacheEntry(DateTimeOffset Timestamp, List<Result> Results);
-}
-
-internal static class FunctionalExtensions
-{
-    public static void Let<T>(this T? value, Action<T> action)
-        where T : class
-    {
-        if (value is not null)
-        {
-            action(value);
-        }
-    }
 }
