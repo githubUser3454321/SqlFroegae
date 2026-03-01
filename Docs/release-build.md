@@ -81,3 +81,15 @@ Beispielskript:
 ./scripts/build-release.ps1 -Runtime win-x64
 ```
 
+## Optional:sign:
+$cert = New-SelfSignedCertificate `
+  -Type CodeSigningCert `
+  -Subject "CN=SqlFroega Test" `
+  -CertStoreLocation "Cert:\CurrentUser\My" `
+  -KeyExportPolicy Exportable `
+  -HashAlgorithm sha256 `
+  -KeyLength 2048
+
+$pwd = ConvertTo-SecureString -String "passwort123" -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath .\SqlFroegaTest.pfx -Password $pwd
+Export-Certificate -Cert $cert -FilePath .\SqlFroegaTest.cer
