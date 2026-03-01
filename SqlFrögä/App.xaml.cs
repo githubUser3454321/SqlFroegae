@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.Windows.AppLifecycle;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 using SqlFroega.Configuration;
@@ -9,7 +10,9 @@ using SqlFroega.Infrastructure.Persistence;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.Activation;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 
@@ -17,6 +20,9 @@ namespace SqlFroega;
 
 public partial class App : Microsoft.UI.Xaml.Application
 {
+    private static readonly string[] SupportedSchemes = ["sqlfroega", "sqlfrögä"];
+    private static int? _pendingScriptNumberId;
+
     public static IServiceProvider Services { get; private set; } = null!;
     public static Window? MainWindow { get; private set; }
     public static UserAccount? CurrentUser { get; set; }
@@ -25,17 +31,114 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
     {
         InitializeComponent();
+        AppInstance.GetCurrent().Activated += OnAppActivated;
     }
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        CaptureDeepLinkFromCommandLine();
+        EnsureMainWindow();
+        _ = InitializeServicesAsync();
+    }
+
+    private void OnAppActivated(object? sender, AppActivationArguments args)
+    {
+        if (args.Kind == ExtendedActivationKind.Protocol && args.Data is IProtocolActivatedEventArgs protocolArgs)
+        {
+            CaptureDeepLink(protocolArgs.Uri);
+        }
+
+        EnsureMainWindow();
+
+        if (!ServicesReady)
+        {
+            _ = InitializeServicesAsync();
+            return;
+        }
+
+        if (MainWindow is MainWindow window)
+        {
+            _ = window.TryNavigateToPendingScriptAsync();
+        }
+    }
+
+    public static int? ConsumePendingScriptNumberId()
+    {
+        var pendingScriptNumberId = _pendingScriptNumberId;
+        _pendingScriptNumberId = null;
+        return pendingScriptNumberId;
+    }
+
+    private void EnsureMainWindow()
+    {
+        if (MainWindow is not null)
+        {
+            MainWindow.Activate();
+            return;
+        }
+
         MainWindow = new MainWindow();
         MainWindow.Activate();
-        _ = InitializeServicesAsync();
+    }
+
+    private void CaptureDeepLinkFromCommandLine()
+    {
+        var args = Environment.GetCommandLineArgs();
+        foreach (var arg in args.Skip(1))
+        {
+            if (!TryParseDeepLink(arg, out var numberId))
+                continue;
+
+            _pendingScriptNumberId = numberId;
+            break;
+        }
+    }
+
+    private void CaptureDeepLink(Uri? uri)
+    {
+        if (uri is null)
+            return;
+
+        if (TryParseDeepLink(uri.OriginalString, out var numberId))
+            _pendingScriptNumberId = numberId;
+    }
+
+    private static bool TryParseDeepLink(string rawValue, out int numberId)
+    {
+        numberId = 0;
+        if (string.IsNullOrWhiteSpace(rawValue))
+            return false;
+
+        var normalized = rawValue.Trim();
+        const string umlautPrefix = "sqlFrögä://scripts/";
+        if (normalized.StartsWith(umlautPrefix, StringComparison.OrdinalIgnoreCase))
+            return int.TryParse(normalized[umlautPrefix.Length..], out numberId) && numberId > 0;
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+            return false;
+
+        if (!SupportedSchemes.Any(scheme => string.Equals(uri.Scheme, scheme, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        var path = uri.AbsolutePath.Trim('/');
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+            return false;
+
+        if (segments.Length == 1 && string.Equals(uri.Host, "scripts", StringComparison.OrdinalIgnoreCase))
+            return int.TryParse(segments[0], out numberId) && numberId > 0;
+
+        if (segments.Length == 2 && string.Equals(segments[0], "scripts", StringComparison.OrdinalIgnoreCase))
+            return int.TryParse(segments[1], out numberId) && numberId > 0;
+
+        return false;
     }
 
     private async Task InitializeServicesAsync()
     {
+        if (ServicesReady)
+            return;
+
         try
         {
             var sqlOptions = await ResolveSqlServerOptionsAsync();
