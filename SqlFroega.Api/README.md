@@ -101,6 +101,14 @@ Wenn beides fehlt, antwortet die API mit `ValidationProblem`.
 - `POST /api/v1/render/{customerCode}`
 - `GET /api/v1/admin/users`
 
+
+## Such-/Payload-Limits
+
+- `GET /api/v1/scripts` nutzt `take`/`skip` Paging.
+- Default: `take=200`, `skip=0`; serverseitig wird `take` auf **maximal 500** begrenzt.
+- Große Trefferlisten werden daher in Seiten übertragen, nicht in einem einzelnen Response-Blob.
+- SQL-Inhalte (`POST /scripts`, `POST /render/{customerCode}`) sind auf **200.000 Zeichen** begrenzt; größere Payloads liefern ein `ValidationProblem`.
+
 ## Sicherheit & Betrieb
 
 - JWT Bearer Auth
