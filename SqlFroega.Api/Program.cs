@@ -111,6 +111,7 @@ app.UseExceptionHandler(exceptionApp =>
     });
 });
 
+app.UseMiddleware<SqlConnectionExceptionMiddleware>();
 app.UseCorrelationAndAudit();
 
 if (app.Environment.IsDevelopment())
