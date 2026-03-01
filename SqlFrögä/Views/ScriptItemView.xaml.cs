@@ -13,6 +13,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
+using Windows.System;
 
 namespace SqlFroega.Views;
 
@@ -205,6 +206,15 @@ public sealed partial class ScriptItemView : Page
     {
         if (sender is Button button)
             _dragPointers.Remove(button);
+    }
+
+    private void SqlContentTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Tab || sender is not TextBox textBox || textBox.IsReadOnly)
+            return;
+
+        e.Handled = true;
+        textBox.SelectedText = "\t";
     }
 
 

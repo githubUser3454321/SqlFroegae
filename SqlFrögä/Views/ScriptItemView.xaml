@@ -175,10 +175,12 @@
 
                     <TextBlock Text="SQL Content" Opacity="0.75"/>
                     <TextBox Grid.Row="1"
+                             x:Name="SqlContentTextBox"
                              Text="{Binding Content, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              AcceptsReturn="True"
                              TextWrapping="NoWrap"
                              FontFamily="Consolas"
+                             KeyDown="SqlContentTextBox_KeyDown"
                              IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}"
                              VerticalAlignment="Stretch"
                              HorizontalAlignment="Stretch"
