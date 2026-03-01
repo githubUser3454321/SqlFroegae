@@ -14,6 +14,15 @@ internal sealed class SettingsControl : UserControl
         var password = CreateTextSetting(panel, "Password", settings.Password, v => settings.Password = v);
         var tenant = CreateTextSetting(panel, "Default Tenant Context", settings.DefaultTenantContext, v => settings.DefaultTenantContext = v);
         var customer = CreateTextSetting(panel, "Default Customer Code", settings.DefaultCustomerCode, v => settings.DefaultCustomerCode = v);
+        var debugLogging = new CheckBox
+        {
+            Content = "Enable Debug Logging (temporär)",
+            IsChecked = settings.EnableDebugLogging,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        debugLogging.Checked += (_, _) => settings.EnableDebugLogging = true;
+        debugLogging.Unchecked += (_, _) => settings.EnableDebugLogging = false;
+        panel.Children.Add(debugLogging);
 
 
         var saveButton = new Button

@@ -18,6 +18,10 @@ FlowLauncher-Plugin (C#) für die bestehende `SqlFroega.Api`.
 - `Password`
 - `DefaultTenantContext` (optional)
 - `DefaultCustomerCode` (optional)
+- `EnableDebugLogging` (temporär aktiv, schreibt `sqlfroega-debug.log` im Plugin-Ordner)
+
+Zusätzlich wird bei jedem Speichern eine Fallback-Datei `sqlfroega.settings.json` im Plugin-Ordner geschrieben,
+damit Settings auch dann erhalten bleiben, wenn der FlowLauncher-JSON-Storage nicht zuverlässig persistiert.
 
 ## Build
 
@@ -65,6 +69,7 @@ dotnet build SqlFroega.FlowLauncher/SqlFroega.FlowLauncher.csproj
 - **Keine Treffer**: `ApiBaseUrl` prüfen und sicherstellen, dass die API läuft.
 - **Auth-Fehler**: Zugangsdaten in den Plugin-Settings aktualisieren.
 - **Rendern funktioniert nicht**: `DefaultCustomerCode` setzen oder im Kontext-Menü den passenden Customer-Code verwenden.
+- **Copy friert ein**: Debug-Log im Plugin-Ordner prüfen (`sqlfroega-debug.log`). Copy läuft jetzt in einem dedizierten STA-Worker.
 
 ## Referenz
 
