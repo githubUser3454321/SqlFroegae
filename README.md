@@ -125,6 +125,10 @@ dotnet build "SqlFrögä.slnx"
 dotnet test "SqlFrögä.slnx"
 ```
 
+## Release-Build / Installer
+
+Eine Schritt-für-Schritt-Anleitung für Release-Artefakte (API-EXE + Desktop-MSIX-Installer) findest du in **[Docs/release-build.md](Docs/release-build.md)**.
+
 ## Anwendung starten
 
 Die App wird über Visual Studio unter Windows gestartet (`SqlFrögä` als Startup-Projekt).
