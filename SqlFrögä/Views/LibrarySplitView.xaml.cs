@@ -1,7 +1,8 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 using SqlFroega.ViewModels;
 using System;
 using System.Threading.Tasks;
@@ -12,6 +13,8 @@ namespace SqlFroega.Views;
 
 public sealed partial class LibrarySplitView : Page
 {
+    private int? _pendingScriptNumberId;
+
     public LibrarySplitView()
     {
         InitializeComponent();
@@ -35,11 +38,26 @@ public sealed partial class LibrarySplitView : Page
     private readonly DispatcherQueueTimer _resizeDebounceTimer;
     private double _pendingResultsViewportHeight;
 
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+
+        if (e.Parameter is int scriptNumberId && scriptNumberId > 0)
+        {
+            _pendingScriptNumberId = scriptNumberId;
+        }
+    }
 
     private async void LibrarySplitView_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= LibrarySplitView_Loaded;
         await VM.RefreshCatalogCommand.ExecuteAsync(null);
+
+        if (_pendingScriptNumberId is int scriptNumberId)
+        {
+            _pendingScriptNumberId = null;
+            await VM.OpenByNumberIdAsync(scriptNumberId);
+        }
     }
 
     private async void QueryTextBox_KeyDown(object sender, KeyRoutedEventArgs e)

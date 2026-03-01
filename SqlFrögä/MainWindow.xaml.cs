@@ -47,9 +47,20 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    public void NavigateToDashboard()
+    public void NavigateToDashboard(int? scriptNumberId = null)
     {
-        RootFrame.Navigate(typeof(LibrarySplitView));
+        var targetScriptNumberId = scriptNumberId ?? App.ConsumePendingScriptNumberId();
+        RootFrame.Navigate(typeof(LibrarySplitView), targetScriptNumberId);
+    }
+
+    public Task TryNavigateToPendingScriptAsync()
+    {
+        var pendingScriptNumberId = App.ConsumePendingScriptNumberId();
+        if (pendingScriptNumberId is null || App.CurrentUser is null)
+            return Task.CompletedTask;
+
+        NavigateToDashboard(pendingScriptNumberId);
+        return Task.CompletedTask;
     }
 
     private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
