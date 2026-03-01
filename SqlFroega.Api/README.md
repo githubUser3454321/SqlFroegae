@@ -133,3 +133,19 @@ Wichtige Bereiche:
 - `Jwt:SigningKey`
 - `Jwt:AccessTokenMinutes`
 - `Jwt:RefreshTokenHours`
+
+### Pflicht: SQL ConnectionString
+
+Die API benötigt immer `SqlServer:ConnectionString`. Ohne diesen Wert beendet sie sich direkt beim Start mit einer klaren Fehlermeldung.
+
+Mögliche Konfigurationen:
+
+- `SqlFroega.Api/appsettings.Development.json`
+- Umgebungsvariable `SqlServer__ConnectionString`
+
+Beispiel (PowerShell):
+
+```powershell
+$env:SqlServer__ConnectionString = "Server=localhost;Database=SqlFroega;Trusted_Connection=True;TrustServerCertificate=True"
+dotnet run --project SqlFroega.Api
+```
