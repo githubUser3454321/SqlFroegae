@@ -127,3 +127,32 @@ Wenn Sie feste Seed-User möchten, diesen Block auskommentieren/verwenden.
 --     END;
 -- END;
 -- GO
+
+
+
+
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sys.periods p
+        WHERE p.object_id = OBJECT_ID(N'dbo.SqlScripts'))
+    BEGIN
+        ALTER TABLE dbo.SqlScripts
+        ADD ValidFrom DATETIME2(7) GENERATED ALWAYS AS ROW START HIDDEN
+                CONSTRAINT DF_SqlScripts_ValidFrom DEFAULT SYSUTCDATETIME(),
+            ValidTo DATETIME2(7) GENERATED ALWAYS AS ROW END HIDDEN
+                CONSTRAINT DF_SqlScripts_ValidTo DEFAULT CONVERT(DATETIME2(7), '9999-12-31 23:59:59.9999999'),
+            PERIOD FOR SYSTEM_TIME (ValidFrom, ValidTo);
+    END;
+
+    IF EXISTS (
+        SELECT 1
+        FROM sys.tables t
+        WHERE t.object_id = OBJECT_ID(N'dbo.SqlScripts')
+          AND t.temporal_type <> 2)
+    BEGIN
+        ALTER TABLE dbo.SqlScripts
+        SET (SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.SqlScriptsHistory, DATA_CONSISTENCY_CHECK = ON));
+    END;
+END;
+GO
