@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Net.Http;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin;
 
