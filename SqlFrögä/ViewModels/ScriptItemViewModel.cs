@@ -52,7 +52,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
     public bool IsEditingEnabled => !IsReadOnlyMode && (_id == Guid.Empty || IsEditUnlocked);
 
-    public string DeepLink => NumberId is > 0 ? $"sqlFrögä://scripts/{NumberId.Value}" : string.Empty;
+    public string DeepLink => NumberId is > 0 ? $"sqlfroega://scripts/{NumberId.Value}" : string.Empty;
 
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
