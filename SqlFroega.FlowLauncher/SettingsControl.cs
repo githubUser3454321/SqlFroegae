@@ -16,7 +16,7 @@ internal sealed class SettingsControl : UserControl
         var customer = CreateTextSetting(panel, "Default Customer Code", settings.DefaultCustomerCode, v => settings.DefaultCustomerCode = v);
         var debugLogging = new CheckBox
         {
-            Content = "Enable Debug Logging (temporär)",
+            Content = "Enable/Debug Logging",
             IsChecked = settings.EnableDebugLogging,
             Margin = new Thickness(0, 0, 0, 8)
         };

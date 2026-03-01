@@ -18,7 +18,7 @@ FlowLauncher-Plugin (C#) für die bestehende `SqlFroega.Api`.
 - `Password`
 - `DefaultTenantContext` (optional)
 - `DefaultCustomerCode` (optional)
-- `EnableDebugLogging` (temporär aktiv, schreibt `sqlfroega-debug.log` im Plugin-Ordner)
+- `EnableDebugLogging` (schreibt `sqlfroega-debug.log` im Plugin-Ordner)
 
 Zusätzlich wird bei jedem Speichern eine Fallback-Datei `sqlfroega.settings.json` im Plugin-Ordner geschrieben,
 damit Settings auch dann erhalten bleiben, wenn der FlowLauncher-JSON-Storage nicht zuverlässig persistiert.

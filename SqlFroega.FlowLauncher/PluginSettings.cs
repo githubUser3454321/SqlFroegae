@@ -8,5 +8,5 @@ internal sealed class PluginSettings
     public string DefaultTenantContext { get; set; } = "";
     public string DefaultCustomerCode { get; set; } = "";
     public int SearchCacheSeconds { get; set; } = 60;
-    public bool EnableDebugLogging { get; set; } = true;
+    public bool EnableDebugLogging { get; set; } = false;
 }
