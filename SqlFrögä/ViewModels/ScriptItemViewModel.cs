@@ -52,6 +52,8 @@ public partial class ScriptItemViewModel : ObservableObject
 
     public bool IsEditingEnabled => !IsReadOnlyMode && (_id == Guid.Empty || IsEditUnlocked);
 
+    public string DeepLink => NumberId is > 0 ? $"sqlFrögä://scripts/{NumberId.Value}" : string.Empty;
+
     public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
 
     public ScriptItemViewModel()
@@ -280,6 +282,18 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+
+    [RelayCommand]
+    private void CopyDeepLink()
+    {
+        if (string.IsNullOrWhiteSpace(DeepLink))
+            return;
+
+        var dp = new DataPackage();
+        dp.SetText(DeepLink);
+        Clipboard.SetContent(dp);
     }
 
     [RelayCommand]
@@ -654,7 +668,11 @@ public partial class ScriptItemViewModel : ObservableObject
         => OnPropertyChanged(nameof(IsEditingEnabled));
 
     partial void OnNameChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
-    partial void OnNumberIdChanged(int? value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnNumberIdChanged(int? value)
+    {
+        OnPropertyChanged(nameof(DeepLink));
+        _ = EnsureEditAwarenessWarningAsync();
+    }
     partial void OnContentChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnDescriptionChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnMainModuleChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();

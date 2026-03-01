@@ -87,7 +87,21 @@
 
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Key" Opacity="0.75"/>
-                        <TextBox Text="{Binding NumberId, Mode=OneWay}" IsReadOnly="True" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding NumberId, Mode=OneWay}" IsReadOnly="True" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding CopyDeepLinkCommand}"
+                                    ToolTipService.ToolTip="Deep-Link kopieren"
+                                    VerticalAlignment="Stretch"
+                                    MinWidth="36"
+                                    Padding="0">
+                                <SymbolIcon Symbol="Copy"/>
+                            </Button>
+                        </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">

@@ -17,6 +17,8 @@ public interface IScriptRepository
 
     Task<ScriptDetail?> GetByIdAsync(Guid id, CancellationToken ct = default);
 
+    Task<Guid?> GetIdByNumberIdAsync(int numberId, CancellationToken ct = default);
+
     Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default);
 
     Task DeleteAsync(Guid id, CancellationToken ct = default);

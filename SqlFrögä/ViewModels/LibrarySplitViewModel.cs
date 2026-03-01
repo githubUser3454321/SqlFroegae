@@ -412,6 +412,36 @@ public partial class LibrarySplitViewModel : ObservableObject
         return mapping?.CustomerId;
     }
 
+
+    public async Task OpenByNumberIdAsync(int numberId)
+    {
+        if (numberId <= 0)
+            return;
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+
+            var scriptId = await _repo.GetIdByNumberIdAsync(numberId);
+            if (scriptId is null)
+            {
+                Error = $"Kein Script mit Key #{numberId} gefunden.";
+                return;
+            }
+
+            NavigateDetail(scriptId.Value);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private void NavigateDetail(Guid id)
     {
         if (_detailFrame is null) return;

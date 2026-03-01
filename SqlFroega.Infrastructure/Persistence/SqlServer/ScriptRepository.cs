@@ -387,6 +387,27 @@ public sealed class ScriptRepository : IScriptRepository
         );
     }
 
+    public async Task<Guid?> GetIdByNumberIdAsync(int numberId, CancellationToken ct = default)
+    {
+        if (numberId <= 0)
+            return null;
+
+        var sql = new StringBuilder();
+        sql.AppendLine("SELECT TOP 1 s.Id");
+        sql.AppendLine($"FROM {_opt.ScriptsTable} s");
+        sql.AppendLine("WHERE s.NumberId = @numberId");
+        if (_opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct))
+            sql.AppendLine("  AND COALESCE(s.IsDeleted, 0) = 0;");
+        else
+            sql.AppendLine(";");
+
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+
+        return await conn.QuerySingleOrDefaultAsync<Guid?>(
+            new CommandDefinition(sql.ToString(), new { numberId }, cancellationToken: ct));
+    }
+
     public async Task<ScriptEditAwareness?> RegisterViewAsync(Guid scriptId, string? username, CancellationToken ct = default)
     {
         await using var conn = await _connFactory.OpenAsync(ct);
