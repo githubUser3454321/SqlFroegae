@@ -33,7 +33,7 @@
             <PasswordBox Grid.Column="1" PlaceholderText="Passwort" PasswordChanged="NewPassword_PasswordChanged"/>
             <CheckBox Grid.Column="2" Content="Admin" IsChecked="{Binding NewIsAdmin, Mode=TwoWay}" VerticalAlignment="Center"/>
             <Button Grid.Column="3" Content="Add user" Command="{Binding AddUserCommand}"/>
-            <Button Grid.Column="4" Content="Refresh" Command="{Binding RefreshCommand}"/>
+            <Button Grid.Column="4" Content="Aktualisieren" Command="{Binding RefreshCommand}"/>
         </Grid>
 
         <ListView Grid.Row="2" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser, Mode=TwoWay}">
