@@ -739,6 +739,245 @@ ORDER BY nestedOa.ValueFromThirdApply;",
     }
 
     [Theory]
+    [MemberData(nameof(Extractor_ModernAndLegacyTsqlObjectReferenceCases))]
+    public void Extractor_HandlesModernAndLegacyTsqlObjectReferences(string sql, string[] expectedTables, string[] expectedColumns)
+    {
+        var extractor = new SqlObjectReferenceExtractor();
+
+        var refs = extractor.Extract(sql);
+
+        foreach (var expectedTable in expectedTables)
+        {
+            Assert.Contains(refs, r => r.Name == expectedTable && r.Type == DbObjectType.Table);
+        }
+
+        foreach (var expectedColumn in expectedColumns)
+        {
+            Assert.Contains(refs, r => r.Name == expectedColumn && r.Type == DbObjectType.Column);
+        }
+    }
+
+    public static IEnumerable<object[]> Extractor_ModernAndLegacyTsqlObjectReferenceCases()
+    {
+        yield return
+        [
+            @"SELECT o.CustomerId,
+       SUM(o.Amount) OVER (PARTITION BY o.CustomerId ORDER BY o.OrderDate ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS RunningAmount
+FROM om.om_Orders AS o;",
+            new[] { "om.om_Orders" },
+            new[] { "om.om_Orders.CustomerId", "om.om_Orders.Amount", "om.om_Orders.OrderDate" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId,
+       x.value AS JsonAmount
+FROM om.om_Customers AS c
+CROSS APPLY OPENJSON(c.JsonPayload) WITH (value decimal(18,2) '$.amount') AS x;",
+            new[] { "om.om_Customers" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Customers.JsonPayload" }
+        ];
+
+        yield return
+        [
+            @"SELECT p.CustomerId,
+       j.PhoneNumber
+FROM om.om_People AS p
+OUTER APPLY OPENJSON(p.ProfileJson) WITH (PhoneNumber nvarchar(30) '$.phone') AS j;",
+            new[] { "om.om_People" },
+            new[] { "om.om_People.CustomerId", "om.om_People.ProfileJson" }
+        ];
+
+        yield return
+        [
+            @"SELECT t.CustomerId,
+       s.[value] AS tag
+FROM om.om_Tickets AS t
+CROSS APPLY STRING_SPLIT(t.TagList, ',') AS s;",
+            new[] { "om.om_Tickets" },
+            new[] { "om.om_Tickets.CustomerId", "om.om_Tickets.TagList" }
+        ];
+
+        yield return
+        [
+            @"SELECT h.CustomerId,
+       z.OffsetMinutes
+FROM om.om_History AS h
+CROSS APPLY om.om_GetTimezoneOffset(h.CreatedAt) AS z;",
+            new[] { "om.om_History", "om.om_GetTimezoneOffset" },
+            new[] { "om.om_History.CustomerId", "om.om_History.CreatedAt" }
+        ];
+
+        yield return
+        [
+            @"SELECT p.CustomerId,
+       pivoted.[Online],
+       pivoted.[Retail]
+FROM (
+    SELECT s.CustomerId, s.Channel, s.Amount
+    FROM om.om_Sales AS s
+) AS src
+PIVOT (
+    SUM(src.Amount) FOR src.Channel IN ([Online], [Retail])
+) AS pivoted
+JOIN om.om_Customers AS p ON p.CustomerId = src.CustomerId;",
+            new[] { "om.om_Sales", "om.om_Customers" },
+            new[] { "om.om_Sales.CustomerId", "om.om_Sales.Channel", "om.om_Sales.Amount", "om.om_Customers.CustomerId" }
+        ];
+
+        yield return
+        [
+            @"SELECT u.CustomerId,
+       u.SourceName,
+       u.Score
+FROM (
+    SELECT a.CustomerId, 'A' AS SourceName, a.Score FROM om.om_SourceA AS a
+    UNION ALL
+    SELECT b.CustomerId, 'B' AS SourceName, b.Score FROM om.om_SourceB AS b
+) AS u;",
+            new[] { "om.om_SourceA", "om.om_SourceB" },
+            new[] { "om.om_SourceA.CustomerId", "om.om_SourceA.Score", "om.om_SourceB.CustomerId", "om.om_SourceB.Score" }
+        ];
+
+        yield return
+        [
+            @"SELECT l.CustomerId
+FROM om.om_Ledger AS l WITH (NOLOCK)
+WHERE l.Amount > 0;",
+            new[] { "om.om_Ledger" },
+            new[] { "om.om_Ledger.CustomerId", "om.om_Ledger.Amount" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId
+FROM om.om_Customers AS c
+FOR XML PATH('Customer'), TYPE;",
+            new[] { "om.om_Customers" },
+            new[] { "om.om_Customers.CustomerId" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, c.DisplayName
+INTO #CustomerSnapshot
+FROM om.om_Customers AS c
+WHERE c.IsActive = 1;",
+            new[] { "om.om_Customers" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Customers.DisplayName", "om.om_Customers.IsActive" }
+        ];
+
+        yield return
+        [
+            @"SELECT n.CustomerId,
+       n.TotalAmount,
+       LAG(n.TotalAmount, 1, 0) OVER (PARTITION BY n.CustomerId ORDER BY n.MonthStart) AS PrevAmount
+FROM om.om_MonthlyTotals AS n;",
+            new[] { "om.om_MonthlyTotals" },
+            new[] { "om.om_MonthlyTotals.CustomerId", "om.om_MonthlyTotals.TotalAmount", "om.om_MonthlyTotals.MonthStart" }
+        ];
+
+        yield return
+        [
+            @"SELECT q.CustomerId,
+       q.PercentileRank
+FROM (
+    SELECT x.CustomerId,
+           PERCENT_RANK() OVER (ORDER BY x.Score DESC) AS PercentileRank
+    FROM om.om_QualityScores AS x
+) AS q;",
+            new[] { "om.om_QualityScores" },
+            new[] { "om.om_QualityScores.CustomerId", "om.om_QualityScores.Score" }
+        ];
+
+        yield return
+        [
+            @"WITH DistinctCustomers AS (
+    SELECT DISTINCT s.CustomerId
+    FROM om.om_Sessions AS s
+)
+SELECT d.CustomerId
+FROM DistinctCustomers AS d;",
+            new[] { "om.om_Sessions" },
+            new[] { "om.om_Sessions.CustomerId" }
+        ];
+
+        yield return
+        [
+            @"SELECT b.CustomerId,
+       b.Balance
+FROM om.om_Balances AS b
+WHERE b.Balance BETWEEN 100 AND 500;",
+            new[] { "om.om_Balances" },
+            new[] { "om.om_Balances.CustomerId", "om.om_Balances.Balance" }
+        ];
+
+        yield return
+        [
+            @"SELECT m.CustomerId,
+       CASE WHEN m.Flag = 1 THEN m.PrimaryScore ELSE m.SecondaryScore END AS ChosenScore
+FROM om.om_Metrics AS m;",
+            new[] { "om.om_Metrics" },
+            new[] { "om.om_Metrics.CustomerId", "om.om_Metrics.Flag", "om.om_Metrics.PrimaryScore", "om.om_Metrics.SecondaryScore" }
+        ];
+
+        yield return
+        [
+            @"SELECT a.CustomerId,
+       a.EventDate
+FROM om.om_Audit AS a
+WHERE a.EventDate >= DATEADD(day, -30, SYSUTCDATETIME());",
+            new[] { "om.om_Audit" },
+            new[] { "om.om_Audit.CustomerId", "om.om_Audit.EventDate" }
+        ];
+
+        yield return
+        [
+            @"SELECT TOP (5) WITH TIES s.CustomerId, s.Score
+FROM om.om_Scoreboard AS s
+ORDER BY s.Score DESC;",
+            new[] { "om.om_Scoreboard" },
+            new[] { "om.om_Scoreboard.CustomerId", "om.om_Scoreboard.Score" }
+        ];
+
+        yield return
+        [
+            @"SELECT t.CustomerId,
+       t.Amount,
+       t.ChangedAt
+FROM om.om_Transactions FOR SYSTEM_TIME ALL AS t
+WHERE t.Amount > 0;",
+            new[] { "om.om_Transactions" },
+            new[] { "om.om_Transactions.CustomerId", "om.om_Transactions.Amount", "om.om_Transactions.ChangedAt" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId,
+       i.ItemCode
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT TOP (1) i.ItemCode
+    FROM om.om_Items AS i
+    WHERE i.CustomerId = c.CustomerId
+    ORDER BY i.ItemCode
+) AS i;",
+            new[] { "om.om_Customers", "om.om_Items" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Items.ItemCode", "om.om_Items.CustomerId" }
+        ];
+
+        yield return
+        [
+            @"SELECT e.CustomerId,
+       e.LevelName
+FROM om.om_Employees AS e
+WHERE e.LevelName LIKE '[A-Z]%';",
+            new[] { "om.om_Employees" },
+            new[] { "om.om_Employees.CustomerId", "om.om_Employees.LevelName" }
+        ];
+    }
+
+    [Theory]
     [MemberData(nameof(Extractor_DedupAndScopeEdgeCases))]
     public void Extractor_DedupAndScopeEdgeCases_Run(string sql, string[] expectedUniqueRefs)
     {
