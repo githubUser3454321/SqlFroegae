@@ -5,68 +5,74 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
 ## P0 – Kritisch / zeitnah umsetzen
 
 - [ ] **Deep-Link-Key beim App-Start validieren**
-  - Beim Start sicherstellen, dass der benötigte Deep-Link-Key vorhanden/gesetzt ist.
-  - Bei fehlendem Key klare Fehlermeldung + Fallback-Verhalten definieren.
+  - Beim Start sicherstellen, dass der benötigte Deep-Link-Key funktion auf Windows vorhanden/gesetzt ist.
+  - Bei(das heisst das windows erkennt wenn ich im browser den Deeplink eingebe das er direkt die applikation öffnet)
+  - Funktioniert aktuell nicht, wenn die exe direkt gestartet wird ohne den installer, kein beim start der applikation gemacht werden.
 
 - [ ] **Fehleranalyse: Skript-Erkennung in `WITH`-Kontext**
-  - Prüfen, warum ein Skript/Objekt vom Typ `om_db.syn_*.sql` innerhalb eines `WITH`-Blocks nicht gefunden wird.
+  - Prüfen, warum ein Skript/Objekt vom Typ `om_db.syn_MyTable` innerhalb eines `WITH`-Blocks nicht gefunden wird.
+  (Obwohl die entsprechenden settings gesetzt sind, und wenn `om_db.syn_MyTable` in einem From oder join vorkommt, dann wird er ersetzt aber nicht innerhalb eines with blockes, prüfen ob es noch andere fälle gibt. Schreibe dazu ausreichihce tests.
   - Parser-/Regex-/ScriptDom-Logik auf CTE- und `WITH`-Sonderfälle erweitern.
   - Reproduzierbaren Testfall anlegen.
 
 - [ ] **Fehleranalyse: Objektreferenzen in konkreten Skripten**
-  - Problemfälle bei Skripten mit `SELECT * FROM ...` analysieren (u. a. `om_db.syn_*.sql` und `om.dbo._ztMembership.sql`).
+  - Problemfälle bei Skripten mit `SELECT * FROM ` + ()  (u. a. `om_db.syn_*.sql` und `om.dbo._ztMembership.sql`) analysieren.
+  -> wenn `om_db.syn_*.sql` und `om_db._ztMembershipSettings` vorkommt, kann man davon ausgehen, das das skript, bzw die gewählten tabellen ebenfalls zum gespeicherten prefix von `om_db.syn_` gehört. wenn allerdings einmal `om_db.syn_` und einmal `om.syn_` vorkommt, soll ein fehler passieren, anonnsten soll die logik gleich bleiben.
   - Sicherstellen, dass Referenzen korrekt erkannt und gespeichert werden.
 
 ## P1 – Hoher Nutzen (UX + Konsistenz)
 
-- [ ] **Filter-Reihenfolge mit Edit-Ansicht synchronisieren**
-  - Reihenfolge der Filter in Such-/Listenansicht identisch zur Edit-Maske machen.
-  - Einheitliche Feldreihenfolge in UI-Komponenten dokumentieren.
-
 - [ ] **Editor-Flow verbessern („Speichern nach unten“) + Enter-Logik**
-  - Bearbeiten/Speichern-Flow so anpassen, dass der Fokus sinnvoll weitergeführt wird.
-  - Enter-Taste kontextsensitiv behandeln (z. B. Auslösen vs. Zeilenumbruch).
+  - Bearbeiten und Speichern button unten rechts platzieren, so das sie rechts neben der Fehlerinformations anzeige ist.
+  - Im login screen soll die Enter-Taste (wenn ich auf dem passwort feld bin) ein login trigger, solange passwort und nutzername einen wert hat.
 
 - [ ] **Felder in Edit-Maske konsolidieren**
   - `[key]` in `[id]` umbenennen.
-  - Edit-Layout für `id`, `Name`, `Scope` vereinheitlichen.
+  - Edit-Layout Anpassen, anstelle von   `Name`, `id`(aktuell key),`Scope` soll neu das layout so sein(nach der neuen gegeben rheinfolge): 
+  `id`(Länge verkleinern), `Name`(Länge vergrössern), `Scope` vereinheitlichen.
 
-- [ ] **Erweiterte Suche entschlacken**
+- [ ] **Erweiterte Suche entschlacken** [ERST NACH DER UMSETZUNG VON **Felder in Edit-Maske konsolidieren**]
   - „Erweiterte Suche“ aus der Hauptfläche entfernen.
-  - Stattdessen als Icon rechts neben dem Search-Feld platzieren.
+  - Stattdessen als Icon rechts neben dem Search-Feld platzieren, das icon ersetzt das komplette pltz nutzende „Erweiterte Suche“, mit klick auf das icon erscheint das gleiche drop down, in dem die „Erweiterte Suche“ ersichtlich ist.
+  
+- [ ] **Filter-Reihenfolge mit Edit-Ansicht synchronisieren**
+  - Reihenfolge der Filter in Such-/Listenansicht identisch zur Edit-Maske machen.
+  - Einheitliche Feldreihenfolge in UI-Komponenten dokumentieren.
+  
+  
+- [ ] **Default maske nach dem erfolgreichen login**
+  - ist: Neues Skrpit erfassen.
+  - Soll: Neu leere Maske, mit einem hinweise das zuerst ein Item ausgewählt werden muss
+  - zusatz feature: auf jeder skript edit maske (Neu / Bearbeiten) soll ein abbrechen button hinzukommen ( unten rechts in der nähe oder neben Bearbeiten und Speichern)
+  -> der abbrechen button zeigt anschliessend die neue maske an das zuerst ein item ausgewählt werden muss.
 
 ## P2 – Mittel (Qualität / Erweiterbarkeit)
 
 - [ ] **SQL-Formatierung verbessern**
-  - „Schöne“ bzw. konsistente SQL-Formatierung beim Anzeigen/Speichern einführen.
-  - Optional: Formatierungsprofil pro Team/Projekt konfigurierbar machen.
+  - Evaluiere ein Tool, das die SQL-Formatierung verschönern kann. 
+  - Feature request eines users: neben Save button -> Format button ( soll ebenfalls bei "Copy Rendered" eingebaut werden)
+  - „Schöne“ bzw. konsistente SQL-Formatierung beim Anzeigen/Speichern einführen.(aktuell ist diese etwas schwebs...)
 
-- [ ] **Script-/Data-Quality-Verwaltung ausbauen**
-  - Strukturierte Verwaltung für Skript-Qualität und automatische Checks aufbauen.
-  - Mindestregeln definieren (Namenskonventionen, Objektreferenzen, gefährliche Statements).
+- [ ] **Script-/Ordern Verwaltung ausbauen**
+  - Möglichkeit ein Skript in eine art ORder hinzuzufügen (um mehrere Skripts zu bündeln)
+  - Nichts programmieren, nur umsetzung planen wie dies gemacht werden könnte
+  - ggf. Virutelles Datei verzeichniss... ( suche ggf anpassen auch api muss hierzu funktioniren)
 
 - [ ] **Internationalisierung prüfen (DE/EN)**
-  - Klären, welche UI-Texte zweisprachig (Deutsch/Englisch) unterstützt werden sollen.
-  - Grundlage für lokalisierbare Ressourcen schaffen.
+  - Alle UI Texte fixiert auf Deutsch stellen (CH-DE, nicht DE)
 
 ## P3 – Optional / Strategisch
 
-- [ ] **Import/Export großer Mengen vorbereiten**
+- [ ] **Import/Export grosser Mengen vorbereiten**
   - Bulk-Import/Bulk-Export von Skripten konzipieren.
   - Schnittstelle zur geplanten SSMS-Extension berücksichtigen.
+  - Nichts programmieren einfach mal nur planen unter /docs Folder
 
 - [ ] **Produktentscheidung „T-SQL Script Library“**
-  - Prüfen, ob der Bereich „T-SQL Script Library“ entfernt oder umbenannt werden soll.
-  - Auswirkungen auf Navigation, Suchkonzept und Terminologie abstimmen.
+  -„T-SQL Script Library“ gleich unter dem Titel "SqlFrögä" entfernen.
 
 ---
 
-## Vorschlag für nächste Iteration (Sprint-Fokus)
-
-1. Deep-Link-Key-Validierung (P0)
-2. Parser-Fix für `WITH`-Kontexte + problematische `SELECT * FROM`-Skripte (P0)
-3. Filter-Reihenfolge + Edit-Feldkonsistenz (`key` → `id`) (P1)
-4. Erweiterte Suche als Icon neben Search (P1)
 
 ## Definition of Done (für alle Tasks)
 
