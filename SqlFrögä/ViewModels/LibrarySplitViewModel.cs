@@ -58,8 +58,8 @@ public partial class LibrarySplitViewModel : ObservableObject
 
     public string ResultsCountText =>
         Results.Count == 0
-            ? $"No results (Page {CurrentPage})"
-            : $"{Results.Count} results (Page {CurrentPage})";
+            ? $"Keine Ergebnisse (Seite {CurrentPage})"
+            : $"{Results.Count} Ergebnisse (Seite {CurrentPage})";
     public bool CanGoToPreviousPage => CurrentPage > 1;
 
     public bool HasError => !string.IsNullOrWhiteSpace(Error);

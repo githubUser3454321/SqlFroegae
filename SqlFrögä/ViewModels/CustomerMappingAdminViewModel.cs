@@ -83,7 +83,7 @@ public partial class CustomerMappingAdminViewModel : ObservableObject
             Error = null;
 
             if (string.IsNullOrWhiteSpace(CustomerCode) || string.IsNullOrWhiteSpace(CustomerName))
-                throw new InvalidOperationException("Customer code and name are required.");
+                throw new InvalidOperationException("Kundenkürzel und Name sind erforderlich.");
 
             var item = new CustomerMappingItem
             {

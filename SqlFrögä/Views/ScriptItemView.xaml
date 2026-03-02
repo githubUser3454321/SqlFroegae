@@ -106,11 +106,11 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Scope" Opacity="0.75"/>
+                        <TextBlock Text="Geltungsbereich" Opacity="0.75"/>
                         <ComboBox SelectedIndex="{Binding Scope, Mode=TwoWay}" IsEnabled="{Binding IsEditingEnabled}">
                             <ComboBoxItem Content="Global"/>
-                            <ComboBoxItem Content="Customer"/>
-                            <ComboBoxItem Content="Module"/>
+                            <ComboBoxItem Content="Kunde"/>
+                            <ComboBoxItem Content="Modul"/>
                         </ComboBox>
                     </StackPanel>
                 </Grid>
@@ -133,7 +133,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="Related Modules" Opacity="0.75"/>
+                        <TextBlock Text="Verknüpfte Module" Opacity="0.75"/>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -228,7 +228,7 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="History (Temporal)" FontWeight="SemiBold"/>
+                    <TextBlock Text="Historie (temporal)" FontWeight="SemiBold"/>
                     <Button Grid.Column="1" Content="Aktualisieren" Command="{Binding RefreshHistoryCommand}"/>
                 </Grid>
 

@@ -19,7 +19,7 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- LEFT: Search -->
+        <!-- LINKS: Suche -->
         <Grid Grid.Column="0"
                 Background="{ThemeResource AppPaneBackgroundBrush}"
                 CornerRadius="16"
@@ -51,7 +51,7 @@
                                             Click="CustomerMappingAdmin_Click"/>
                             <MenuFlyoutItem Text="Modul Verwaltung"
                                             Click="ModuleAdmin_Click"/>
-                            <MenuFlyoutItem Text="User Management"
+                            <MenuFlyoutItem Text="Benutzerverwaltung"
                                             Click="UserManagementAdmin_Click"/>
                         </MenuFlyout>
                     </Button.Flyout>
@@ -130,18 +130,18 @@
                                     </Grid.ColumnDefinitions>
 
                                     <ComboBox Grid.Row="0" Grid.Column="0" SelectedIndex="{Binding ScopeFilterIndex, Mode=TwoWay}">
-                                        <ComboBoxItem Content="Scope: Alle"/>
-                                        <ComboBoxItem Content="Scope: Global"/>
-                                        <ComboBoxItem Content="Scope: Customer"/>
-                                        <ComboBoxItem Content="Scope: Module"/>
+                                        <ComboBoxItem Content="Bereich: Alle"/>
+                                        <ComboBoxItem Content="Bereich: Global"/>
+                                        <ComboBoxItem Content="Bereich: Kunde"/>
+                                        <ComboBoxItem Content="Bereich: Modul"/>
                                     </ComboBox>
 
                                     <TextBox Grid.Row="0" Grid.Column="1"
-                                             PlaceholderText="Main-Modul"
+                                             PlaceholderText="Hauptmodul"
                                              Text="{Binding MainModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="1" Grid.Column="0"
-                                             PlaceholderText="Related-Modul"
+                                             PlaceholderText="Verknüpftes Modul"
                                              Text="{Binding RelatedModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="1" Grid.Column="1"
@@ -161,7 +161,7 @@
                                               IsChecked="{Binding IncludeDeleted, Mode=TwoWay}"/>
 
                                     <CheckBox Grid.Row="4" Grid.Column="1"
-                                              Content="Auch in History-Versionen suchen"
+                                              Content="Auch in Historien-Versionen suchen"
                                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
                                     <Expander Grid.Row="6" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
@@ -171,7 +171,7 @@
                                             <TextBlock Text="Modul-Katalog" FontWeight="SemiBold"/>
                                             <TextBox PlaceholderText="Module filtern"
                                                      Text="{Binding ModuleCatalogSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <TextBlock Text="Main-Module" Opacity="0.75"/>
+                                            <TextBlock Text="Hauptmodule" Opacity="0.75"/>
                                             <ListView ItemsSource="{Binding FilteredMainModules}" SelectionMode="None" MaxHeight="120">
                                                 <ListView.ItemTemplate>
                                                     <DataTemplate>
@@ -182,7 +182,7 @@
                                                 </ListView.ItemTemplate>
                                             </ListView>
 
-                                            <TextBlock Text="Related-Module" Opacity="0.75"/>
+                                            <TextBlock Text="Verknüpfte Module" Opacity="0.75"/>
                                             <ListView ItemsSource="{Binding FilteredRelatedModules}" SelectionMode="None" MaxHeight="120">
                                                 <ListView.ItemTemplate>
                                                     <DataTemplate>
@@ -266,10 +266,10 @@
 
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                             <!-- Edit/Delete per CommandParameter -->
-                                            <Button Content="Edit"
+                                            <Button Content="Bearbeiten"
                                                     Command="{Binding DataContext.EditCommand, ElementName=ResultsList}"
                                                     CommandParameter="{Binding Id}"/>
-                                            <Button Content="Delete"
+                                            <Button Content="Löschen"
                                                     Click="DeleteButton_Click"
                                                     Tag="{Binding Id}"/>
                                         </StackPanel>
