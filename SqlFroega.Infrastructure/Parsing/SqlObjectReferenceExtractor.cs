@@ -239,6 +239,14 @@ public sealed class SqlObjectReferenceExtractor
                     if (TryResolveConcreteTableRef(tableRef, out var concreteTableRef))
                         tableRef = concreteTableRef;
 
+                    if (!IsConcreteTableRef(tableRef)
+                        && !string.IsNullOrWhiteSpace(tableRef.Table)
+                        && _cteSourceLookup.TryGetValue(tableRef.Table, out var cteSourceRef)
+                        && IsConcreteTableRef(cteSourceRef))
+                    {
+                        tableRef = cteSourceRef;
+                    }
+
                     if (IsConcreteTableRef(tableRef))
                         _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
                 }
