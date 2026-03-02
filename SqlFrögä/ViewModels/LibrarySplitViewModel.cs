@@ -50,6 +50,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private string _tagCatalogSearchText = "";
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
+    [ObservableProperty] private bool _isAdvancedSearchExpanded;
     [ObservableProperty] private int _currentPage = 1;
     [ObservableProperty] private bool _hasNextPage;
     [ObservableProperty] private Visibility _paginationVisibility = Visibility.Collapsed;
