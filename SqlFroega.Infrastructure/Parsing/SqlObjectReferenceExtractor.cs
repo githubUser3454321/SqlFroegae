@@ -231,6 +231,13 @@ public sealed class SqlObjectReferenceExtractor
                     && !string.IsNullOrWhiteSpace(column)
                     && TryResolveQualifier(qualifier, out var tableRef))
                 {
+                    if (!IsConcreteTableRef(tableRef)
+                        && !string.IsNullOrWhiteSpace(tableRef.Table)
+                        && TryResolveQualifier(tableRef.Table, out var concreteTableRef, requireConcrete: true))
+                    {
+                        tableRef = concreteTableRef;
+                    }
+
                     if (IsConcreteTableRef(tableRef))
                         _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
                 }
