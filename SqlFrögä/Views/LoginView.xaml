@@ -29,7 +29,8 @@
 
                 <PasswordBox
                     PlaceholderText="Passwort"
-                    PasswordChanged="PasswordBox_PasswordChanged"/>
+                    PasswordChanged="PasswordBox_PasswordChanged"
+                    KeyDown="PasswordBox_KeyDown"/>
 
                 <CheckBox Content="Angemeldet bleiben" IsChecked="{Binding StaySignedIn, Mode=TwoWay}"/>
 

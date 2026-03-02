@@ -75,18 +75,13 @@
 
                 <Grid Grid.Row="0" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="2*"/>
-                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="2.4*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Name" Opacity="0.75"/>
-                        <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Key" Opacity="0.75"/>
+                        <TextBlock Text="ID" Opacity="0.75"/>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -102,6 +97,11 @@
                                 <SymbolIcon Symbol="Copy"/>
                             </Button>
                         </Grid>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Name" Opacity="0.75"/>
+                        <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding IsEditingEnabled, Converter={StaticResource BooleanNegationConverter}}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
