@@ -928,12 +928,35 @@ inner join Cache as B
 
         var result = await service.FormatSqlAsync(sql);
 
-        Assert.Contains("--use Test", result);
-        Assert.Contains(";WITH Cache", result);
-        Assert.Contains("INNER JOIN Cache", result);
-        Assert.Contains("B", result);
-        Assert.Contains("ON a.RecordId2 = B.RecordId2;", result);
+        var diagnostics = BuildSqlFormattingDiagnostics(result);
+
+        Assert.True(result.Contains("--use Test", StringComparison.Ordinal), diagnostics);
+        Assert.True(result.Contains(";WITH Cache", StringComparison.Ordinal), diagnostics);
+        Assert.True(result.Contains("INNER JOIN Cache", StringComparison.Ordinal), diagnostics);
+        Assert.True(result.Contains("B", StringComparison.Ordinal), diagnostics);
+        Assert.True(result.Contains("ON a.RecordId2 = B.RecordId2;", StringComparison.Ordinal), diagnostics);
     }
+
+    private static string BuildSqlFormattingDiagnostics(string sql)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("Formatted SQL did not match expected shape.");
+        sb.AppendLine("Raw output (escaped):");
+        sb.AppendLine(EscapeSql(sql));
+        sb.AppendLine("Line-by-line:");
+
+        var lines = sql.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        for (var i = 0; i < lines.Length; i++)
+            sb.AppendLine($"{i + 1:00}: '{EscapeSql(lines[i])}'");
+
+        return sb.ToString();
+    }
+
+    private static string EscapeSql(string sql)
+        => sql
+            .Replace("\r", "\\r", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\t", "\\t", StringComparison.Ordinal);
 
     private sealed class FakeMappingRepository : ICustomerMappingRepository
     {
