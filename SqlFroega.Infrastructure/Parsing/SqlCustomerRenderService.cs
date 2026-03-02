@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,6 +57,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
     {
         ct.ThrowIfCancellationRequested();
 
+        var sourceSql = sql ?? string.Empty;
+        var leadingComments = ExtractLeadingLineComments(sourceSql);
         var fragment = ParseSql(sql);
         var options = new SqlScriptGeneratorOptions
         {
@@ -65,13 +68,45 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             NewLineBeforeWhereClause = true,
             NewLineBeforeGroupByClause = true,
             NewLineBeforeOrderByClause = true,
+            NewLineBeforeJoinClause = false,
             AlignClauseBodies = false,
             IndentationSize = 4
         };
 
         var generator = new Sql160ScriptGenerator(options);
         generator.GenerateScript(fragment, out var formattedSql);
-        return Task.FromResult(formattedSql?.Trim() ?? string.Empty);
+
+        var normalized = (formattedSql?.Trim() ?? string.Empty);
+        normalized = CollapseWrappedJoinClauses(normalized);
+
+        if (StartsWithSemicolonWithClause(sourceSql) && normalized.StartsWith("WITH ", StringComparison.OrdinalIgnoreCase))
+            normalized = ";" + normalized;
+
+        if (!string.IsNullOrWhiteSpace(leadingComments))
+            normalized = leadingComments + Environment.NewLine + normalized;
+
+        return Task.FromResult(normalized);
+    }
+
+    private static string CollapseWrappedJoinClauses(string sql)
+        => Regex.Replace(
+            sql,
+            @"(?m)^\s*((?:INNER|LEFT|RIGHT|FULL|CROSS)(?:\s+OUTER)?\s+JOIN)\s*$\r?\n^\s*([^\r\n]+)$",
+            "$1 $2");
+
+    private static bool StartsWithSemicolonWithClause(string sql)
+        => Regex.IsMatch(sql ?? string.Empty, @"(?is)^\s*(?:--[^\r\n]*\r?\n\s*)*;\s*with\b");
+
+    private static string ExtractLeadingLineComments(string sql)
+    {
+        if (string.IsNullOrEmpty(sql))
+            return string.Empty;
+
+        var match = Regex.Match(sql, @"(?is)^\s*((?:(?:--[^\r\n]*)(?:\r?\n|$)\s*)+)");
+        if (!match.Success)
+            return string.Empty;
+
+        return match.Groups[1].Value.TrimEnd();
     }
 
     private static void ValidateStorageSafety(TSqlFragment fragment)
