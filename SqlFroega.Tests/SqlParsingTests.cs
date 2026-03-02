@@ -533,6 +533,169 @@ inner join Cache as B
         Assert.Contains(refs, r => r.Name == "om.om_InvoiceView" && r.Type == DbObjectType.Table);
     }
 
+    [Theory]
+    [MemberData(nameof(Extractor_SpecialTsqlReferenceCases))]
+    public void Extractor_HandlesSpecialTsqlObjectReferences(string sql, string[] expectedTables)
+    {
+        var extractor = new SqlObjectReferenceExtractor();
+
+        var refs = extractor.Extract(sql);
+
+        foreach (var expectedTable in expectedTables)
+        {
+            Assert.Contains(refs, r => r.Name == expectedTable && r.Type == DbObjectType.Table);
+        }
+    }
+
+    public static IEnumerable<object[]> Extractor_SpecialTsqlReferenceCases()
+    {
+        yield return
+        [
+            @"SELECT c.CustomerId
+FROM om.om_Customers AS c
+GROUP BY c.CustomerId
+HAVING COUNT(*) > 1;",
+            new[] { "om.om_Customers" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, SUM(o.Amount) AS TotalAmount
+FROM om.om_Customers AS c
+JOIN om.om_Orders AS o ON o.CustomerId = c.CustomerId
+GROUP BY c.CustomerId
+HAVING SUM(o.Amount) > 500
+ORDER BY SUM(o.Amount) DESC;",
+            new[] { "om.om_Customers", "om.om_Orders" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, lastOrder.LastOrderDate
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT TOP (1) o.OrderDate AS LastOrderDate
+    FROM om.om_Orders AS o
+    WHERE o.CustomerId = c.CustomerId
+    ORDER BY o.OrderDate DESC
+) AS lastOrder;",
+            new[] { "om.om_Customers", "om.om_Orders" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, calc.TotalAmount
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT SUM(x.Amount) AS TotalAmount
+    FROM om.om_OrderLines AS x
+    WHERE x.CustomerId = c.CustomerId
+) AS calc
+ORDER BY calc.TotalAmount DESC;",
+            new[] { "om.om_Customers", "om.om_OrderLines" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, oa3.LatestStatus
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT oa2.LatestStatus
+    FROM (
+        SELECT oa1.LatestStatus
+        FROM (
+            SELECT TOP (1) s.StatusName AS LatestStatus
+            FROM om.om_StatusHistory AS s
+            WHERE s.CustomerId = c.CustomerId
+            ORDER BY s.ChangedAt DESC
+        ) AS oa1
+    ) AS oa2
+) AS oa3
+ORDER BY oa3.LatestStatus;",
+            new[] { "om.om_Customers", "om.om_StatusHistory" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId
+FROM om.om_Customers AS c
+WHERE EXISTS (
+    SELECT 1
+    FROM om.om_Orders AS o
+    WHERE o.CustomerId = c.CustomerId
+    GROUP BY o.CustomerId
+    HAVING COUNT(*) > 2
+);",
+            new[] { "om.om_Customers", "om.om_Orders" }
+        ];
+
+        yield return
+        [
+            @"WITH RankedOrders AS (
+    SELECT o.CustomerId,
+           o.OrderId,
+           ROW_NUMBER() OVER (PARTITION BY o.CustomerId ORDER BY o.OrderDate DESC) AS rn
+    FROM om.om_Orders AS o
+)
+SELECT ro.CustomerId
+FROM RankedOrders AS ro
+JOIN om.om_Customers AS c ON c.CustomerId = ro.CustomerId
+WHERE ro.rn = 1
+ORDER BY ro.CustomerId;",
+            new[] { "om.om_Orders", "om.om_Customers" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, p.ProductName
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT TOP (1) p.ProductName
+    FROM om.om_Products AS p
+    JOIN om.om_OrderLines AS ol ON ol.ProductId = p.ProductId
+    WHERE ol.CustomerId = c.CustomerId
+    ORDER BY ol.CreatedAt DESC
+) AS p
+ORDER BY p.ProductName;",
+            new[] { "om.om_Customers", "om.om_Products", "om.om_OrderLines" }
+        ];
+
+        yield return
+        [
+            @"SELECT c.CustomerId, oa.Score
+FROM om.om_Customers AS c
+OUTER APPLY (
+    SELECT SUM(m.Points) AS Score
+    FROM om.om_Metrics AS m
+    WHERE m.CustomerId = c.CustomerId
+    GROUP BY m.CustomerId
+    HAVING SUM(m.Points) > 100
+) AS oa
+ORDER BY oa.Score DESC;",
+            new[] { "om.om_Customers", "om.om_Metrics" }
+        ];
+
+        yield return
+        [
+            @"SELECT base.CustomerId, nestedOa.ValueFromThirdApply
+FROM om.om_Customers AS base
+OUTER APPLY (
+    SELECT level2.ValueFromThirdApply
+    FROM (
+        SELECT level1.ValueFromThirdApply
+        FROM (
+            SELECT TOP (1) d.DetailValue AS ValueFromThirdApply
+            FROM om.om_CustomerDetails AS d
+            WHERE d.CustomerId = base.CustomerId
+            ORDER BY d.ChangedAt DESC
+        ) AS level1
+    ) AS level2
+) AS nestedOa
+ORDER BY nestedOa.ValueFromThirdApply;",
+            new[] { "om.om_Customers", "om.om_CustomerDetails" }
+        ];
+    }
+
 
     [Fact]
     public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
