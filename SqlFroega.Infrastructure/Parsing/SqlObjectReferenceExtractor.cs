@@ -236,12 +236,8 @@ public sealed class SqlObjectReferenceExtractor
                     && !string.IsNullOrWhiteSpace(column)
                     && TryResolveQualifier(qualifier, out var tableRef))
                 {
-                    if (!IsConcreteTableRef(tableRef)
-                        && !string.IsNullOrWhiteSpace(tableRef.Table)
-                        && TryResolveQualifier(tableRef.Table, out var concreteTableRef, requireConcrete: true))
-                    {
+                    if (TryResolveConcreteTableRef(tableRef, out var concreteTableRef))
                         tableRef = concreteTableRef;
-                    }
 
                     if (IsConcreteTableRef(tableRef))
                         _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
@@ -287,10 +283,8 @@ public sealed class SqlObjectReferenceExtractor
             var tableRef = new TableRef(schema, table);
             if (string.IsNullOrWhiteSpace(schema))
             {
-                if (_cteSourceLookup.TryGetValue(table, out var cteTableRef) && IsConcreteTableRef(cteTableRef))
-                    tableRef = cteTableRef;
-                else if (TryResolveQualifier(table, out var inferredTableRef, requireConcrete: true))
-                    tableRef = inferredTableRef;
+                if (TryResolveConcreteTableRef(tableRef, out var concreteTableRef))
+                    tableRef = concreteTableRef;
             }
 
             currentScope[table] = tableRef;
@@ -317,6 +311,35 @@ public sealed class SqlObjectReferenceExtractor
                 return true;
 
             tableRef = default;
+            return false;
+        }
+
+        private bool TryResolveConcreteTableRef(TableRef tableRef, out TableRef concreteTableRef)
+        {
+            if (IsConcreteTableRef(tableRef))
+            {
+                concreteTableRef = tableRef;
+                return true;
+            }
+
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var nextQualifier = tableRef.Table;
+
+            while (!string.IsNullOrWhiteSpace(nextQualifier) && visited.Add(nextQualifier))
+            {
+                if (!TryResolveQualifier(nextQualifier, out var resolvedRef))
+                    break;
+
+                if (IsConcreteTableRef(resolvedRef))
+                {
+                    concreteTableRef = resolvedRef;
+                    return true;
+                }
+
+                nextQualifier = resolvedRef.Table;
+            }
+
+            concreteTableRef = default;
             return false;
         }
 
