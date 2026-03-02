@@ -15,10 +15,12 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - Parser-/Regex-/ScriptDom-Logik auf CTE- und `WITH`-Sonderfälle erweitern.
   - Reproduzierbaren Testfall anlegen.
 
-- [ ] **Fehleranalyse: Objektreferenzen in konkreten Skripten**
+- [x] **Fehleranalyse: Objektreferenzen in konkreten Skripten**
   - Problemfälle bei Skripten mit `SELECT * FROM ` + ()  (u. a. `om_db.syn_*.sql` und `om.dbo._ztMembership.sql`) analysieren.
   -> wenn `om_db.syn_*.sql` und `om_db._ztMembershipSettings` vorkommt, kann man davon ausgehen, das das skript, bzw die gewählten tabellen ebenfalls zum gespeicherten prefix von `om_db.syn_` gehört. wenn allerdings einmal `om_db.syn_` und einmal `om.syn_` vorkommt, soll ein fehler passieren, anonnsten soll die logik gleich bleiben.
   - Sicherstellen, dass Referenzen korrekt erkannt und gespeichert werden.
+  - ✅ Normalisierung beim Speichern angepasst: `om_db._ztMembershipSettings` wird zu `om._ztMembershipSettings`, während `om_db.syn_*` weiterhin zu `om.om_*` rewritet.
+  - ✅ Regressionstests ergänzt (Einzelfall + Mischfall im selben Skript).
 
 ## P1 – Hoher Nutzen (UX + Konsistenz)
 
@@ -59,10 +61,11 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - Feature request eines users: neben Save button -> Format button ( soll ebenfalls bei "Copy Rendered" eingebaut werden)
   - „Schöne“ bzw. konsistente SQL-Formatierung beim Anzeigen/Speichern einführen.(aktuell ist diese etwas schwebs...)
 
-- [ ] **Script-/Ordern Verwaltung ausbauen**
+- [x] **Script-/Ordern Verwaltung ausbauen**
   - Möglichkeit ein Skript in eine art ORder hinzuzufügen (um mehrere Skripts zu bündeln)
   - Nichts programmieren, nur umsetzung planen wie dies gemacht werden könnte
   - ggf. Virutelles Datei verzeichniss... ( suche ggf anpassen auch api muss hierzu funktioniren)
+  - ✅ Umsetzung geplant: `docs/script-folder-management-plan.md` (Datenmodell, API, UI-Flow, Migration, Risiken, Tests, offene Entscheide).
 
 - [ ] **Internationalisierung prüfen (DE/EN)**
   - Alle UI Texte fixiert auf Deutsch stellen (CH-DE, nicht DE)

@@ -189,6 +189,22 @@ public sealed class SqlParsingTests
         yield return new object[] { "MERGE om_db.syn_target AS t USING syn_source AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;", "MERGE om.om_target AS t USING om.om_source AS s ON t.Id = s.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;" };
         yield return new object[] { "SELECT * FROM sys.objects;", "SELECT * FROM sys.objects;" };
         yield return new object[] { "SELECT * FROM syn_testtable t JOIN om.syn_adkont_sql a ON a.Id = t.Id;", "SELECT * FROM om.om_testtable t JOIN om.om_adkont_sql a ON a.Id = t.Id;" };
+        yield return new object[] { "SELECT * FROM om_db._ztMembershipSettings; SELECT * FROM om_db.syn_adkont_sql;", "SELECT * FROM om._ztMembershipSettings; SELECT * FROM om.om_adkont_sql;" };
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_RewritesQualifiedObjectSchemaWithoutMappedPrefix()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var result = await service.NormalizeForStorageAsync("SELECT * FROM om_db._ztMembershipSettings;");
+
+        Assert.Equal("SELECT * FROM om._ztMembershipSettings;", result);
     }
 
     [Theory]

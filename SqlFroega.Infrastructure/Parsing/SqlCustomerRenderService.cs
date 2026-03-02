@@ -192,9 +192,18 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
 
             if (matchedRules.Count == 0)
             {
-                if (_rules.Any(r => currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException("Script contains mixed schema/prefix mappings (e.g. om_db.syn_ and om_db2.syn2_). Automatic replacement has been disabled.");
+                var schemaRules = _rules
+                    .Where(r => currentSchema.Equals(r.SourceSchema, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
+                if (schemaRules.Count == 0)
+                    return;
+
+                var schemaRule = schemaRules[0];
+                EnsureQualifiedSchemaConsistency(schemaRule.SourceSchema);
+
+                var schemaOnlyReplacement = FormatIdentifier(schema, schemaRule.TargetSchema) + "." + FormatIdentifier(obj2, currentObject);
+                _replacements.Add(new TextReplacement(node.StartOffset, node.FragmentLength, schemaOnlyReplacement));
                 return;
             }
 
