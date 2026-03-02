@@ -56,7 +56,9 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
     {
         ct.ThrowIfCancellationRequested();
 
+        var sourceSql = sql ?? string.Empty;
         var fragment = ParseSql(sql);
+        var leadingComments = ExtractLeadingComments(fragment, sourceSql);
         var options = new SqlScriptGeneratorOptions
         {
             KeywordCasing = KeywordCasing.Uppercase,
@@ -65,14 +67,92 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             NewLineBeforeWhereClause = true,
             NewLineBeforeGroupByClause = true,
             NewLineBeforeOrderByClause = true,
+            NewLineBeforeJoinClause = false,
             AlignClauseBodies = false,
             IndentationSize = 4
         };
 
         var generator = new Sql160ScriptGenerator(options);
         generator.GenerateScript(fragment, out var formattedSql);
-        return Task.FromResult(formattedSql?.Trim() ?? string.Empty);
+
+        var normalized = (formattedSql?.Trim() ?? string.Empty);
+
+        if (StartsWithSemicolonWithClause(fragment) && normalized.StartsWith("WITH ", StringComparison.OrdinalIgnoreCase))
+            normalized = ";" + normalized;
+
+        if (!string.IsNullOrWhiteSpace(leadingComments))
+            normalized = leadingComments + Environment.NewLine + normalized;
+
+        return Task.FromResult(normalized);
     }
+
+    private static bool StartsWithSemicolonWithClause(TSqlFragment fragment)
+    {
+        var tokens = fragment.ScriptTokenStream;
+        if (tokens is null || tokens.Count == 0)
+            return false;
+
+        var first = NextSignificantTokenIndex(tokens, 0);
+        if (first < 0 || tokens[first].TokenType != TSqlTokenType.Semicolon)
+            return false;
+
+        var second = NextSignificantTokenIndex(tokens, first + 1);
+        return second >= 0 && tokens[second].TokenType == TSqlTokenType.With;
+    }
+
+    private static string ExtractLeadingComments(TSqlFragment fragment, string sourceSql)
+    {
+        if (string.IsNullOrEmpty(sourceSql))
+            return string.Empty;
+
+        var tokens = fragment.ScriptTokenStream;
+        if (tokens is null || tokens.Count == 0)
+            return string.Empty;
+
+        var endOffset = -1;
+        var sawComment = false;
+
+        foreach (var token in tokens)
+        {
+            if (token.TokenType == TSqlTokenType.SingleLineComment || token.TokenType == TSqlTokenType.MultilineComment)
+            {
+                sawComment = true;
+                endOffset = token.Offset + token.Text.Length;
+                continue;
+            }
+
+            if (IsTriviaToken(token.TokenType))
+            {
+                if (sawComment)
+                    endOffset = token.Offset + token.Text.Length;
+
+                continue;
+            }
+
+            break;
+        }
+
+        if (!sawComment || endOffset <= 0)
+            return string.Empty;
+
+        return sourceSql[..Math.Min(endOffset, sourceSql.Length)].TrimEnd();
+    }
+
+    private static int NextSignificantTokenIndex(IList<TSqlParserToken> tokens, int startIndex)
+    {
+        for (var i = startIndex; i < tokens.Count; i++)
+        {
+            if (!IsTriviaToken(tokens[i].TokenType))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsTriviaToken(TSqlTokenType tokenType)
+        => tokenType == TSqlTokenType.WhiteSpace
+        || tokenType == TSqlTokenType.SingleLineComment
+        || tokenType == TSqlTokenType.MultilineComment;
 
     private static void ValidateStorageSafety(TSqlFragment fragment)
     {

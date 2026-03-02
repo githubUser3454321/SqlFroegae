@@ -880,6 +880,36 @@ WHERE id = 1;", result);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.FormatSqlAsync("SELECT FROM"));
     }
 
+    [Fact]
+    public async Task FormatSql_PreservesLeadingCommentsAndKeepsJoinClauseOnSingleLine()
+    {
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
+
+        var sql = @"--use Test
+;with Cache AS (
+    select
+        a.Id,
+        a.InvoiceId,
+        a.*,
+        c.*
+    from om.om_InvoiceView as a
+    where a.RecordName = 'Hello'
+)
+
+SELECT
+    A.MembershipId
+FROM om.om_BaseMembershipDefaultView as A
+inner join Cache as B
+    ON a.RecordId2 = B.RecordId2";
+
+        var result = await service.FormatSqlAsync(sql);
+
+        Assert.Contains("--use Test", result);
+        Assert.Contains(";WITH Cache", result);
+        Assert.Contains("INNER JOIN Cache AS B", result);
+        Assert.DoesNotContain("INNER JOIN\n", result);
+    }
+
     private sealed class FakeMappingRepository : ICustomerMappingRepository
     {
         private readonly IReadOnlyList<CustomerMappingItem> _items;
