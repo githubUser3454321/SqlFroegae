@@ -36,6 +36,7 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        _ = DeepLinkProtocolRegistrar.EnsureRegistered();
         CaptureDeepLinkFromCommandLine();
         EnsureMainWindow();
         _ = InitializeServicesAsync();

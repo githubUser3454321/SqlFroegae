@@ -54,7 +54,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
     public string DeepLink => NumberId is > 0 ? $"sqlfroega://scripts/{NumberId.Value}" : string.Empty;
 
-    public string HistoryCountText => HistoryItems.Count == 0 ? "Keine Historieneinträge" : $"{HistoryItems.Count} versions";
+    public string HistoryCountText => HistoryItems.Count == 0 ? "Keine Historieneinträge" : $"{HistoryItems.Count} Versionen";
 
     public ScriptItemViewModel()
     {
@@ -101,13 +101,13 @@ public partial class ScriptItemViewModel : ObservableObject
             var detail = await _repo.GetByIdAsync(id);
             if (detail is null)
             {
-                Title = "Deleted Script (History)";
-                Name = "(deleted)";
+                Title = "Gelöschtes Skript (Historie)";
+                Name = "(gelöscht)";
                 NumberId = null;
                 Scope = 0;
                 MainModule = "";
                 SetRelatedModules(Array.Empty<string>());
-                Description = "Record was deleted. Read-only temporal history is shown.";
+                Description = "Der Eintrag wurde gelöscht. Es wird eine schreibgeschützte temporale Historie angezeigt.";
                 SetFlags(Array.Empty<string>());
                 ScriptCustomerCode = "";
                 IsReadOnlyMode = true;
@@ -116,11 +116,11 @@ public partial class ScriptItemViewModel : ObservableObject
                 await TryLoadHistoryAsync();
                 Content = HistoryItems.FirstOrDefault()?.Content ?? string.Empty;
                 _loadedNormalizedContent = NormalizeSqlContent(Content);
-                Error = "Script was deleted. You can inspect history but not save this view.";
+                Error = "Das Skript wurde gelöscht. Du kannst die Historie prüfen, diese Ansicht aber nicht speichern.";
                 return;
             }
 
-            Title = "Edit Script";
+            Title = "Skript bearbeiten";
             Name = detail.Name;
             NumberId = detail.NumberId;
             Content = NormalizeSqlContent(detail.Content);
@@ -333,10 +333,10 @@ public partial class ScriptItemViewModel : ObservableObject
             return;
 
         if (IsReadOnlyMode)
-            throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
+            throw new InvalidOperationException("Gelöschte Skripte können nur im Historienmodus angezeigt werden.");
 
         Content = NormalizeSqlContent(historyItem.Content);
-        Error = $"Restored snapshot from {historyItem.ValidFrom:G}. Speichern, um diese Version zu übernehmen.";
+        Error = $"Snapshot vom {historyItem.ValidFrom:G} wiederhergestellt. Speichern, um diese Version zu übernehmen.";
     }
 
     [RelayCommand]
@@ -413,13 +413,13 @@ public partial class ScriptItemViewModel : ObservableObject
             Error = null;
 
             if (string.IsNullOrWhiteSpace(Name))
-                throw new InvalidOperationException("Name is required.");
+                throw new InvalidOperationException("Name ist erforderlich.");
             if (IsReadOnlyMode)
-                throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
+                throw new InvalidOperationException("Gelöschte Skripte können nur im Historienmodus angezeigt werden.");
             if (_id != Guid.Empty && !IsEditUnlocked)
                 throw new InvalidOperationException("Bitte zuerst den Bearbeiten-Button (Unlock) klicken.");
             if (string.IsNullOrWhiteSpace(Content))
-                throw new InvalidOperationException("Content is required.");
+                throw new InvalidOperationException("Inhalt ist erforderlich.");
             if (RequiresSqlContentChangeReason() && string.IsNullOrWhiteSpace(updateReason))
                 throw new InvalidOperationException("Bitte einen Grund für die SQL-Änderung angeben.");
 
@@ -477,7 +477,7 @@ public partial class ScriptItemViewModel : ObservableObject
             var wasNewScript = _id == Guid.Empty;
             var newId = await _repo.UpsertAsync(dto);
             _id = newId;
-            Title = "Edit Script";
+            Title = "Skript bearbeiten";
             _loadedNormalizedContent = normalizedContent;
 
             var refreshed = await _repo.GetByIdAsync(newId);
@@ -524,7 +524,7 @@ public partial class ScriptItemViewModel : ObservableObject
             .Count(x => string.Equals(x.CustomerCode, normalizedCode, StringComparison.OrdinalIgnoreCase));
 
         if (matchingMappingsCount > 1)
-            throw new InvalidOperationException($"Multiple mappings found for customer code '{normalizedCode}'. Please clean up duplicate customer mappings before rendering.");
+            throw new InvalidOperationException($"Mehrere Mappings für das Kundenkürzel '{normalizedCode}' gefunden. Bitte bereinige doppelte Kunden-Mappings vor dem Rendern.");
 
         return await _renderService.RenderForCustomerAsync(sql, normalizedCode);
     }
@@ -640,7 +640,7 @@ public partial class ScriptItemViewModel : ObservableObject
         catch (Exception ex)
         {
             ClearHistory();
-            Error = $"History could not be loaded ({ex.Message}). Script data is available and can still be edited.";
+            Error = $"Historie konnte nicht geladen werden ({ex.Message}). Die Skriptdaten sind verfügbar und können weiterhin bearbeitet werden.";
         }
     }
 

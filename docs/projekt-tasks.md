@@ -4,10 +4,12 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
 
 ## P0 – Kritisch / zeitnah umsetzen
 
-- [ ] **Deep-Link-Key beim App-Start validieren**
+- [~] **Deep-Link-Key beim App-Start validieren**
   - Beim Start sicherstellen, dass der benötigte Deep-Link-Key funktion auf Windows vorhanden/gesetzt ist.
   - Bei(das heisst das windows erkennt wenn ich im browser den Deeplink eingebe das er direkt die applikation öffnet)
   - Funktioniert aktuell nicht, wenn die exe direkt gestartet wird ohne den installer, kein beim start der applikation gemacht werden.
+  - ✅ Beim App-Start wird die Protokollregistrierung `sqlfroega://` unter `HKCU\Software\Classes\sqlfroega` automatisch geprüft/gesetzt (inkl. `shell\open\command` auf die laufende EXE).
+  - ✅ Fehler bei Registry-Zugriffen brechen den Start nicht ab (fail-safe mit Debug-Log), damit der Rest der App normal startet.
 
 - [ ] **Fehleranalyse: Skript-Erkennung in `WITH`-Kontext**
   - Prüfen, warum ein Skript/Objekt vom Typ `om_db.syn_MyTable` innerhalb eines `WITH`-Blocks nicht gefunden wird.
@@ -67,8 +69,10 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - ggf. Virutelles Datei verzeichniss... ( suche ggf anpassen auch api muss hierzu funktioniren)
   - ✅ Umsetzung geplant: `docs/script-folder-management-plan.md` (Datenmodell, API, UI-Flow, Migration, Risiken, Tests, offene Entscheide).
 
-- [ ] **Internationalisierung prüfen (DE/EN)**
+- [~] **Internationalisierung prüfen (DE/EN)**
   - Alle UI Texte fixiert auf Deutsch stellen (CH-DE, nicht DE)
+  - ✅ Zentrale UI-Beschriftungen in der Bibliothek, Skript-Maske und Benutzerverwaltung auf Deutsch umgestellt (u. a. Benutzerverwaltung-Menü, Bereich-Filter, Bearbeiten/Löschen, Verknüpfte Module, Historie-Texte).
+  - ✅ ViewModel-Texte für Ergebnisanzeige und zentrale Fehlermeldungen weiter eingedeutscht (z. B. Seiten-/Ergebnistext, Historien- und Pflichtfeldmeldungen).
 
 ## P3 – Optional / Strategisch
 
