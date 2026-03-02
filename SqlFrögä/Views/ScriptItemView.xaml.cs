@@ -256,6 +256,15 @@ public sealed partial class ScriptItemView : Page
         }
     }
 
+
+    private async void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        await VM.ReleaseEditLockAsync();
+
+        if (Parent is Frame frame)
+            frame.Navigate(typeof(ScriptSelectionPlaceholderView));
+    }
+
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!VM.RequiresSqlContentChangeReason())

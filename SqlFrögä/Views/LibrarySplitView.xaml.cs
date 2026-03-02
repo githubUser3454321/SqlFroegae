@@ -27,8 +27,8 @@ public sealed partial class LibrarySplitView : Page
         // Frame in VM registrieren, damit VM rechts navigieren kann.
         VM.AttachDetailFrame(DetailFrame);
 
-        // Startzustand rechts: "New" oder leer
-        DetailFrame.Navigate(typeof(ScriptItemView), Guid.Empty);
+        // Startzustand rechts: leere Auswahlmaske mit Hinweis
+        DetailFrame.Navigate(typeof(ScriptSelectionPlaceholderView));
 
         Loaded += LibrarySplitView_Loaded;
     }
