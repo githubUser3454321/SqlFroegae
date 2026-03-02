@@ -141,7 +141,7 @@
                                              Text="{Binding MainModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="1" Grid.Column="0"
-                                             PlaceholderText="Verknüpftes Modul"
+                                             PlaceholderText="Verknüpfte Module (mehrere mit Komma)"
                                              Text="{Binding RelatedModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="1" Grid.Column="1"
@@ -153,7 +153,7 @@
                                              Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
-                                             PlaceholderText="Objektsuche (z. B. om_adkont_sql, om_adkont_sql.TestSpalte oder om.om_adkont_sql)"
+                                             PlaceholderText="Objektsuche (mehrere mit Komma; z. B. om_adkont_sql, om_adkont_sql.TestSpalte)"
                                              Text="{Binding ObjectFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <CheckBox Grid.Row="4" Grid.Column="0"

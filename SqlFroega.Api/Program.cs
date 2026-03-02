@@ -207,9 +207,9 @@ api.MapGet("/scripts", async (
         query.CustomerId,
         query.Module,
         query.MainModule,
-        query.RelatedModule,
+        ParseCsv(query.RelatedModule),
         ParseCsv(query.Tags),
-        query.ReferencedObject,
+        ParseCsv(query.ReferencedObject),
         query.IncludeDeleted,
         query.SearchHistory);
 
@@ -361,7 +361,10 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
         return null;
     }
 
-    return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    return raw.Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)

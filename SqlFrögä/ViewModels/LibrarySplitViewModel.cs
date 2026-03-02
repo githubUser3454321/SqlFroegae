@@ -122,9 +122,9 @@ public partial class LibrarySplitViewModel : ObservableObject
                 CustomerId: customerId,
                 Module: null,
                 MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
-                RelatedModule: string.IsNullOrWhiteSpace(RelatedModuleFilterText) ? null : RelatedModuleFilterText.Trim(),
+                RelatedModules: ParseFilterValues(RelatedModuleFilterText),
                 Tags: tags,
-                ReferencedObject: string.IsNullOrWhiteSpace(ObjectFilterText) ? null : ObjectFilterText.Trim(),
+                ReferencedObjects: ParseFilterValues(ObjectFilterText),
                 IncludeDeleted: IncludeDeleted,
                 SearchHistory: SearchInHistory
             );
@@ -315,7 +315,29 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(module))
             return;
 
-        RelatedModuleFilterText = module.Trim();
+        RelatedModuleFilterText = AppendFilterValue(RelatedModuleFilterText, module);
+    }
+
+    private static IReadOnlyList<string>? ParseFilterValues(string? raw)
+    {
+        var values = (raw ?? string.Empty)
+            .Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return values.Count == 0 ? null : values;
+    }
+
+    private static string AppendFilterValue(string? current, string value)
+    {
+        var selected = ParseFilterValues(current)?.ToList() ?? new List<string>();
+        var normalized = value.Trim();
+        if (selected.Any(x => string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase)))
+            return string.Join(", ", selected);
+
+        selected.Add(normalized);
+        return string.Join(", ", selected);
     }
 
     [RelayCommand]

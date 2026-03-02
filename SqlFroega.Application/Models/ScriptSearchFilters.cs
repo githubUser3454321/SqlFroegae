@@ -8,9 +8,9 @@ public sealed record ScriptSearchFilters(
     Guid? CustomerId,
     string? Module,
     string? MainModule,
-    string? RelatedModule,
+    IReadOnlyList<string>? RelatedModules,
     IReadOnlyList<string>? Tags,
-    string? ReferencedObject,
+    IReadOnlyList<string>? ReferencedObjects,
     bool IncludeDeleted = false,
     bool SearchHistory = false
 );
