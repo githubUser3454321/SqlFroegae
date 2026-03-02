@@ -506,7 +506,8 @@ inner join Cache as B
     ON a.RecordId2 = B.RecordId2";
 
         var extractor = new SqlObjectReferenceExtractor();
-        var refs = extractor.Extract(sql);
+        var extractorDiagnostics = new List<string>();
+        var refs = extractor.Extract(sql, extractorDiagnostics);
 
         var expectedName = "om.om_InvoiceView.RecordId2";
         var expectedType = DbObjectType.Column;
@@ -528,6 +529,8 @@ inner join Cache as B
             .AppendLine("Potentially related refs (contains 'RecordId2' or 'InvoiceView'):")
             .AppendLine($" - RecordId2 refs: {string.Join(", ", refs.Where(r => r.Name.Contains("RecordId2", StringComparison.OrdinalIgnoreCase)).Select(r => $"{r.Type}:{r.Name}"))}")
             .AppendLine($" - InvoiceView refs: {string.Join(", ", refs.Where(r => r.Name.Contains("InvoiceView", StringComparison.OrdinalIgnoreCase)).Select(r => $"{r.Type}:{r.Name}"))}")
+            .AppendLine("Extractor diagnostics:")
+            .AppendLine(extractorDiagnostics.Count == 0 ? " - <none>" : string.Join(Environment.NewLine, extractorDiagnostics.Select(d => $" - {d}")))
             .AppendLine("Original SQL:")
             .AppendLine(sql);
 
