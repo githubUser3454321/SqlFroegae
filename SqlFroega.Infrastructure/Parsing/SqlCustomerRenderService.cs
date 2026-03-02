@@ -65,7 +65,7 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             NewLineBeforeWhereClause = true,
             NewLineBeforeGroupByClause = true,
             NewLineBeforeOrderByClause = true,
-            AlignClauseBodies = true,
+            AlignClauseBodies = false,
             IndentationSize = 4
         };
 
