@@ -34,6 +34,7 @@ public sealed class SqlObjectReferenceExtractor
         private readonly Stack<SchemaObjectName?> _tableContext = new();
         private readonly Stack<Dictionary<string, TableRef>> _queryScope = new();
         private readonly Stack<HashSet<string>> _derivedAliasScope = new();
+        private readonly Dictionary<string, TableRef> _cteSourceLookup = new(StringComparer.OrdinalIgnoreCase);
 
         public ReferenceVisitor()
         {
@@ -85,6 +86,7 @@ public sealed class SqlObjectReferenceExtractor
 
             if (TryInferSingleSourceTableRef(node.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
             {
+                _cteSourceLookup[cteName] = tableRef;
                 _queryScope.Peek()[cteName] = tableRef;
             }
         }
@@ -101,7 +103,10 @@ public sealed class SqlObjectReferenceExtractor
                         continue;
 
                     if (TryInferSingleSourceTableRef(cte.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
+                    {
+                        _cteSourceLookup[cteName] = tableRef;
                         currentScope[cteName] = tableRef;
+                    }
                 }
             }
 
@@ -280,8 +285,13 @@ public sealed class SqlObjectReferenceExtractor
 
             var currentScope = _queryScope.Peek();
             var tableRef = new TableRef(schema, table);
-            if (string.IsNullOrWhiteSpace(schema) && TryResolveQualifier(table, out var inferredTableRef, requireConcrete: true))
-                tableRef = inferredTableRef;
+            if (string.IsNullOrWhiteSpace(schema))
+            {
+                if (_cteSourceLookup.TryGetValue(table, out var cteTableRef) && IsConcreteTableRef(cteTableRef))
+                    tableRef = cteTableRef;
+                else if (TryResolveQualifier(table, out var inferredTableRef, requireConcrete: true))
+                    tableRef = inferredTableRef;
+            }
 
             currentScope[table] = tableRef;
             if (!string.IsNullOrWhiteSpace(schema))
@@ -301,6 +311,10 @@ public sealed class SqlObjectReferenceExtractor
                 if (!requireConcrete || IsConcreteTableRef(tableRef))
                     return true;
             }
+
+            if (_cteSourceLookup.TryGetValue(qualifier, out tableRef)
+                && (!requireConcrete || IsConcreteTableRef(tableRef)))
+                return true;
 
             tableRef = default;
             return false;
