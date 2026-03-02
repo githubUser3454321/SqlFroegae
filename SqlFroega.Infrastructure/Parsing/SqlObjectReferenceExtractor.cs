@@ -9,7 +9,7 @@ namespace SqlFroega.Infrastructure.Parsing;
 
 public sealed class SqlObjectReferenceExtractor
 {
-    public IReadOnlyList<DbObjectRef> Extract(string sql)
+    public IReadOnlyList<DbObjectRef> Extract(string sql, IList<string>? diagnostics = null)
     {
         var parser = new TSql160Parser(initialQuotedIdentifiers: true);
         using var reader = new StringReader(sql ?? string.Empty);
@@ -21,7 +21,7 @@ public sealed class SqlObjectReferenceExtractor
             throw new InvalidOperationException($"SQL parse failed at line {first.Line}, col {first.Column}: {first.Message}");
         }
 
-        var visitor = new ReferenceVisitor();
+        var visitor = new ReferenceVisitor(diagnostics);
         fragment.Accept(visitor);
         return visitor.GetDistinct();
     }
@@ -35,11 +35,19 @@ public sealed class SqlObjectReferenceExtractor
         private readonly Stack<Dictionary<string, TableRef>> _queryScope = new();
         private readonly Stack<HashSet<string>> _derivedAliasScope = new();
         private readonly Dictionary<string, TableRef> _cteSourceLookup = new(StringComparer.OrdinalIgnoreCase);
+        private readonly IList<string>? _diagnostics;
 
-        public ReferenceVisitor()
+        public ReferenceVisitor(IList<string>? diagnostics)
         {
+            _diagnostics = diagnostics;
             _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
             _derivedAliasScope.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        }
+
+        public override void ExplicitVisit(SelectStatement node)
+        {
+            RegisterCteSources(node.WithCtesAndXmlNamespaces);
+            base.ExplicitVisit(node);
         }
 
         public override void ExplicitVisit(QuerySpecification node)
@@ -93,24 +101,34 @@ public sealed class SqlObjectReferenceExtractor
 
         public override void ExplicitVisit(WithCtesAndXmlNamespaces node)
         {
-            if (_queryScope.Count > 0)
-            {
-                var currentScope = _queryScope.Peek();
-                foreach (var cte in node.CommonTableExpressions)
-                {
-                    var cteName = cte.ExpressionName?.Value;
-                    if (string.IsNullOrWhiteSpace(cteName))
-                        continue;
-
-                    if (TryInferSingleSourceTableRef(cte.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
-                    {
-                        _cteSourceLookup[cteName] = tableRef;
-                        currentScope[cteName] = tableRef;
-                    }
-                }
-            }
+            RegisterCteSources(node);
 
             base.ExplicitVisit(node);
+        }
+
+        private void RegisterCteSources(WithCtesAndXmlNamespaces? node)
+        {
+            if (node is null || _queryScope.Count == 0)
+                return;
+
+            var currentScope = _queryScope.Peek();
+            foreach (var cte in node.CommonTableExpressions)
+            {
+                var cteName = cte.ExpressionName?.Value;
+                if (string.IsNullOrWhiteSpace(cteName))
+                    continue;
+
+                if (TryInferSingleSourceTableRef(cte.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
+                {
+                    _cteSourceLookup[cteName] = tableRef;
+                    currentScope[cteName] = tableRef;
+                    _diagnostics?.Add($"CTE source registered: {cteName} -> {tableRef.Schema}.{tableRef.Table}");
+                }
+                else
+                {
+                    _diagnostics?.Add($"CTE source unresolved: {cteName}");
+                }
+            }
         }
 
         public override void ExplicitVisit(SchemaObjectFunctionTableReference node)
@@ -248,13 +266,20 @@ public sealed class SqlObjectReferenceExtractor
                     }
 
                     if (IsConcreteTableRef(tableRef))
+                    {
                         _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                    }
+                    else
+                    {
+                        _diagnostics?.Add($"Column unresolved to concrete table: {qualifier}.{column} -> {tableRef.Schema}.{tableRef.Table}");
+                    }
                 }
                 else if (!string.IsNullOrWhiteSpace(qualifier)
                          && !string.IsNullOrWhiteSpace(column)
                          && !IsKnownDerivedAlias(qualifier)
                          && !IsAllowedUnresolvedQualifier(qualifier))
                 {
+                    _diagnostics?.Add($"Unknown qualifier: {qualifier}.{column}; ctes=[{string.Join(",", _cteSourceLookup.Keys)}]");
                     throw new InvalidOperationException($"Unresolved column qualifier '{qualifier}' in '{qualifier}.{column}'.");
                 }
             }
