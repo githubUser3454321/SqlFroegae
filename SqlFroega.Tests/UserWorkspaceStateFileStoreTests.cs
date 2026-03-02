@@ -1,5 +1,6 @@
 using SqlFroega.Application.Models;
 using SqlFroega.Infrastructure.Persistence;
+using Xunit;
 
 namespace SqlFroega.Tests;
 
