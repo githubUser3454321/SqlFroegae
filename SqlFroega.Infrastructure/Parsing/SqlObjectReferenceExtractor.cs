@@ -273,7 +273,7 @@ public sealed class SqlObjectReferenceExtractor
 
             var currentScope = _queryScope.Peek();
             var tableRef = new TableRef(schema, table);
-            if (string.IsNullOrWhiteSpace(schema) && TryResolveQualifier(table, out var inferredTableRef) && IsConcreteTableRef(inferredTableRef))
+            if (string.IsNullOrWhiteSpace(schema) && TryResolveQualifier(table, out var inferredTableRef, requireConcrete: true))
                 tableRef = inferredTableRef;
 
             currentScope[table] = tableRef;
@@ -284,11 +284,14 @@ public sealed class SqlObjectReferenceExtractor
                 currentScope[alias] = tableRef;
         }
 
-        private bool TryResolveQualifier(string qualifier, out TableRef tableRef)
+        private bool TryResolveQualifier(string qualifier, out TableRef tableRef, bool requireConcrete = false)
         {
             foreach (var scope in _queryScope)
             {
-                if (scope.TryGetValue(qualifier, out tableRef))
+                if (!scope.TryGetValue(qualifier, out tableRef))
+                    continue;
+
+                if (!requireConcrete || IsConcreteTableRef(tableRef))
                     return true;
             }
 
