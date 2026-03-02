@@ -79,6 +79,25 @@ public sealed class SqlObjectReferenceExtractor
             }
         }
 
+        public override void ExplicitVisit(WithCtesAndXmlNamespaces node)
+        {
+            if (_queryScope.Count > 0)
+            {
+                var currentScope = _queryScope.Peek();
+                foreach (var cte in node.CommonTableExpressions)
+                {
+                    var cteName = cte.ExpressionName?.Value;
+                    if (string.IsNullOrWhiteSpace(cteName))
+                        continue;
+
+                    if (TryInferSingleSourceTableRef(cte.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
+                        currentScope[cteName] = tableRef;
+                }
+            }
+
+            base.ExplicitVisit(node);
+        }
+
         public override void ExplicitVisit(SchemaObjectFunctionTableReference node)
         {
             Add(node.SchemaObject, DbObjectType.Function);
