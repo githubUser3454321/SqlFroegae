@@ -176,6 +176,16 @@ public sealed class SqlObjectReferenceExtractor
             base.ExplicitVisit(node);
         }
 
+        public override void ExplicitVisit(UnqualifiedJoin node)
+        {
+            if (node.UnqualifiedJoinType is UnqualifiedJoinType.CrossApply or UnqualifiedJoinType.OuterApply)
+            {
+                RegisterDerivedAlias(GetAlias(node.SecondTableReference));
+            }
+
+            base.ExplicitVisit(node);
+        }
+
 
         public override void ExplicitVisit(CreateViewStatement node)
         {
@@ -447,6 +457,14 @@ public sealed class SqlObjectReferenceExtractor
 
             return false;
         }
+
+        private static string? GetAlias(TableReference? tableReference)
+            => tableReference switch
+            {
+                TableReferenceWithAlias aliasRef => aliasRef.Alias?.Value,
+                UnqualifiedJoin join => GetAlias(join.SecondTableReference),
+                _ => null
+            };
 
         private static bool TryInferSingleSourceTableRef(QueryExpression? queryExpression, out TableRef tableRef)
         {
