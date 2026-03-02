@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,8 +57,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         ct.ThrowIfCancellationRequested();
 
         var sourceSql = sql ?? string.Empty;
-        var leadingComments = ExtractLeadingLineComments(sourceSql);
         var fragment = ParseSql(sql);
+        var leadingComments = ExtractLeadingComments(fragment, sourceSql);
         var options = new SqlScriptGeneratorOptions
         {
             KeywordCasing = KeywordCasing.Uppercase,
@@ -77,9 +76,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         generator.GenerateScript(fragment, out var formattedSql);
 
         var normalized = (formattedSql?.Trim() ?? string.Empty);
-        normalized = CollapseWrappedJoinClauses(normalized);
 
-        if (StartsWithSemicolonWithClause(sourceSql) && normalized.StartsWith("WITH ", StringComparison.OrdinalIgnoreCase))
+        if (StartsWithSemicolonWithClause(fragment) && normalized.StartsWith("WITH ", StringComparison.OrdinalIgnoreCase))
             normalized = ";" + normalized;
 
         if (!string.IsNullOrWhiteSpace(leadingComments))
@@ -88,26 +86,73 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         return Task.FromResult(normalized);
     }
 
-    private static string CollapseWrappedJoinClauses(string sql)
-        => Regex.Replace(
-            sql,
-            @"(?m)^\s*((?:INNER|LEFT|RIGHT|FULL|CROSS)(?:\s+OUTER)?\s+JOIN)\s*$\r?\n^\s*([^\r\n]+)$",
-            "$1 $2");
-
-    private static bool StartsWithSemicolonWithClause(string sql)
-        => Regex.IsMatch(sql ?? string.Empty, @"(?is)^\s*(?:--[^\r\n]*\r?\n\s*)*;\s*with\b");
-
-    private static string ExtractLeadingLineComments(string sql)
+    private static bool StartsWithSemicolonWithClause(TSqlFragment fragment)
     {
-        if (string.IsNullOrEmpty(sql))
-            return string.Empty;
+        var tokens = fragment.ScriptTokenStream;
+        if (tokens is null || tokens.Count == 0)
+            return false;
 
-        var match = Regex.Match(sql, @"(?is)^\s*((?:(?:--[^\r\n]*)(?:\r?\n|$)\s*)+)");
-        if (!match.Success)
-            return string.Empty;
+        var first = NextSignificantTokenIndex(tokens, 0);
+        if (first < 0 || tokens[first].TokenType != TSqlTokenType.Semicolon)
+            return false;
 
-        return match.Groups[1].Value.TrimEnd();
+        var second = NextSignificantTokenIndex(tokens, first + 1);
+        return second >= 0 && tokens[second].TokenType == TSqlTokenType.With;
     }
+
+    private static string ExtractLeadingComments(TSqlFragment fragment, string sourceSql)
+    {
+        if (string.IsNullOrEmpty(sourceSql))
+            return string.Empty;
+
+        var tokens = fragment.ScriptTokenStream;
+        if (tokens is null || tokens.Count == 0)
+            return string.Empty;
+
+        var endOffset = -1;
+        var sawComment = false;
+
+        foreach (var token in tokens)
+        {
+            if (token.TokenType == TSqlTokenType.SingleLineComment || token.TokenType == TSqlTokenType.MultilineComment)
+            {
+                sawComment = true;
+                endOffset = token.Offset + token.Text.Length;
+                continue;
+            }
+
+            if (IsTriviaToken(token.TokenType))
+            {
+                if (sawComment)
+                    endOffset = token.Offset + token.Text.Length;
+
+                continue;
+            }
+
+            break;
+        }
+
+        if (!sawComment || endOffset <= 0)
+            return string.Empty;
+
+        return sourceSql[..Math.Min(endOffset, sourceSql.Length)].TrimEnd();
+    }
+
+    private static int NextSignificantTokenIndex(IList<TSqlParserToken> tokens, int startIndex)
+    {
+        for (var i = startIndex; i < tokens.Count; i++)
+        {
+            if (!IsTriviaToken(tokens[i].TokenType))
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsTriviaToken(TSqlTokenType tokenType)
+        => tokenType == TSqlTokenType.WhiteSpace
+        || tokenType == TSqlTokenType.SingleLineComment
+        || tokenType == TSqlTokenType.MultilineComment;
 
     private static void ValidateStorageSafety(TSqlFragment fragment)
     {
