@@ -497,7 +497,7 @@ inner join Cache as B
 
         var result = await service.FormatSqlAsync("select a from om.om_table where id = 1");
 
-        Assert.Equal("SELECT a
+        Assert.Equal($@"SELECT a
 FROM om.om_table
 WHERE id = 1;", result);
     }
