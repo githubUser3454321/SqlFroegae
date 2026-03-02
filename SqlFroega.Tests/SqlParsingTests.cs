@@ -1153,6 +1153,46 @@ OUTER APPLY (
         yield return new object[] { "MERGE syn_A AS t USING (SELECT * FROM om_db.syn_B) AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.Name=s.Name;", "MERGE om.om_A AS t USING (SELECT * FROM om.om_B) AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.Name=s.Name;" };
     }
 
+    [Theory]
+    [MemberData(nameof(NormalizeForStorage_MyTableReplacementCases))]
+    public async Task NormalizeForStorage_Replaces_MyTable_InManySqlShapes(string sql, string expected)
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Equal(expected, result);
+    }
+
+    public static IEnumerable<object[]> NormalizeForStorage_MyTableReplacementCases()
+    {
+        yield return new object[] { "SELECT * FROM om_db.syn_MyTable;", "SELECT * FROM om.om_MyTable;" };
+        yield return new object[] { "SELECT * FROM syn_MyTable;", "SELECT * FROM om.om_MyTable;" };
+        yield return new object[] { "SELECT * FROM [om_db].[syn_MyTable];", "SELECT * FROM [om].[om_MyTable];" };
+        yield return new object[] { "SELECT t.Id FROM om_db.syn_MyTable AS t;", "SELECT t.Id FROM om.om_MyTable AS t;" };
+        yield return new object[] { "SELECT * FROM om_db.syn_MyTable m INNER JOIN om_db.syn_Other o ON o.Id = m.Id;", "SELECT * FROM om.om_MyTable m INNER JOIN om.om_Other o ON o.Id = m.Id;" };
+        yield return new object[] { "SELECT * FROM (SELECT * FROM om_db.syn_MyTable) AS s;", "SELECT * FROM (SELECT * FROM om.om_MyTable) AS s;" };
+        yield return new object[] { "SELECT * FROM(SELECT * FROM syn_MyTable) AS s;", "SELECT * FROM(SELECT * FROM om.om_MyTable) AS s;" };
+        yield return new object[] { "WITH src AS (SELECT * FROM om_db.syn_MyTable) SELECT * FROM src;", "WITH src AS (SELECT * FROM om.om_MyTable) SELECT * FROM src;" };
+        yield return new object[] { "SELECT x.Id FROM om_db.syn_MyTable AS x OUTER APPLY (SELECT TOP 1 y.Id FROM syn_MyTable AS y WHERE y.Id = x.Id) AS oa;", "SELECT x.Id FROM om.om_MyTable AS x OUTER APPLY (SELECT TOP 1 y.Id FROM om.om_MyTable AS y WHERE y.Id = x.Id) AS oa;" };
+        yield return new object[] { "SELECT x.Id FROM om_db.syn_MyTable AS x CROSS APPLY (SELECT y.Id FROM om_db.syn_MyTable AS y WHERE y.Id = x.Id) AS ca;", "SELECT x.Id FROM om.om_MyTable AS x CROSS APPLY (SELECT y.Id FROM om.om_MyTable AS y WHERE y.Id = x.Id) AS ca;" };
+        yield return new object[] { "UPDATE om_db.syn_MyTable SET Name = 'A' WHERE Id = 1;", "UPDATE om.om_MyTable SET Name = 'A' WHERE Id = 1;" };
+        yield return new object[] { "UPDATE t SET t.Name = 'A' FROM om_db.syn_MyTable t;", "UPDATE t SET t.Name = 'A' FROM om.om_MyTable t;" };
+        yield return new object[] { "DELETE t FROM om_db.syn_MyTable t INNER JOIN syn_MyTable t2 ON t2.Id = t.Id;", "DELETE t FROM om.om_MyTable t INNER JOIN om.om_MyTable t2 ON t2.Id = t.Id;" };
+        yield return new object[] { "MERGE om_db.syn_MyTable AS t USING (SELECT * FROM syn_MyTable) AS s ON s.Id = t.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;", "MERGE om.om_MyTable AS t USING (SELECT * FROM om.om_MyTable) AS s ON s.Id = t.Id WHEN MATCHED THEN UPDATE SET t.Name = s.Name;" };
+        yield return new object[] { "INSERT INTO om_db.syn_MyTable (Id) SELECT Id FROM syn_MyTable;", "INSERT INTO om.om_MyTable (Id) SELECT Id FROM om.om_MyTable;" };
+        yield return new object[] { "SELECT 1 WHERE EXISTS (SELECT * FROM om_db.syn_MyTable);", "SELECT 1 WHERE EXISTS (SELECT * FROM om.om_MyTable);" };
+        yield return new object[] { "SELECT * FROM om_db.syn_MyTable UNION ALL SELECT * FROM syn_MyTable;", "SELECT * FROM om.om_MyTable UNION ALL SELECT * FROM om.om_MyTable;" };
+        yield return new object[] { "SELECT * FROM \"om_db\".\"syn_MyTable\";", "SELECT * FROM \"om\".\"om_MyTable\";" };
+        yield return new object[] { "SELECT * FROM om_db.syn_MyTable WITH (NOLOCK);", "SELECT * FROM om.om_MyTable WITH (NOLOCK);" };
+        yield return new object[] { "SELECT * FROM om_db.syn_MyTable WHERE Name = 'om_db.syn_MyTable';", "SELECT * FROM om.om_MyTable WHERE Name = 'om_db.syn_MyTable';" };
+    }
+
 
     [Fact]
     public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
