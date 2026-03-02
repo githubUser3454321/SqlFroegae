@@ -62,6 +62,23 @@ public sealed class SqlObjectReferenceExtractor
             base.ExplicitVisit(node);
         }
 
+        public override void ExplicitVisit(CommonTableExpression node)
+        {
+            base.ExplicitVisit(node);
+
+            if (_queryScope.Count == 0)
+                return;
+
+            var cteName = node.ExpressionName?.Value;
+            if (string.IsNullOrWhiteSpace(cteName))
+                return;
+
+            if (TryInferSingleSourceTableRef(node.QueryExpression, out var tableRef) && IsConcreteTableRef(tableRef))
+            {
+                _queryScope.Peek()[cteName] = tableRef;
+            }
+        }
+
         public override void ExplicitVisit(SchemaObjectFunctionTableReference node)
         {
             Add(node.SchemaObject, DbObjectType.Function);
@@ -226,6 +243,8 @@ public sealed class SqlObjectReferenceExtractor
 
             var currentScope = _queryScope.Peek();
             var tableRef = new TableRef(schema, table);
+            if (string.IsNullOrWhiteSpace(schema) && TryResolveQualifier(table, out var inferredTableRef) && IsConcreteTableRef(inferredTableRef))
+                tableRef = inferredTableRef;
 
             currentScope[table] = tableRef;
             if (!string.IsNullOrWhiteSpace(schema))
@@ -241,6 +260,28 @@ public sealed class SqlObjectReferenceExtractor
             {
                 if (scope.TryGetValue(qualifier, out tableRef))
                     return true;
+            }
+
+            tableRef = default;
+            return false;
+        }
+
+        private static bool TryInferSingleSourceTableRef(QueryExpression? queryExpression, out TableRef tableRef)
+        {
+            if (queryExpression is QuerySpecification querySpec && querySpec.FromClause is not null)
+            {
+                var firstTable = querySpec.FromClause.TableReferences.OfType<NamedTableReference>().FirstOrDefault();
+                if (firstTable?.SchemaObject is not null && firstTable.SchemaObject.Identifiers.Count >= 2)
+                {
+                    var schema = firstTable.SchemaObject.Identifiers[^2].Value;
+                    var table = firstTable.SchemaObject.Identifiers[^1].Value;
+
+                    if (!string.IsNullOrWhiteSpace(schema) && !string.IsNullOrWhiteSpace(table))
+                    {
+                        tableRef = new TableRef(schema, table);
+                        return true;
+                    }
+                }
             }
 
             tableRef = default;
