@@ -133,7 +133,10 @@ public sealed class SqlObjectReferenceExtractor
 
         public override void ExplicitVisit(SchemaObjectFunctionTableReference node)
         {
-            Add(node.SchemaObject, DbObjectType.Function);
+            // Schema-scoped TVFs participate in FROM/APPLY like tables.
+            // Record them as table references so alias-qualified projections
+            // used in modern SQL patterns are treated consistently.
+            Add(node.SchemaObject, DbObjectType.Table);
             RegisterDerivedAlias(node.Alias?.Value);
             _diagnostics?.Add($"Function table alias registered: {node.Alias?.Value ?? "<none>"}");
             base.ExplicitVisit(node);
@@ -143,6 +146,33 @@ public sealed class SqlObjectReferenceExtractor
         {
             RegisterDerivedAlias(node.Alias?.Value);
             _diagnostics?.Add($"Built-in function table alias registered: {node.Alias?.Value ?? "<none>"}");
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(OpenJsonTableReference node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
+            _diagnostics?.Add($"OPENJSON alias registered: {node.Alias?.Value ?? "<none>"}");
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(PivotedTableReference node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
+            _diagnostics?.Add($"PIVOT alias registered: {node.Alias?.Value ?? "<none>"}");
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(UnpivotedTableReference node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
+            _diagnostics?.Add($"UNPIVOT alias registered: {node.Alias?.Value ?? "<none>"}");
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(TableReferenceWithAlias node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
             base.ExplicitVisit(node);
         }
 
