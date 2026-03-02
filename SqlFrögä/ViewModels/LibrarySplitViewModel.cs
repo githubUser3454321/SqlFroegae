@@ -22,10 +22,13 @@ public partial class LibrarySplitViewModel : ObservableObject
     private readonly IScriptRepository _repo;
     private readonly ICustomerMappingRepository _customerMappingRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUserWorkspaceStateStore _workspaceStateStore;
     private Frame? _detailFrame;
     private ScriptSearchFilters? _activeFilters;
     private string? _activeSearchText;
     private int _pageSize = DefaultPageSize;
+    public UserWorkspaceState? LastLoadedWorkspaceState { get; private set; }
+    public Guid? CurrentDetailScriptId { get; private set; }
 
     public ObservableCollection<ScriptListItem> Results { get; } = new();
     public ObservableCollection<string> AvailableMainModules { get; } = new();
@@ -74,6 +77,7 @@ public partial class LibrarySplitViewModel : ObservableObject
         _repo = App.Services.GetRequiredService<IScriptRepository>();
         _customerMappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
         _userRepository = App.Services.GetRequiredService<IUserRepository>();
+        _workspaceStateStore = App.Services.GetRequiredService<IUserWorkspaceStateStore>();
     }
 
     public void AttachDetailFrame(Frame frame) => _detailFrame = frame;
@@ -86,51 +90,7 @@ public partial class LibrarySplitViewModel : ObservableObject
             IsBusy = true;
             Error = null;
 
-            var customerId = await ResolveCustomerFilterAsync();
-
-            var searchText = QueryText;
-
-            if (!string.IsNullOrWhiteSpace(QueryText)
-                && string.IsNullOrWhiteSpace(CustomerCodeFilterText))
-            {
-                var mappedCustomer = await _customerMappingRepository.GetByCodeAsync(QueryText.Trim());
-                if (mappedCustomer is not null)
-                {
-                    customerId = mappedCustomer.CustomerId;
-                    searchText = null;
-                }
-            }
-
-            IReadOnlyList<string>? tags = null;
-            if (!string.IsNullOrWhiteSpace(TagsFilterText))
-            {
-                tags = TagsFilterText
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .Where(x => !string.IsNullOrWhiteSpace(x))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-
-            var filters = new ScriptSearchFilters(
-                Scope: ScopeFilterIndex switch
-                {
-                    1 => 0,
-                    2 => 1,
-                    3 => 2,
-                    _ => null
-                },
-                CustomerId: customerId,
-                Module: null,
-                MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
-                RelatedModule: string.IsNullOrWhiteSpace(RelatedModuleFilterText) ? null : RelatedModuleFilterText.Trim(),
-                Tags: tags,
-                ReferencedObject: string.IsNullOrWhiteSpace(ObjectFilterText) ? null : ObjectFilterText.Trim(),
-                IncludeDeleted: IncludeDeleted,
-                SearchHistory: SearchInHistory
-            );
-
-            _activeSearchText = searchText;
-            _activeFilters = filters;
+            await BuildAndStoreActiveSearchContextAsync();
             await LoadPageAsync(1);
 
             await RefreshMetadataCatalogAsync();
@@ -168,6 +128,7 @@ public partial class LibrarySplitViewModel : ObservableObject
 
         if (_detailFrame is null) return;
         Selected = null;
+        CurrentDetailScriptId = null;
         _detailFrame.Navigate(typeof(CustomerMappingAdminView));
     }
 
@@ -182,6 +143,7 @@ public partial class LibrarySplitViewModel : ObservableObject
 
         if (_detailFrame is null) return;
         Selected = null;
+        CurrentDetailScriptId = null;
         _detailFrame.Navigate(typeof(ModuleAdminView));
     }
 
@@ -196,6 +158,7 @@ public partial class LibrarySplitViewModel : ObservableObject
 
         if (_detailFrame is null) return;
         Selected = null;
+        CurrentDetailScriptId = null;
         _detailFrame.Navigate(typeof(UserManagementAdminView));
     }
 
@@ -453,6 +416,7 @@ public partial class LibrarySplitViewModel : ObservableObject
     private void NavigateDetail(Guid id)
     {
         if (_detailFrame is null) return;
+        CurrentDetailScriptId = id == Guid.Empty ? null : id;
         _detailFrame.Navigate(typeof(ScriptItemView), id);
     }
 
@@ -508,5 +472,118 @@ public partial class LibrarySplitViewModel : ObservableObject
         var absoluteIndex = Math.Max(0, CurrentPage - 1) * previousPageSize;
         var targetPage = (absoluteIndex / _pageSize) + 1;
         await LoadPageAsync(targetPage);
+    }
+
+    public async Task RestoreWorkspaceStateForCurrentUserAsync()
+    {
+        if (App.CurrentUser is null)
+            return;
+
+        var state = await _workspaceStateStore.LoadAsync(App.CurrentUser.Id);
+        if (state is null)
+            return;
+
+        LastLoadedWorkspaceState = state;
+
+        QueryText = state.QueryText;
+        ScopeFilterIndex = state.ScopeFilterIndex;
+        MainModuleFilterText = state.MainModuleFilterText;
+        RelatedModuleFilterText = state.RelatedModuleFilterText;
+        CustomerCodeFilterText = state.CustomerCodeFilterText;
+        TagsFilterText = state.TagsFilterText;
+        ObjectFilterText = state.ObjectFilterText;
+        ModuleCatalogSearchText = state.ModuleCatalogSearchText;
+        TagCatalogSearchText = state.TagCatalogSearchText;
+        IncludeDeleted = state.IncludeDeleted;
+        SearchInHistory = state.SearchInHistory;
+        IsAdvancedSearchExpanded = state.IsAdvancedSearchExpanded;
+
+        if (state.HadExecutedSearch)
+        {
+            try
+            {
+                await BuildAndStoreActiveSearchContextAsync();
+                await LoadPageAsync(Math.Max(1, state.CurrentPage));
+            }
+            catch (Exception ex)
+            {
+                Error = ex.Message;
+            }
+        }
+    }
+
+    public async Task SaveWorkspaceStateForCurrentUserAsync(WorkspaceDetailTarget detailTarget, Guid? detailScriptId)
+    {
+        if (App.CurrentUser is null)
+            return;
+
+        var state = new UserWorkspaceState(
+            QueryText: QueryText,
+            ScopeFilterIndex: ScopeFilterIndex,
+            MainModuleFilterText: MainModuleFilterText,
+            RelatedModuleFilterText: RelatedModuleFilterText,
+            CustomerCodeFilterText: CustomerCodeFilterText,
+            TagsFilterText: TagsFilterText,
+            ObjectFilterText: ObjectFilterText,
+            ModuleCatalogSearchText: ModuleCatalogSearchText,
+            TagCatalogSearchText: TagCatalogSearchText,
+            IncludeDeleted: IncludeDeleted,
+            SearchInHistory: SearchInHistory,
+            IsAdvancedSearchExpanded: IsAdvancedSearchExpanded,
+            CurrentPage: CurrentPage,
+            HadExecutedSearch: _activeFilters is not null,
+            DetailTarget: detailTarget,
+            DetailScriptId: detailScriptId);
+
+        await _workspaceStateStore.SaveAsync(App.CurrentUser.Id, state);
+    }
+
+    private async Task BuildAndStoreActiveSearchContextAsync()
+    {
+        var customerId = await ResolveCustomerFilterAsync();
+        var searchText = ResolveSearchText(customerId);
+        var tags = ParseTags();
+
+        _activeSearchText = searchText;
+        _activeFilters = new ScriptSearchFilters(
+            Scope: ScopeFilterIndex switch
+            {
+                1 => 0,
+                2 => 1,
+                3 => 2,
+                _ => null
+            },
+            CustomerId: customerId,
+            Module: null,
+            MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
+            RelatedModule: string.IsNullOrWhiteSpace(RelatedModuleFilterText) ? null : RelatedModuleFilterText.Trim(),
+            Tags: tags,
+            ReferencedObject: string.IsNullOrWhiteSpace(ObjectFilterText) ? null : ObjectFilterText.Trim(),
+            IncludeDeleted: IncludeDeleted,
+            SearchHistory: SearchInHistory);
+    }
+
+    private string? ResolveSearchText(Guid? customerId)
+    {
+        if (!string.IsNullOrWhiteSpace(QueryText)
+            && string.IsNullOrWhiteSpace(CustomerCodeFilterText)
+            && customerId is not null)
+        {
+            return null;
+        }
+
+        return QueryText;
+    }
+
+    private IReadOnlyList<string>? ParseTags()
+    {
+        if (string.IsNullOrWhiteSpace(TagsFilterText))
+            return null;
+
+        return TagsFilterText
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 }

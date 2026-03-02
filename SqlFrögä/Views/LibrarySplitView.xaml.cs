@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
 using System.Threading.Tasks;
@@ -52,12 +53,16 @@ public sealed partial class LibrarySplitView : Page
     {
         Loaded -= LibrarySplitView_Loaded;
         await VM.RefreshCatalogCommand.ExecuteAsync(null);
+        await VM.RestoreWorkspaceStateForCurrentUserAsync();
 
         if (_pendingScriptNumberId is int scriptNumberId)
         {
             _pendingScriptNumberId = null;
             await VM.OpenByNumberIdAsync(scriptNumberId);
+            return;
         }
+
+        RestoreDetailViewFromSavedState();
     }
 
     private async void QueryTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -126,5 +131,49 @@ public sealed partial class LibrarySplitView : Page
         dialog.CloseButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
         var result = await dialog.ShowAsync();
         return result == ContentDialogResult.Primary;
+    }
+
+    public async Task SaveWorkspaceStateAsync()
+    {
+        var (target, scriptId) = ResolveCurrentDetailTarget();
+        await VM.SaveWorkspaceStateForCurrentUserAsync(target, scriptId);
+    }
+
+    private void RestoreDetailViewFromSavedState()
+    {
+        var state = VM.LastLoadedWorkspaceState;
+        if (state is null)
+            return;
+
+        switch (state.DetailTarget)
+        {
+            case WorkspaceDetailTarget.ScriptItem when state.DetailScriptId is Guid scriptId:
+                DetailFrame.Navigate(typeof(ScriptItemView), scriptId);
+                break;
+            case WorkspaceDetailTarget.CustomerMappingAdmin:
+                DetailFrame.Navigate(typeof(CustomerMappingAdminView));
+                break;
+            case WorkspaceDetailTarget.ModuleAdmin:
+                DetailFrame.Navigate(typeof(ModuleAdminView));
+                break;
+            case WorkspaceDetailTarget.UserManagementAdmin:
+                DetailFrame.Navigate(typeof(UserManagementAdminView));
+                break;
+            default:
+                DetailFrame.Navigate(typeof(ScriptSelectionPlaceholderView));
+                break;
+        }
+    }
+
+    private (WorkspaceDetailTarget target, Guid? scriptId) ResolveCurrentDetailTarget()
+    {
+        return DetailFrame.Content switch
+        {
+            CustomerMappingAdminView => (WorkspaceDetailTarget.CustomerMappingAdmin, null),
+            ModuleAdminView => (WorkspaceDetailTarget.ModuleAdmin, null),
+            UserManagementAdminView => (WorkspaceDetailTarget.UserManagementAdmin, null),
+            ScriptItemView => (WorkspaceDetailTarget.ScriptItem, VM.CurrentDetailScriptId),
+            _ => (WorkspaceDetailTarget.Placeholder, null)
+        };
     }
 }

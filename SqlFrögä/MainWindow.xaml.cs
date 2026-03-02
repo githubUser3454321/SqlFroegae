@@ -38,6 +38,11 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            if (RootFrame.Content is LibrarySplitView librarySplitView)
+            {
+                await librarySplitView.SaveWorkspaceStateAsync();
+            }
+
             var scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
             await scriptRepository.ClearEditLocksAsync(App.CurrentUser?.Username);
         }
