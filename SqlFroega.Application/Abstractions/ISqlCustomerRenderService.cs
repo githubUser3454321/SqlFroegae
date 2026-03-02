@@ -7,4 +7,5 @@ public interface ISqlCustomerRenderService
 {
     Task<string> NormalizeForStorageAsync(string sql, CancellationToken ct = default);
     Task<string> RenderForCustomerAsync(string sql, string customerCode, CancellationToken ct = default);
+    Task<string> FormatSqlAsync(string sql, CancellationToken ct = default);
 }
