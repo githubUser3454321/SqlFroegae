@@ -931,10 +931,22 @@ inner join Cache as B
         var diagnostics = BuildSqlFormattingDiagnostics(result);
 
         Assert.True(result.Contains("--use Test", StringComparison.Ordinal), diagnostics);
+        Assert.Equal(1, CountOccurrences(result, "--use Test"));
         Assert.True(result.Contains(";WITH Cache", StringComparison.Ordinal), diagnostics);
         Assert.True(result.Contains("INNER JOIN Cache", StringComparison.Ordinal), diagnostics);
         Assert.True(result.Contains("B", StringComparison.Ordinal), diagnostics);
         Assert.True(result.Contains("ON a.RecordId2 = B.RecordId2;", StringComparison.Ordinal), diagnostics);
+    }
+
+    [Fact]
+    public async Task FormatSql_ParseErrorsContainDiagnostics()
+    {
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.FormatSqlAsync("SELECT FROM"));
+
+        Assert.Contains("Parser diagnostics:", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Line 1: SELECT FROM", ex.Message, StringComparison.Ordinal);
     }
 
     private static string BuildSqlFormattingDiagnostics(string sql)
@@ -957,6 +969,22 @@ inner join Cache as B
             .Replace("\r", "\\r", StringComparison.Ordinal)
             .Replace("\n", "\\n", StringComparison.Ordinal)
             .Replace("\t", "\\t", StringComparison.Ordinal);
+
+    private static int CountOccurrences(string text, string value)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(value))
+            return 0;
+
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
 
     private sealed class FakeMappingRepository : ICustomerMappingRepository
     {
