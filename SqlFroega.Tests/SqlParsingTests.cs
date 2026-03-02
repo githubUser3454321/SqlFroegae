@@ -3,6 +3,7 @@ using SqlFroega.Application.Models;
 using SqlFroega.Domain;
 using SqlFroega.Infrastructure.Parsing;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
+using System.Text;
 using Xunit;
 
 namespace SqlFroega.Tests;
@@ -507,7 +508,30 @@ inner join Cache as B
         var extractor = new SqlObjectReferenceExtractor();
         var refs = extractor.Extract(sql);
 
-        Assert.Contains(refs, r => r.Name == "om.om_InvoiceView.RecordId2" && r.Type == DbObjectType.Column);
+        var expectedName = "om.om_InvoiceView.RecordId2";
+        var expectedType = DbObjectType.Column;
+
+        var hasExpectedReference = refs.Any(r => r.Name == expectedName && r.Type == expectedType);
+
+        var debug = new StringBuilder()
+            .AppendLine("Expected reference was not found.")
+            .AppendLine($"Expected: Name='{expectedName}', Type='{expectedType}'")
+            .AppendLine($"Total extracted refs: {refs.Count}")
+            .AppendLine("Extracted refs:");
+
+        foreach (var reference in refs.OrderBy(r => r.Type).ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            debug.AppendLine($" - {reference.Type}: {reference.Name}");
+        }
+
+        debug
+            .AppendLine("Potentially related refs (contains 'RecordId2' or 'InvoiceView'):")
+            .AppendLine($" - RecordId2 refs: {string.Join(", ", refs.Where(r => r.Name.Contains("RecordId2", StringComparison.OrdinalIgnoreCase)).Select(r => $"{r.Type}:{r.Name}"))}")
+            .AppendLine($" - InvoiceView refs: {string.Join(", ", refs.Where(r => r.Name.Contains("InvoiceView", StringComparison.OrdinalIgnoreCase)).Select(r => $"{r.Type}:{r.Name}"))}")
+            .AppendLine("Original SQL:")
+            .AppendLine(sql);
+
+        Assert.True(hasExpectedReference, debug.ToString());
     }
 
     [Fact]
