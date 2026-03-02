@@ -297,18 +297,32 @@ public sealed class SqlObjectReferenceExtractor
 
         private bool TryResolveQualifier(string qualifier, out TableRef tableRef, bool requireConcrete = false)
         {
+            TableRef? firstMatch = null;
+
             foreach (var scope in _queryScope)
             {
                 if (!scope.TryGetValue(qualifier, out tableRef))
                     continue;
 
-                if (!requireConcrete || IsConcreteTableRef(tableRef))
+                firstMatch ??= tableRef;
+
+                if (IsConcreteTableRef(tableRef))
                     return true;
             }
 
-            if (_cteSourceLookup.TryGetValue(qualifier, out tableRef)
-                && (!requireConcrete || IsConcreteTableRef(tableRef)))
+            if (_cteSourceLookup.TryGetValue(qualifier, out tableRef))
+            {
+                firstMatch ??= tableRef;
+
+                if (IsConcreteTableRef(tableRef))
+                    return true;
+            }
+
+            if (!requireConcrete && firstMatch is TableRef match)
+            {
+                tableRef = match;
                 return true;
+            }
 
             tableRef = default;
             return false;

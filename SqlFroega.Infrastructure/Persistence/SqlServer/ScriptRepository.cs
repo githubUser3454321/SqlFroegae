@@ -747,15 +747,27 @@ WHERE ss.name = @schemaName AND t.name = @tableName;
             : $"CONVERT(nvarchar(max), s.{QuoteIdentifier(metadata.ChangeReasonColumn)})";
 
         var sql = $@"
+WITH HistoryRows AS (
+    SELECT
+        CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,
+        CAST(s.{validToColumn} AS datetime2) AS ValidTo,
+        COALESCE({changedByExpr}, N'') AS ChangedBy,
+        COALESCE({changeReasonExpr}, N'') AS ChangeReason,
+        COALESCE(s.Content, N'') AS Content,
+        ROW_NUMBER() OVER (ORDER BY s.{validFromColumn} ASC) AS ChronologicalRank
+    FROM {fullTable} FOR SYSTEM_TIME ALL AS s
+    WHERE s.Id = @id
+)
 SELECT TOP (@take)
-    CAST(s.{validFromColumn} AS datetime2) AS ValidFrom,
-    CAST(s.{validToColumn} AS datetime2) AS ValidTo,
-    COALESCE({changedByExpr}, N'') AS ChangedBy,
-    COALESCE({changeReasonExpr}, N'') AS ChangeReason,
-    COALESCE(s.Content, N'') AS Content
-FROM {fullTable} FOR SYSTEM_TIME ALL AS s
-WHERE s.Id = @id
-ORDER BY s.{validFromColumn} DESC;";
+    ValidFrom,
+    ValidTo,
+    ChangedBy,
+    ChangeReason,
+    Content
+FROM HistoryRows
+WHERE ChronologicalRank = 1
+   OR LTRIM(RTRIM(ChangeReason)) <> N''
+ORDER BY ValidFrom DESC;";
 
         var rows = await conn.QueryAsync<ScriptHistoryRow>(
             new CommandDefinition(sql, new { id, take }, cancellationToken: ct));
