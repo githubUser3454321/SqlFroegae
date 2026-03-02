@@ -5,11 +5,18 @@ using SqlFroega.Infrastructure.Parsing;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
 using System.Text;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace SqlFroega.Tests;
 
 public sealed class SqlParsingTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public SqlParsingTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
   
     [Theory]
     [InlineData("SELECT * FROM [abc].[abc_table]", "SELECT * FROM [om].[om_table]")]
@@ -743,8 +750,29 @@ ORDER BY nestedOa.ValueFromThirdApply;",
     public void Extractor_HandlesModernAndLegacyTsqlObjectReferences(string sql, string[] expectedTables, string[] expectedColumns)
     {
         var extractor = new SqlObjectReferenceExtractor();
+        var diagnostics = new List<string>();
 
-        var refs = extractor.Extract(sql);
+        var refs = extractor.Extract(sql, diagnostics);
+
+        _output.WriteLine("---- Extractor_HandlesModernAndLegacyTsqlObjectReferences ----");
+        _output.WriteLine("SQL:");
+        _output.WriteLine(sql);
+        _output.WriteLine($"Expected tables: {string.Join(", ", expectedTables)}");
+        _output.WriteLine($"Expected columns: {string.Join(", ", expectedColumns)}");
+        _output.WriteLine($"Extracted refs ({refs.Count}): {string.Join(", ", refs.Select(r => $"{r.Type}:{r.Name}"))}");
+
+        if (diagnostics.Count > 0)
+        {
+            _output.WriteLine("Diagnostics:");
+            foreach (var diagnostic in diagnostics)
+            {
+                _output.WriteLine($" - {diagnostic}");
+            }
+        }
+        else
+        {
+            _output.WriteLine("Diagnostics: <none>");
+        }
 
         foreach (var expectedTable in expectedTables)
         {

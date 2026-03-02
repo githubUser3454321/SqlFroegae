@@ -134,6 +134,15 @@ public sealed class SqlObjectReferenceExtractor
         public override void ExplicitVisit(SchemaObjectFunctionTableReference node)
         {
             Add(node.SchemaObject, DbObjectType.Function);
+            RegisterDerivedAlias(node.Alias?.Value);
+            _diagnostics?.Add($"Function table alias registered: {node.Alias?.Value ?? "<none>"}");
+            base.ExplicitVisit(node);
+        }
+
+        public override void ExplicitVisit(BuiltInFunctionTableReference node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
+            _diagnostics?.Add($"Built-in function table alias registered: {node.Alias?.Value ?? "<none>"}");
             base.ExplicitVisit(node);
         }
 
