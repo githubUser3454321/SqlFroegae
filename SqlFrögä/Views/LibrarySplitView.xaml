@@ -122,6 +122,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -136,20 +137,20 @@
                                     </ComboBox>
 
                                     <TextBox Grid.Row="0" Grid.Column="1"
-                                             PlaceholderText="Tags, komma-getrennt"
-                                             Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                                    <TextBox Grid.Row="1" Grid.Column="0"
-                                             PlaceholderText="Kundenkürzel"
-                                             Text="{Binding CustomerCodeFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                                    <TextBox Grid.Row="2" Grid.Column="0"
                                              PlaceholderText="Main-Modul"
                                              Text="{Binding MainModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                    <TextBox Grid.Row="1" Grid.Column="1"
+                                    <TextBox Grid.Row="1" Grid.Column="0"
                                              PlaceholderText="Related-Modul"
                                              Text="{Binding RelatedModuleFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                    <TextBox Grid.Row="1" Grid.Column="1"
+                                             PlaceholderText="Kundenkürzel"
+                                             Text="{Binding CustomerCodeFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                    <TextBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                             PlaceholderText="Tags, komma-getrennt"
+                                             Text="{Binding TagsFilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                                     <TextBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                                              PlaceholderText="Objektsuche (z. B. om_adkont_sql, om_adkont_sql.TestSpalte oder om.om_adkont_sql)"
@@ -163,7 +164,7 @@
                                               Content="Auch in History-Versionen suchen"
                                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
-                                    <Expander Grid.Row="5" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
+                                    <Expander Grid.Row="6" Grid.ColumnSpan="2" Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
                                         <StackPanel Spacing="8" Padding="0,8,0,0">
                                             <Button Content="Katalog aktualisieren" HorizontalAlignment="Left" Command="{Binding RefreshCatalogCommand}"/>
 
@@ -300,7 +301,8 @@
             <TextBlock Grid.Row="3"
                        Text="{Binding Error}"
                        Foreground="Tomato"
-                       TextWrapping="WrapWholeWords"/>
+                       TextWrapping="WrapWholeWords"
+                       Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </Grid>
 
         <!-- RIGHT: Detail -->

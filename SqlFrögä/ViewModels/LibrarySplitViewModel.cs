@@ -62,6 +62,8 @@ public partial class LibrarySplitViewModel : ObservableObject
             : $"{Results.Count} results (Page {CurrentPage})";
     public bool CanGoToPreviousPage => CurrentPage > 1;
 
+    public bool HasError => !string.IsNullOrWhiteSpace(Error);
+
     public Visibility AdminButtonVisibility => App.CurrentUser?.IsAdmin == true
         ? Visibility.Visible
         : Visibility.Collapsed;
@@ -141,6 +143,11 @@ public partial class LibrarySplitViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    partial void OnErrorChanged(string? value)
+    {
+        OnPropertyChanged(nameof(HasError));
     }
 
     partial void OnSelectedChanged(ScriptListItem? value)

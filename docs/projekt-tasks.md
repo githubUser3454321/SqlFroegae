@@ -26,6 +26,7 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - Bearbeiten und Speichern button unten rechts platzieren, so das sie rechts neben der Fehlerinformations anzeige ist.
   - Im login screen soll die Enter-Taste (wenn ich auf dem passwort feld bin) ein login trigger, solange passwort und nutzername einen wert hat.
   - ✅ Enter-Logik im Login umgesetzt: Enter im Passwortfeld triggert Login nur wenn Benutzername + Passwort gesetzt sind.
+  - ✅ Layout-Feinschliff: Fehlerzeile links wird nur noch bei tatsächlichem Fehler eingeblendet; dadurch schliessen Suchliste (links) und Detailbereich (rechts) unten visuell bündig ab.
 
 - [x] **Felder in Edit-Maske konsolidieren**
   - `[key]` in `[id]` umbenennen.
@@ -38,16 +39,18 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - Stattdessen als Icon rechts neben dem Search-Feld platzieren, das icon ersetzt das komplette pltz nutzende „Erweiterte Suche“, mit klick auf das icon erscheint das gleiche drop down, in dem die „Erweiterte Suche“ ersichtlich ist.
   - ✅ Erweiterte Suche auf Icon neben dem Search-Feld umgestellt; Filter erscheinen jetzt im Flyout-Dropdown statt als eigene Fläche.
   
-- [ ] **Filter-Reihenfolge mit Edit-Ansicht synchronisieren**
+- [x] **Filter-Reihenfolge mit Edit-Ansicht synchronisieren**
   - Reihenfolge der Filter in Such-/Listenansicht identisch zur Edit-Maske machen.
   - Einheitliche Feldreihenfolge in UI-Komponenten dokumentieren.
+  - ✅ Filter-Reihenfolge in der erweiterten Suche angepasst (Scope → Main-Module → Related-Module → Kundenkürzel → Tags → Objektsuche) und als Leitlinie in `docs/ui-field-order.md` dokumentiert.
   
   
-- [ ] **Default maske nach dem erfolgreichen login**
+- [x] **Default maske nach dem erfolgreichen login**
   - ist: Neues Skrpit erfassen.
   - Soll: Neu leere Maske, mit einem hinweise das zuerst ein Item ausgewählt werden muss
   - zusatz feature: auf jeder skript edit maske (Neu / Bearbeiten) soll ein abbrechen button hinzukommen ( unten rechts in der nähe oder neben Bearbeiten und Speichern)
   -> der abbrechen button zeigt anschliessend die neue maske an das zuerst ein item ausgewählt werden muss.
+  - ✅ Nach Login wird rechts zuerst eine leere Hinweis-Maske angezeigt; zusätzlich wurde auf der Skriptmaske ein Abbrechen-Button ergänzt, der zurück auf diese Hinweis-Maske navigiert.
 
 ## P2 – Mittel (Qualität / Erweiterbarkeit)
 
