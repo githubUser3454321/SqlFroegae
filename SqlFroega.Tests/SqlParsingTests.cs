@@ -938,6 +938,25 @@ inner join Cache as B
         Assert.True(result.Contains("ON a.RecordId2 = B.RecordId2;", StringComparison.Ordinal), diagnostics);
     }
 
+
+    [Theory]
+    [InlineData("LEFT OUTER JOIN\n(SELECT 1 AS X) AS b\nON 1 = 1", "LEFT OUTER JOIN (SELECT 1 AS X) AS b")]
+    [InlineData("CROSS JOIN\n(SELECT 1 AS X) AS b", "CROSS JOIN (SELECT 1 AS X) AS b")]
+    [InlineData("CROSS APPLY\n(SELECT 1 AS X) AS b", "CROSS APPLY (SELECT 1 AS X) AS b")]
+    [InlineData("OUTER APPLY\n(SELECT 1 AS X) AS b", "OUTER APPLY (SELECT 1 AS X) AS b")]
+    public async Task FormatSql_CollapsesLineBreakBetweenJoinOrApplyClauseAndTarget(string clauseAndTailInput, string expectedSingleLineClause)
+    {
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
+
+        var sql = $@"SELECT a.Id
+FROM om.om_BaseMembershipDefaultView AS a
+{clauseAndTailInput}";
+
+        var result = await service.FormatSqlAsync(sql);
+
+        Assert.Contains(expectedSingleLineClause, result, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task FormatSql_ParseErrorsContainDiagnostics()
     {

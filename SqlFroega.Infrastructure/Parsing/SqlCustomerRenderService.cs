@@ -16,8 +16,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
     private const string CanonicalDbUser = "om";
     private const string CanonicalPrefix = "om_";
     private readonly ICustomerMappingRepository _mappingRepository;
-    private static readonly Regex JoinTargetLineBreakRegex = new(
-        @"(?im)^(?<indent>[ \t]*)(?<join>(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\s+)?JOIN)\s*\r?\n(?<targetIndent>[ \t]*)(?<target>.+)$",
+    private static readonly Regex JoinOrApplyTargetLineBreakRegex = new(
+        @"(?im)^(?<indent>[ \t]*)(?<clause>(?:(?:(?:INNER|LEFT|RIGHT|FULL)(?:\s+OUTER)?|CROSS)\s+JOIN|JOIN|(?:CROSS|OUTER)\s+APPLY))\s*\r?\n(?<targetIndent>[ \t]*)(?<target>.+)$",
         RegexOptions.Compiled);
 
     public SqlCustomerRenderService(ICustomerMappingRepository mappingRepository)
@@ -87,7 +87,7 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         if (!string.IsNullOrWhiteSpace(leadingComments) && !StartsWithLeadingComments(normalized, leadingComments))
             normalized = leadingComments + Environment.NewLine + normalized;
 
-        normalized = NormalizeJoinTargetLineBreaks(normalized);
+        normalized = NormalizeJoinAndApplyTargetLineBreaks(normalized);
 
         return Task.FromResult(normalized);
     }
@@ -95,8 +95,8 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
     private static bool StartsWithLeadingComments(string formattedSql, string leadingComments)
         => formattedSql.StartsWith(leadingComments, StringComparison.Ordinal);
 
-    private static string NormalizeJoinTargetLineBreaks(string sql)
-        => JoinTargetLineBreakRegex.Replace(sql, m => $"{m.Groups["indent"].Value}{m.Groups["join"].Value} {m.Groups["target"].Value}");
+    private static string NormalizeJoinAndApplyTargetLineBreaks(string sql)
+        => JoinOrApplyTargetLineBreakRegex.Replace(sql, m => $"{m.Groups["indent"].Value}{m.Groups["clause"].Value} {m.Groups["target"].Value}");
 
     private static bool StartsWithSemicolonWithClause(TSqlFragment fragment)
     {
