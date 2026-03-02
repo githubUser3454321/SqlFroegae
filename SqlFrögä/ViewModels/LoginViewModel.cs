@@ -26,7 +26,24 @@ public partial class LoginViewModel : ObservableObject
         _scriptRepository = App.Services.GetRequiredService<IScriptRepository>();
     }
 
-    [RelayCommand]
+    private bool CanLogin => !IsBusy && !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
+
+    partial void OnUsernameChanged(string value)
+    {
+        LoginCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnPasswordChanged(string value)
+    {
+        LoginCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsBusyChanged(bool value)
+    {
+        LoginCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanLogin))]
     private async Task LoginAsync()
     {
         if (string.IsNullOrWhiteSpace(Username))

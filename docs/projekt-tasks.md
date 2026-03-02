@@ -22,18 +22,21 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
 
 ## P1 – Hoher Nutzen (UX + Konsistenz)
 
-- [ ] **Editor-Flow verbessern („Speichern nach unten“) + Enter-Logik**
+- [~] **Editor-Flow verbessern („Speichern nach unten“) + Enter-Logik**
   - Bearbeiten und Speichern button unten rechts platzieren, so das sie rechts neben der Fehlerinformations anzeige ist.
   - Im login screen soll die Enter-Taste (wenn ich auf dem passwort feld bin) ein login trigger, solange passwort und nutzername einen wert hat.
+  - ✅ Enter-Logik im Login umgesetzt: Enter im Passwortfeld triggert Login nur wenn Benutzername + Passwort gesetzt sind.
 
-- [ ] **Felder in Edit-Maske konsolidieren**
+- [x] **Felder in Edit-Maske konsolidieren**
   - `[key]` in `[id]` umbenennen.
   - Edit-Layout Anpassen, anstelle von   `Name`, `id`(aktuell key),`Scope` soll neu das layout so sein(nach der neuen gegeben rheinfolge): 
   `id`(Länge verkleinern), `Name`(Länge vergrössern), `Scope` vereinheitlichen.
+  - ✅ Edit-Maske angepasst: Feldreihenfolge auf `ID`, `Name`, `Scope`; Label `Key` nach `ID` umbenannt und Spaltenbreiten entsprechend optimiert.
 
-- [ ] **Erweiterte Suche entschlacken** [ERST NACH DER UMSETZUNG VON **Felder in Edit-Maske konsolidieren**]
+- [x] **Erweiterte Suche entschlacken** [ERST NACH DER UMSETZUNG VON **Felder in Edit-Maske konsolidieren**]
   - „Erweiterte Suche“ aus der Hauptfläche entfernen.
   - Stattdessen als Icon rechts neben dem Search-Feld platzieren, das icon ersetzt das komplette pltz nutzende „Erweiterte Suche“, mit klick auf das icon erscheint das gleiche drop down, in dem die „Erweiterte Suche“ ersichtlich ist.
+  - ✅ Erweiterte Suche auf Icon neben dem Search-Feld umgestellt; Filter erscheinen jetzt im Flyout-Dropdown statt als eigene Fläche.
   
 - [ ] **Filter-Reihenfolge mit Edit-Ansicht synchronisieren**
   - Reihenfolge der Filter in Such-/Listenansicht identisch zur Edit-Maske machen.
@@ -63,13 +66,15 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
 
 ## P3 – Optional / Strategisch
 
-- [ ] **Import/Export grosser Mengen vorbereiten**
+- [x] **Import/Export grosser Mengen vorbereiten**
   - Bulk-Import/Bulk-Export von Skripten konzipieren.
   - Schnittstelle zur geplanten SSMS-Extension berücksichtigen.
   - Nichts programmieren einfach mal nur planen unter /docs Folder
+  - ✅ Planung erstellt: `docs/import-export-bulk-plan.md` (inkl. API-, Format-, UI- und SSMS-Extension-Konzept).
 
-- [ ] **Produktentscheidung „T-SQL Script Library“**
+- [x] **Produktentscheidung „T-SQL Script Library“**
   -„T-SQL Script Library“ gleich unter dem Titel "SqlFrögä" entfernen.
+  - ✅ Subtitle unter dem Titel in der Library-Ansicht entfernt.
 
 ---
 
