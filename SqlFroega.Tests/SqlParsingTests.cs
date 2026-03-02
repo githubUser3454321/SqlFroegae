@@ -881,7 +881,7 @@ WHERE id = 1;", result);
     }
 
     [Fact]
-    public async Task FormatSql_PreservesLeadingCommentsAndKeepsJoinClauseOnSingleLine()
+    public async Task FormatSql_PreservesLeadingCommentsAndFormatsInnerJoinAndOnWithIndentation()
     {
         var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
 
@@ -907,7 +907,8 @@ inner join Cache as B
         Assert.Contains("--use Test", result);
         Assert.Contains(";WITH Cache", result);
         Assert.Contains("INNER JOIN Cache AS B", result);
-        Assert.DoesNotContain("INNER JOIN\n", result);
+        Assert.Contains("INNER JOIN Cache AS B\n", result);
+        Assert.Contains("\n          ON a.RecordId2 = B.RecordId2;", result);
     }
 
     private sealed class FakeMappingRepository : ICustomerMappingRepository
