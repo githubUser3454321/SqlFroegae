@@ -489,6 +489,50 @@ inner join Cache as B
         Assert.Contains(refs, r => r.Name == "om.om_InvoiceView.RecordId2" && r.Type == DbObjectType.Column);
     }
 
+    [Fact]
+    public void Extractor_Maps_CteAliasColumn_ToUnderlyingSourceTable_WhenWildcardIsSelected()
+    {
+        var sql = @";with Cache AS (
+    select
+        a.*
+    from om.om_InvoiceView as a
+    where a.RecordName = 'Hello'
+)
+SELECT
+    A.MembershipId
+FROM om.om_BaseMembershipDefaultView as A
+inner join Cache as B
+    ON a.RecordId2 = B.RecordId2";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_InvoiceView.RecordId2" && r.Type == DbObjectType.Column);
+    }
+
+    [Fact]
+    public void Extractor_KeepsSourceTableReference_ForCteWithExplicitColumnsAndWildcard()
+    {
+        var sql = @";with Cache AS (
+    select
+        a.Id,
+        a.InvoiceId,
+        a.*
+    from om.om_InvoiceView as a
+    where a.RecordName = 'Hello'
+)
+SELECT
+    A.MembershipId
+FROM om.om_BaseMembershipDefaultView as A
+inner join Cache as B
+    ON a.RecordId2 = B.RecordId2";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_InvoiceView" && r.Type == DbObjectType.Table);
+    }
+
 
     [Fact]
     public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
