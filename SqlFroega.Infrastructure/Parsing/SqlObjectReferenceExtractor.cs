@@ -185,7 +185,14 @@ public sealed class SqlObjectReferenceExtractor
                     && !string.IsNullOrWhiteSpace(column)
                     && TryResolveQualifier(qualifier, out var tableRef))
                 {
-                    _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                    if (IsConcreteTableRef(tableRef))
+                        _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                }
+                else if (!string.IsNullOrWhiteSpace(qualifier)
+                         && !string.IsNullOrWhiteSpace(column)
+                         && !IsAllowedUnresolvedQualifier(qualifier))
+                {
+                    throw new InvalidOperationException($"Unresolved column qualifier '{qualifier}' in '{qualifier}.{column}'.");
                 }
             }
             else
@@ -195,7 +202,8 @@ public sealed class SqlObjectReferenceExtractor
                 {
                     foreach (var tableRef in GetResolvableTables())
                     {
-                        _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
+                        if (IsConcreteTableRef(tableRef))
+                            _refs.Add(new DbObjectRef($"{tableRef.Schema}.{tableRef.Table}.{column}", DbObjectType.Column));
                     }
                 }
             }
@@ -205,19 +213,23 @@ public sealed class SqlObjectReferenceExtractor
 
         private void RegisterTableLookupKeys(SchemaObjectName? schemaObjectName, string? alias)
         {
-            if (schemaObjectName is null || schemaObjectName.Identifiers.Count < 2 || _queryScope.Count == 0)
+            if (schemaObjectName is null || schemaObjectName.Identifiers.Count == 0 || _queryScope.Count == 0)
                 return;
 
-            var schema = schemaObjectName.Identifiers[^2].Value;
             var table = schemaObjectName.Identifiers[^1].Value;
-            if (string.IsNullOrWhiteSpace(schema) || string.IsNullOrWhiteSpace(table))
+            var schema = schemaObjectName.Identifiers.Count >= 2
+                ? schemaObjectName.Identifiers[^2].Value
+                : string.Empty;
+
+            if (string.IsNullOrWhiteSpace(table))
                 return;
 
             var currentScope = _queryScope.Peek();
             var tableRef = new TableRef(schema, table);
 
             currentScope[table] = tableRef;
-            currentScope[$"{schema}.{table}"] = tableRef;
+            if (!string.IsNullOrWhiteSpace(schema))
+                currentScope[$"{schema}.{table}"] = tableRef;
 
             if (!string.IsNullOrWhiteSpace(alias))
                 currentScope[alias] = tableRef;
@@ -242,6 +254,12 @@ public sealed class SqlObjectReferenceExtractor
 
             return _queryScope.Peek().Values.Distinct();
         }
+
+        private static bool IsConcreteTableRef(TableRef tableRef)
+            => !string.IsNullOrWhiteSpace(tableRef.Schema) && !string.IsNullOrWhiteSpace(tableRef.Table);
+
+        private static bool IsAllowedUnresolvedQualifier(string qualifier)
+            => qualifier.StartsWith("@", StringComparison.Ordinal) || qualifier.Equals("inserted", StringComparison.OrdinalIgnoreCase) || qualifier.Equals("deleted", StringComparison.OrdinalIgnoreCase);
 
         private void Add(SchemaObjectName? name, DbObjectType type)
         {

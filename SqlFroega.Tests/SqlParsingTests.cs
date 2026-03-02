@@ -454,6 +454,41 @@ WHERE EXISTS (
         Assert.DoesNotContain(refs, r => r.Name.Equals("om.om_dynamic", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void Extractor_Throws_OnUnknownAliasQualifier()
+    {
+        var sql = @";with Cache AS (
+    SELECT top 10
+        Id,
+        c.MoreId,
+        a.InvoiceId,
+        a.*
+    from om.om_InvoiceView as a
+    where a.RecordName = 'Hello'
+)
+SELECT
+    A.MembershipId
+FROM om.om_BaseMembershipDefaultView as A
+inner join Cache as B
+    ON a.RecordId2 = B.RecordId2";
+
+        var extractor = new SqlObjectReferenceExtractor();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => extractor.Extract(sql));
+        Assert.Contains("Unresolved column qualifier 'c'", ex.Message);
+    }
+
+    [Fact]
+    public void Extractor_Finds_ThreePartQualifiedColumn()
+    {
+        var sql = @"SELECT om.om_InvoiceView.RecordId2 FROM om.om_InvoiceView;";
+
+        var extractor = new SqlObjectReferenceExtractor();
+        var refs = extractor.Extract(sql);
+
+        Assert.Contains(refs, r => r.Name == "om.om_InvoiceView.RecordId2" && r.Type == DbObjectType.Column);
+    }
+
 
     [Fact]
     public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
