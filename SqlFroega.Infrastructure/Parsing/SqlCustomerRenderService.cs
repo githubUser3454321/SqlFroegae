@@ -52,6 +52,28 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         return rewriter.Rewrite(fragment);
     }
 
+    public Task<string> FormatSqlAsync(string sql, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var fragment = ParseSql(sql);
+        var options = new SqlScriptGeneratorOptions
+        {
+            KeywordCasing = KeywordCasing.Uppercase,
+            IncludeSemicolons = true,
+            NewLineBeforeFromClause = true,
+            NewLineBeforeWhereClause = true,
+            NewLineBeforeGroupByClause = true,
+            NewLineBeforeOrderByClause = true,
+            AlignClauseBodies = true,
+            IndentationSize = 4
+        };
+
+        var generator = new Sql160ScriptGenerator(options);
+        generator.GenerateScript(fragment, out var formattedSql);
+        return Task.FromResult(formattedSql?.Trim() ?? string.Empty);
+    }
+
     private static void ValidateStorageSafety(TSqlFragment fragment)
     {
         var guard = new StorageSqlSafetyVisitor();

@@ -59,10 +59,13 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
 
 ## P2 – Mittel (Qualität / Erweiterbarkeit)
 
-- [ ] **SQL-Formatierung verbessern**
+- [x] **SQL-Formatierung verbessern**
   - Evaluiere ein Tool, das die SQL-Formatierung verschönern kann. 
   - Feature request eines users: neben Save button -> Format button ( soll ebenfalls bei "Copy Rendered" eingebaut werden)
   - „Schöne“ bzw. konsistente SQL-Formatierung beim Anzeigen/Speichern einführen.(aktuell ist diese etwas schwebs...)
+  - ✅ Neuer Button **Formatieren** neben Speichern ergänzt; SQL-Inhalt wird per ScriptDom konsistent formatiert (u. a. Keyword-Casing, Zeilenumbrüche, Semikolon).
+  - ✅ Ergänzung bei „Gerendert kopieren“: zusätzlicher Button **Gerendert formatiert kopieren** für formatierte Customer-Render-Ausgabe.
+  - ✅ Tests ergänzt für SQL-Formatierung (Happy Path + Invalid SQL).
 
 - [x] **Script-/Ordern Verwaltung ausbauen**
   - Möglichkeit ein Skript in eine art ORder hinzuzufügen (um mehrere Skripts zu bündeln)

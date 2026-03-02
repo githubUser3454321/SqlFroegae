@@ -454,6 +454,27 @@ WHERE EXISTS (
         Assert.DoesNotContain(refs, r => r.Name.Equals("om.om_dynamic", StringComparison.OrdinalIgnoreCase));
     }
 
+
+    [Fact]
+    public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
+    {
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
+
+        var result = await service.FormatSqlAsync("select a from om.om_table where id = 1");
+
+        Assert.Equal("SELECT a
+FROM om.om_table
+WHERE id = 1;", result);
+    }
+
+    [Fact]
+    public async Task FormatSql_Throws_OnInvalidSql()
+    {
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(Array.Empty<CustomerMappingItem>()));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.FormatSqlAsync("SELECT FROM"));
+    }
+
     private sealed class FakeMappingRepository : ICustomerMappingRepository
     {
         private readonly IReadOnlyList<CustomerMappingItem> _items;

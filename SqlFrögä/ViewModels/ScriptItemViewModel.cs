@@ -240,11 +240,45 @@ public partial class ScriptItemViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task FormatSqlAsync()
+    {
+        try
+        {
+            Content = await _renderService.FormatSqlAsync(NormalizeSqlContent(Content));
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+    [RelayCommand]
     private async Task CopyRenderedAsync()
     {
         try
         {
-            var rendered = await GetRenderedCopyTextAsync();
+            var rendered = await GetRenderedCopyTextAsync(formatSql: false);
+            if (string.IsNullOrWhiteSpace(rendered))
+                return;
+
+            var dp = new DataPackage();
+            dp.SetText(rendered);
+            Clipboard.SetContent(dp);
+            Error = null;
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyRenderedFormattedAsync()
+    {
+        try
+        {
+            var rendered = await GetRenderedCopyTextAsync(formatSql: true);
             if (string.IsNullOrWhiteSpace(rendered))
                 return;
 
@@ -311,11 +345,14 @@ public partial class ScriptItemViewModel : ObservableObject
     public string? GetCopyText()
         => string.IsNullOrWhiteSpace(Content) ? null : Content;
 
-    public async Task<string?> GetRenderedCopyTextAsync()
+    public async Task<string?> GetRenderedCopyTextAsync(bool formatSql = false)
     {
         try
         {
             var rendered = await BuildRenderedSqlAsync();
+            if (formatSql)
+                rendered = await _renderService.FormatSqlAsync(rendered);
+
             Error = null;
             return string.IsNullOrWhiteSpace(rendered) ? null : rendered;
         }
