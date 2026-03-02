@@ -266,6 +266,57 @@ public sealed class SqlParsingTests
     }
 
     [Fact]
+    public async Task NormalizeForStorage_RewritesObjects_InsideCteWithBlock()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var sql = @"WITH CustomerRows AS (
+    SELECT x.Id
+    FROM om_db.syn_MyTable AS x
+    JOIN om_db.syn_Joined AS j ON j.Id = x.Id
+)
+SELECT *
+FROM CustomerRows;";
+
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Contains("FROM om.om_MyTable AS x", result);
+        Assert.Contains("JOIN om.om_Joined AS j", result);
+    }
+
+    [Fact]
+    public async Task NormalizeForStorage_RewritesObjects_InRecursiveCteReferences()
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+
+        var sql = @"WITH RecursiveRows AS (
+    SELECT RootId, ParentId
+    FROM om_db.syn_MyTable
+    UNION ALL
+    SELECT c.RootId, c.ParentId
+    FROM om_db.syn_MyTable AS c
+    JOIN RecursiveRows AS r ON r.RootId = c.ParentId
+)
+SELECT *
+FROM RecursiveRows;";
+
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Contains("FROM om.om_MyTable", result);
+        Assert.DoesNotContain("om_db.syn_MyTable", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Extractor_FindsReferences_InJoinAliasAndCte()
     {
         var sql = @"

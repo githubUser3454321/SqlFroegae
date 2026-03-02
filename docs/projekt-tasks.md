@@ -11,11 +11,12 @@ Diese Liste fasst die offenen Punkte aus dem aktuellen Projektkontext zusammen u
   - ✅ Beim App-Start wird die Protokollregistrierung `sqlfroega://` unter `HKCU\Software\Classes\sqlfroega` automatisch geprüft/gesetzt (inkl. `shell\open\command` auf die laufende EXE).
   - ✅ Fehler bei Registry-Zugriffen brechen den Start nicht ab (fail-safe mit Debug-Log), damit der Rest der App normal startet.
 
-- [ ] **Fehleranalyse: Skript-Erkennung in `WITH`-Kontext**
+- [x] **Fehleranalyse: Skript-Erkennung in `WITH`-Kontext**
   - Prüfen, warum ein Skript/Objekt vom Typ `om_db.syn_MyTable` innerhalb eines `WITH`-Blocks nicht gefunden wird.
   (Obwohl die entsprechenden settings gesetzt sind, und wenn `om_db.syn_MyTable` in einem From oder join vorkommt, dann wird er ersetzt aber nicht innerhalb eines with blockes, prüfen ob es noch andere fälle gibt. Schreibe dazu ausreichihce tests.
   - Parser-/Regex-/ScriptDom-Logik auf CTE- und `WITH`-Sonderfälle erweitern.
   - Reproduzierbaren Testfall anlegen.
+  - ✅ Regressionstests ergänzt: Rewriting von `om_db.syn_*` innerhalb von CTE-`WITH`-Blöcken (inkl. Join und rekursiver CTE mit `UNION ALL`) wird jetzt explizit abgedeckt.
 
 - [x] **Fehleranalyse: Objektreferenzen in konkreten Skripten**
   - Problemfälle bei Skripten mit `SELECT * FROM ` + ()  (u. a. `om_db.syn_*.sql` und `om.dbo._ztMembership.sql`) analysieren.
