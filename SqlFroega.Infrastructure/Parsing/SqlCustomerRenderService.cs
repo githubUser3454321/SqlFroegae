@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,9 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
     private const string CanonicalDbUser = "om";
     private const string CanonicalPrefix = "om_";
     private readonly ICustomerMappingRepository _mappingRepository;
+    private static readonly Regex JoinOrApplyTargetLineBreakRegex = new(
+        @"(?im)^(?<indent>[ \t]*)(?<clause>(?:(?:(?:INNER|LEFT|RIGHT|FULL)(?:\s+OUTER)?|CROSS)\s+JOIN|JOIN|(?:CROSS|OUTER)\s+APPLY))\s*\r?\n(?<targetIndent>[ \t]*)(?<target>.+)$",
+        RegexOptions.Compiled);
 
     public SqlCustomerRenderService(ICustomerMappingRepository mappingRepository)
     {
@@ -80,11 +84,19 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         if (StartsWithSemicolonWithClause(fragment) && normalized.StartsWith("WITH ", StringComparison.OrdinalIgnoreCase))
             normalized = ";" + normalized;
 
-        if (!string.IsNullOrWhiteSpace(leadingComments))
+        if (!string.IsNullOrWhiteSpace(leadingComments) && !StartsWithLeadingComments(normalized, leadingComments))
             normalized = leadingComments + Environment.NewLine + normalized;
+
+        normalized = NormalizeJoinAndApplyTargetLineBreaks(normalized);
 
         return Task.FromResult(normalized);
     }
+
+    private static bool StartsWithLeadingComments(string formattedSql, string leadingComments)
+        => formattedSql.StartsWith(leadingComments, StringComparison.Ordinal);
+
+    private static string NormalizeJoinAndApplyTargetLineBreaks(string sql)
+        => JoinOrApplyTargetLineBreakRegex.Replace(sql, m => $"{m.Groups["indent"].Value}{m.Groups["clause"].Value} {m.Groups["target"].Value}");
 
     private static bool StartsWithSemicolonWithClause(TSqlFragment fragment)
     {
@@ -176,7 +188,29 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
             return fragment;
 
         var first = errors[0];
-        throw new InvalidOperationException($"SQL parse failed at line {first.Line}, col {first.Column}: {first.Message}");
+        var diagnostics = BuildParserDiagnostics(sql ?? string.Empty, errors, first);
+        throw new InvalidOperationException($"SQL parse failed at line {first.Line}, col {first.Column}: {first.Message}{Environment.NewLine}{diagnostics}");
+    }
+
+    private static string BuildParserDiagnostics(string sql, IList<ParseError> errors, ParseError first)
+    {
+        var lines = sql.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var lineIndex = Math.Max(0, Math.Min(lines.Length - 1, first.Line - 1));
+        var failingLine = lines.Length == 0 ? string.Empty : lines[lineIndex];
+        var pointerPadding = new string(' ', Math.Max(0, first.Column - 1));
+        var sb = new StringBuilder();
+        sb.AppendLine("Parser diagnostics:");
+        sb.AppendLine($"Line {first.Line}: {failingLine}");
+        sb.AppendLine($"         {pointerPadding}^");
+
+        if (errors.Count > 1)
+        {
+            sb.AppendLine("Additional parser errors:");
+            foreach (var err in errors.Skip(1).Take(4))
+                sb.AppendLine($"- line {err.Line}, col {err.Column}: {err.Message}");
+        }
+
+        return sb.ToString().TrimEnd();
     }
 
     private sealed class StorageSqlSafetyVisitor : TSqlFragmentVisitor
