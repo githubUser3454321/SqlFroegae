@@ -535,7 +535,7 @@ inner join Cache as B
 
     [Theory]
     [MemberData(nameof(Extractor_SpecialTsqlReferenceCases))]
-    public void Extractor_HandlesSpecialTsqlObjectReferences(string sql, string[] expectedTables)
+    public void Extractor_HandlesSpecialTsqlObjectReferences(string sql, string[] expectedTables, string[] expectedColumns)
     {
         var extractor = new SqlObjectReferenceExtractor();
 
@@ -544,6 +544,11 @@ inner join Cache as B
         foreach (var expectedTable in expectedTables)
         {
             Assert.Contains(refs, r => r.Name == expectedTable && r.Type == DbObjectType.Table);
+        }
+
+        foreach (var expectedColumn in expectedColumns)
+        {
+            Assert.Contains(refs, r => r.Name == expectedColumn && r.Type == DbObjectType.Column);
         }
     }
 
@@ -555,7 +560,8 @@ inner join Cache as B
 FROM om.om_Customers AS c
 GROUP BY c.CustomerId
 HAVING COUNT(*) > 1;",
-            new[] { "om.om_Customers" }
+            new[] { "om.om_Customers" },
+            new[] { "om.om_Customers.CustomerId" }
         ];
 
         yield return
@@ -566,7 +572,8 @@ JOIN om.om_Orders AS o ON o.CustomerId = c.CustomerId
 GROUP BY c.CustomerId
 HAVING SUM(o.Amount) > 500
 ORDER BY SUM(o.Amount) DESC;",
-            new[] { "om.om_Customers", "om.om_Orders" }
+            new[] { "om.om_Customers", "om.om_Orders" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Orders.Amount", "om.om_Orders.CustomerId" }
         ];
 
         yield return
@@ -579,7 +586,8 @@ OUTER APPLY (
     WHERE o.CustomerId = c.CustomerId
     ORDER BY o.OrderDate DESC
 ) AS lastOrder;",
-            new[] { "om.om_Customers", "om.om_Orders" }
+            new[] { "om.om_Customers", "om.om_Orders" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Orders.CustomerId", "om.om_Orders.OrderDate" }
         ];
 
         yield return
@@ -592,7 +600,8 @@ OUTER APPLY (
     WHERE x.CustomerId = c.CustomerId
 ) AS calc
 ORDER BY calc.TotalAmount DESC;",
-            new[] { "om.om_Customers", "om.om_OrderLines" }
+            new[] { "om.om_Customers", "om.om_OrderLines" },
+            new[] { "om.om_Customers.CustomerId", "om.om_OrderLines.Amount", "om.om_OrderLines.CustomerId" }
         ];
 
         yield return
@@ -612,7 +621,8 @@ OUTER APPLY (
     ) AS oa2
 ) AS oa3
 ORDER BY oa3.LatestStatus;",
-            new[] { "om.om_Customers", "om.om_StatusHistory" }
+            new[] { "om.om_Customers", "om.om_StatusHistory" },
+            new[] { "om.om_Customers.CustomerId", "om.om_StatusHistory.StatusName", "om.om_StatusHistory.CustomerId", "om.om_StatusHistory.ChangedAt" }
         ];
 
         yield return
@@ -626,7 +636,8 @@ WHERE EXISTS (
     GROUP BY o.CustomerId
     HAVING COUNT(*) > 2
 );",
-            new[] { "om.om_Customers", "om.om_Orders" }
+            new[] { "om.om_Customers", "om.om_Orders" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Orders.CustomerId" }
         ];
 
         yield return
@@ -642,7 +653,8 @@ FROM RankedOrders AS ro
 JOIN om.om_Customers AS c ON c.CustomerId = ro.CustomerId
 WHERE ro.rn = 1
 ORDER BY ro.CustomerId;",
-            new[] { "om.om_Orders", "om.om_Customers" }
+            new[] { "om.om_Orders", "om.om_Customers" },
+            new[] { "om.om_Orders.CustomerId", "om.om_Orders.OrderId", "om.om_Orders.OrderDate", "om.om_Customers.CustomerId" }
         ];
 
         yield return
@@ -657,7 +669,8 @@ OUTER APPLY (
     ORDER BY ol.CreatedAt DESC
 ) AS p
 ORDER BY p.ProductName;",
-            new[] { "om.om_Customers", "om.om_Products", "om.om_OrderLines" }
+            new[] { "om.om_Customers", "om.om_Products", "om.om_OrderLines" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Products.ProductName", "om.om_Products.ProductId", "om.om_OrderLines.ProductId", "om.om_OrderLines.CustomerId", "om.om_OrderLines.CreatedAt" }
         ];
 
         yield return
@@ -672,7 +685,8 @@ OUTER APPLY (
     HAVING SUM(m.Points) > 100
 ) AS oa
 ORDER BY oa.Score DESC;",
-            new[] { "om.om_Customers", "om.om_Metrics" }
+            new[] { "om.om_Customers", "om.om_Metrics" },
+            new[] { "om.om_Customers.CustomerId", "om.om_Metrics.Points", "om.om_Metrics.CustomerId" }
         ];
 
         yield return
@@ -692,7 +706,8 @@ OUTER APPLY (
     ) AS level2
 ) AS nestedOa
 ORDER BY nestedOa.ValueFromThirdApply;",
-            new[] { "om.om_Customers", "om.om_CustomerDetails" }
+            new[] { "om.om_Customers", "om.om_CustomerDetails" },
+            new[] { "om.om_Customers.CustomerId", "om.om_CustomerDetails.DetailValue", "om.om_CustomerDetails.CustomerId", "om.om_CustomerDetails.ChangedAt" }
         ];
     }
 

@@ -33,15 +33,18 @@ public sealed class SqlObjectReferenceExtractor
         private readonly List<DbObjectRef> _refs = new();
         private readonly Stack<SchemaObjectName?> _tableContext = new();
         private readonly Stack<Dictionary<string, TableRef>> _queryScope = new();
+        private readonly Stack<HashSet<string>> _derivedAliasScope = new();
 
         public ReferenceVisitor()
         {
             _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
+            _derivedAliasScope.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
         }
 
         public override void ExplicitVisit(QuerySpecification node)
         {
             _queryScope.Push(new Dictionary<string, TableRef>(StringComparer.OrdinalIgnoreCase));
+            _derivedAliasScope.Push(new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             try
             {
                 // ScriptDom can visit SELECT elements before FROM references.
@@ -51,8 +54,15 @@ public sealed class SqlObjectReferenceExtractor
             }
             finally
             {
+                _derivedAliasScope.Pop();
                 _queryScope.Pop();
             }
+        }
+
+        public override void ExplicitVisit(QueryDerivedTable node)
+        {
+            RegisterDerivedAlias(node.Alias?.Value);
+            base.ExplicitVisit(node);
         }
 
         public override void ExplicitVisit(NamedTableReference node)
@@ -226,6 +236,7 @@ public sealed class SqlObjectReferenceExtractor
                 }
                 else if (!string.IsNullOrWhiteSpace(qualifier)
                          && !string.IsNullOrWhiteSpace(column)
+                         && !IsKnownDerivedAlias(qualifier)
                          && !IsAllowedUnresolvedQualifier(qualifier))
                 {
                     throw new InvalidOperationException($"Unresolved column qualifier '{qualifier}' in '{qualifier}.{column}'.");
@@ -282,6 +293,25 @@ public sealed class SqlObjectReferenceExtractor
             }
 
             tableRef = default;
+            return false;
+        }
+
+        private void RegisterDerivedAlias(string? alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias) || _derivedAliasScope.Count == 0)
+                return;
+
+            _derivedAliasScope.Peek().Add(alias);
+        }
+
+        private bool IsKnownDerivedAlias(string qualifier)
+        {
+            foreach (var scope in _derivedAliasScope)
+            {
+                if (scope.Contains(qualifier))
+                    return true;
+            }
+
             return false;
         }
 
