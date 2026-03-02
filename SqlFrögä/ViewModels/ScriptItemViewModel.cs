@@ -54,7 +54,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
     public string DeepLink => NumberId is > 0 ? $"sqlfroega://scripts/{NumberId.Value}" : string.Empty;
 
-    public string HistoryCountText => HistoryItems.Count == 0 ? "No history entries" : $"{HistoryItems.Count} versions";
+    public string HistoryCountText => HistoryItems.Count == 0 ? "Keine Historieneinträge" : $"{HistoryItems.Count} versions";
 
     public ScriptItemViewModel()
     {
@@ -72,7 +72,7 @@ public partial class ScriptItemViewModel : ObservableObject
 
         if (id == Guid.Empty)
         {
-            Title = "New Script";
+            Title = "Neues Skript";
             Name = "";
             NumberId = null;
             Content = "";
@@ -336,7 +336,7 @@ public partial class ScriptItemViewModel : ObservableObject
             throw new InvalidOperationException("Deleted scripts can only be viewed in history mode.");
 
         Content = NormalizeSqlContent(historyItem.Content);
-        Error = $"Restored snapshot from {historyItem.ValidFrom:G}. Save to persist this version.";
+        Error = $"Restored snapshot from {historyItem.ValidFrom:G}. Speichern, um diese Version zu übernehmen.";
     }
 
     [RelayCommand]
