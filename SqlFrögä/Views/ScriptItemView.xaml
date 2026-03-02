@@ -24,7 +24,6 @@
         <Grid Grid.Row="0" ColumnSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="220"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -32,13 +31,7 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button Content="🔓 Bearbeiten" Command="{Binding AcquireEditLockCommand}"/>
-                <Button Content="Speichern" Click="Save_Click" IsEnabled="{Binding IsEditingEnabled}"/>
-                <Button Content="Formatieren" Command="{Binding FormatSqlCommand}" IsEnabled="{Binding IsEditingEnabled}"/>
-                <Button Content="Abbrechen" Click="Cancel_Click"/>
-            </StackPanel>
-            <AutoSuggestBox Grid.Column="2"
+            <AutoSuggestBox Grid.Column="1"
                             x:Name="SelectedCustomerCodeAutoSuggest"
                             PlaceholderText="Kundenkürzel (z.B. CSA)"
                             Text="{Binding SelectedCustomerCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -47,19 +40,19 @@
                             GotFocus="CustomerCodeAutoSuggest_GotFocus"
                             DisplayMemberPath="CustomerCode"
                             TextMemberPath="CustomerCode"/>
-            <Button Grid.Column="3"
+            <Button Grid.Column="2"
                     x:Name="CopyButton"
                     Content="Kopieren"
                     Command="{Binding CopyCommand}"
                     CanDrag="True"
                     DragStarting="CopyButton_DragStarting" />
-            <Button Grid.Column="4"
+            <Button Grid.Column="3"
                     x:Name="CopyRenderedButton"
                     Content="Gerendert kopieren"
                     Command="{Binding CopyRenderedCommand}"
                     CanDrag="True"
                     DragStarting="CopyRenderedButton_DragStarting"/>
-            <Button Grid.Column="5"
+            <Button Grid.Column="4"
                     Content="Gerendert formatiert kopieren"
                     Command="{Binding CopyRenderedFormattedCommand}"/>
         </Grid>
@@ -265,10 +258,18 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <ProgressRing Width="18" Height="18" IsActive="{Binding IsBusy}" />
             <TextBlock Grid.Column="1" Text="{Binding Error}" Foreground="Tomato" TextWrapping="WrapWholeWords"/>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                <Button Content="🔓 Bearbeiten" Command="{Binding AcquireEditLockCommand}"/>
+                <Button Content="Speichern" Click="Save_Click" IsEnabled="{Binding IsEditingEnabled}"/>
+                <Button Content="Abbrechen" Click="Cancel_Click"/>
+                <Button Content="Formatieren" Command="{Binding FormatSqlCommand}" IsEnabled="{Binding IsEditingEnabled}"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </Page>
