@@ -711,6 +711,154 @@ ORDER BY nestedOa.ValueFromThirdApply;",
         ];
     }
 
+    [Theory]
+    [MemberData(nameof(Extractor_DedupAndScopeEdgeCases))]
+    public void Extractor_DedupAndScopeEdgeCases_Run(string sql, string[] expectedUniqueRefs)
+    {
+        var extractor = new SqlObjectReferenceExtractor();
+
+        var refs = extractor.Extract(sql);
+
+        foreach (var expected in expectedUniqueRefs)
+            Assert.Contains(refs, r => r.Name == expected);
+
+        foreach (var expected in expectedUniqueRefs)
+            Assert.Equal(1, refs.Count(r => r.Name.Equals(expected, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    public static IEnumerable<object[]> Extractor_DedupAndScopeEdgeCases()
+    {
+        yield return
+        [
+            @"SELECT om.om_table.Column1, om.om_table.Column1
+FROM om.om_table
+WHERE om.om_table.Column1 IS NOT NULL;",
+            new[] { "om.om_table", "om.om_table.Column1" }
+        ];
+
+        yield return
+        [
+            @"SELECT a.Id
+FROM om.om_table AS a
+INNER JOIN om.om_table AS b ON a.Id = b.Id;",
+            new[] { "om.om_table", "om.om_table.Id" }
+        ];
+
+        yield return
+        [
+            @"SELECT [om].[om_table].[Column1]
+FROM [om].[om_table]
+WHERE [om].[om_table].[Column1] > 0;",
+            new[] { "om.om_table", "om.om_table.Column1" }
+        ];
+
+        yield return
+        [
+            @"SELECT x.ColA
+FROM (SELECT t.ColA FROM om.om_table AS t) AS x
+WHERE x.ColA > 1;",
+            new[] { "om.om_table", "om.om_table.ColA" }
+        ];
+
+        yield return
+        [
+            @"WITH C AS (
+    SELECT t.Col1, t.Col2
+    FROM om.om_table AS t
+)
+SELECT c.Col1
+FROM C AS c
+WHERE c.Col2 IS NOT NULL;",
+            new[] { "om.om_table", "om.om_table.Col1", "om.om_table.Col2" }
+        ];
+
+        yield return
+        [
+            @"SELECT o.OrderId
+FROM om.om_orders AS o
+WHERE EXISTS (
+    SELECT 1
+    FROM om.om_order_items AS i
+    WHERE i.OrderId = o.OrderId AND i.OrderId > 0
+);",
+            new[] { "om.om_orders", "om.om_order_items", "om.om_orders.OrderId", "om.om_order_items.OrderId" }
+        ];
+
+        yield return
+        [
+            @"SELECT d.Id
+FROM om.om_data AS d
+UNION ALL
+SELECT d2.Id
+FROM om.om_data AS d2;",
+            new[] { "om.om_data", "om.om_data.Id" }
+        ];
+
+        yield return
+        [
+            @"SELECT topRows.Id
+FROM (
+    SELECT TOP (10) x.Id
+    FROM om.om_table AS x
+    ORDER BY x.Id DESC
+) AS topRows;",
+            new[] { "om.om_table", "om.om_table.Id" }
+        ];
+
+        yield return
+        [
+            @"SELECT t.Id, t.Name
+FROM om.om_table AS t
+GROUP BY t.Id, t.Name
+HAVING COUNT(*) > 0
+ORDER BY t.Name;",
+            new[] { "om.om_table", "om.om_table.Id", "om.om_table.Name" }
+        ];
+
+        yield return
+        [
+            @"SELECT o.Id
+FROM om.om_orders AS o
+OUTER APPLY (
+    SELECT TOP (1) i.Id
+    FROM om.om_order_items AS i
+    WHERE i.OrderId = o.Id
+    ORDER BY i.Id DESC
+) AS lastItem;",
+            new[] { "om.om_orders", "om.om_order_items", "om.om_orders.Id", "om.om_order_items.Id", "om.om_order_items.OrderId" }
+        ];
+    }
+
+    [Theory]
+    [MemberData(nameof(NormalizeForStorage_AdditionalEdgeCases))]
+    public async Task NormalizeForStorage_AdditionalEdgeCases_Run(string sql, string expected)
+    {
+        var mappings = new List<CustomerMappingItem>
+        {
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C1", CustomerName = "C1", DatabaseUser = "om_db", ObjectPrefix = "syn_" },
+            new() { CustomerId = Guid.NewGuid(), CustomerCode = "C2", CustomerName = "C2", DatabaseUser = "om", ObjectPrefix = "syn_" }
+        };
+
+        var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
+        var result = await service.NormalizeForStorageAsync(sql);
+
+        Assert.Equal(expected, result);
+    }
+
+    public static IEnumerable<object[]> NormalizeForStorage_AdditionalEdgeCases()
+    {
+        yield return new object[] { "SELECT * FROM [om_db].[syn_A];", "SELECT * FROM [om].[om_A];" };
+        yield return new object[] { "SELECT * FROM om_db.syn_A a CROSS JOIN om_db.syn_B b;", "SELECT * FROM om.om_A a CROSS JOIN om.om_B b;" };
+        yield return new object[] { "WITH X AS (SELECT * FROM om_db.syn_A) SELECT * FROM X;", "WITH X AS (SELECT * FROM om.om_A) SELECT * FROM X;" };
+        yield return new object[] { "SELECT * FROM syn_A WHERE EXISTS (SELECT 1 FROM om_db.syn_B b WHERE b.Id = 1);", "SELECT * FROM om.om_A WHERE EXISTS (SELECT 1 FROM om.om_B b WHERE b.Id = 1);" };
+        yield return new object[] { "UPDATE om_db.syn_A SET Name='x' FROM om_db.syn_A a JOIN syn_B b ON a.Id=b.Id;", "UPDATE om.om_A SET Name='x' FROM om.om_A a JOIN om.om_B b ON a.Id=b.Id;" };
+        yield return new object[] { "DELETE a FROM om_db.syn_A a INNER JOIN om_db.syn_B b ON b.Id=a.Id;", "DELETE a FROM om.om_A a INNER JOIN om.om_B b ON b.Id=a.Id;" };
+        yield return new object[] { "SELECT * FROM om_db._ztMembershipSettings s JOIN om_db.syn_A a ON a.Id=s.Id;", "SELECT * FROM om._ztMembershipSettings s JOIN om.om_A a ON a.Id=s.Id;" };
+        yield return new object[] { "SELECT * FROM syn_A UNION ALL SELECT * FROM om_db.syn_A;", "SELECT * FROM om.om_A UNION ALL SELECT * FROM om.om_A;" };
+        yield return new object[] { "SELECT * FROM [syn_A] AS a JOIN [om_db].[syn_B] AS b ON a.Id=b.Id;", "SELECT * FROM [om].[om_A] AS a JOIN [om].[om_B] AS b ON a.Id=b.Id;" };
+        yield return new object[] { "MERGE syn_A AS t USING (SELECT * FROM om_db.syn_B) AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.Name=s.Name;", "MERGE om.om_A AS t USING (SELECT * FROM om.om_B) AS s ON t.Id=s.Id WHEN MATCHED THEN UPDATE SET t.Name=s.Name;" };
+    }
+
 
     [Fact]
     public async Task FormatSql_UppercasesKeywords_AndAddsLineBreaks()
