@@ -167,8 +167,7 @@ public sealed partial class LibrarySplitView : Page
         if (result != ContentDialogResult.Primary)
             return;
 
-        spotlightView.ApplyTo(VM);
-        await VM.SearchCommand.ExecuteAsync(null);
+        await spotlightView.ApplyAndSearchAsync(VM);
     }
 
     public async Task SaveWorkspaceStateAsync()
