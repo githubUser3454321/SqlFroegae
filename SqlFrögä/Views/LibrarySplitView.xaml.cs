@@ -143,7 +143,7 @@ public sealed partial class LibrarySplitView : Page
         }
 
         SpotlightOverlay.Visibility = Visibility.Visible;
-        MainContentGrid.IsEnabled = false;
+        MainContentGrid.IsHitTestVisible = false;
         SpotlightOverlay.Focus(FocusState.Programmatic);
     }
 
@@ -170,7 +170,7 @@ public sealed partial class LibrarySplitView : Page
     private void HideSpotlightOverlay()
     {
         SpotlightOverlay.Visibility = Visibility.Collapsed;
-        MainContentGrid.IsEnabled = true;
+        MainContentGrid.IsHitTestVisible = true;
     }
 
     public async Task SaveWorkspaceStateAsync()
