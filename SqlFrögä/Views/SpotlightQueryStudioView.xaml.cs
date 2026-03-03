@@ -6,6 +6,7 @@ using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,95 +15,80 @@ namespace SqlFroega.Views;
 
 public sealed partial class SpotlightQueryStudioView : UserControl
 {
+    private static SpotlightProfileDefinition? _sessionMemoryProfile;
+
     private readonly ISearchProfileRepository _searchProfileRepository;
     private readonly List<SearchProfile> _loadedProfiles = new();
+    private readonly ObservableCollection<string> _filteredMainModules = new();
+    private readonly ObservableCollection<string> _filteredRelatedModules = new();
+    private readonly ObservableCollection<string> _filteredTags = new();
+    private LibrarySplitViewModel? _vm;
 
     public SpotlightQueryStudioView()
     {
         InitializeComponent();
         _searchProfileRepository = App.Services.GetRequiredService<ISearchProfileRepository>();
-        EnableSecondGroupCheckBox.Checked += EnableSecondGroupCheckBox_Changed;
-        EnableSecondGroupCheckBox.Unchecked += EnableSecondGroupCheckBox_Changed;
-        EnableThirdGroupCheckBox.Checked += EnableThirdGroupCheckBox_Changed;
-        EnableThirdGroupCheckBox.Unchecked += EnableThirdGroupCheckBox_Changed;
-        EnableFourthGroupCheckBox.Checked += EnableFourthGroupCheckBox_Changed;
-        EnableFourthGroupCheckBox.Unchecked += EnableFourthGroupCheckBox_Changed;
-        UpdateGroupPanelVisibility();
     }
 
     public async Task InitializeFromAsync(LibrarySplitViewModel vm)
     {
-        PrimaryQueryTextBox.Text = vm.QueryText;
-        ScopeCombo.SelectedIndex = vm.ScopeFilterIndex;
-        MainModuleBox.Text = vm.MainModuleFilterText;
-        RelatedModuleBox.Text = vm.RelatedModuleFilterText;
-        CustomerCodeBox.Text = vm.CustomerCodeFilterText;
-        TagsBox.Text = vm.TagsFilterText;
-        ObjectsBox.Text = vm.ObjectFilterText;
-        IncludeDeletedBox.IsChecked = vm.IncludeDeleted;
-        SearchHistoryBox.IsChecked = vm.SearchInHistory;
-
-        DisplayFolderStructureToggle.IsOn = vm.DisplayFolderStructure;
+        _vm = vm;
 
         FolderCombo.ItemsSource = vm.AvailableFolders;
-        FolderCombo.SelectedItem = vm.SelectedFolder;
-        SecondFolderCombo.ItemsSource = vm.AvailableFolders;
-        ThirdFolderCombo.ItemsSource = vm.AvailableFolders;
-        FourthFolderCombo.ItemsSource = vm.AvailableFolders;
-
         CollectionCombo.ItemsSource = vm.AvailableCollections;
-        CollectionCombo.SelectedItem = vm.SelectedCollection;
-        SecondCollectionCombo.ItemsSource = vm.AvailableCollections;
-        ThirdCollectionCombo.ItemsSource = vm.AvailableCollections;
-        FourthCollectionCombo.ItemsSource = vm.AvailableCollections;
+        SpotlightResultsList.ItemsSource = vm.Results;
+
+        MainModulesCatalogList.ItemsSource = _filteredMainModules;
+        RelatedModulesCatalogList.ItemsSource = _filteredRelatedModules;
+        TagsCatalogList.ItemsSource = _filteredTags;
+        RefreshCatalogViews();
+
+        if (_sessionMemoryProfile is not null)
+            ApplyDefinition(_sessionMemoryProfile);
+        else
+            ClearFilters();
 
         await LoadProfilesAsync();
     }
 
     public async Task ApplyAndSearchAsync(LibrarySplitViewModel vm)
     {
-        ApplyTo(vm);
-
-        if (EnableSecondGroupCheckBox.IsChecked == true || EnableThirdGroupCheckBox.IsChecked == true || EnableFourthGroupCheckBox.IsChecked == true)
-        {
-            var combineWithAnd = GroupCombineModeCombo.SelectedIndex <= 0;
-            await vm.SearchWithSpotlightGroupsAsync(BuildRuleGroups(), combineWithAnd);
-            return;
-        }
-
-        await vm.SearchCommand.ExecuteAsync(null);
+        await vm.SearchWithSpotlightGroupsAsync(new[] { BuildRuleGroup() }, combineWithAnd: true);
+        ResultsHintText.Text = $"{vm.Results.Count} Ergebnis(se). Klick auf ein Resultat speichert das Session-Memory-Profil.";
     }
 
-    public void ApplyTo(LibrarySplitViewModel vm)
-    {
-        vm.IsAdvancedSearchExpanded = true;
-        vm.QueryText = PrimaryQueryTextBox.Text;
-        vm.ScopeFilterIndex = ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex;
-        vm.MainModuleFilterText = MainModuleBox.Text;
-        vm.RelatedModuleFilterText = RelatedModuleBox.Text;
-        vm.CustomerCodeFilterText = CustomerCodeBox.Text;
-        vm.TagsFilterText = TagsBox.Text;
-        vm.ObjectFilterText = ObjectsBox.Text;
-        vm.IncludeDeleted = IncludeDeletedBox.IsChecked == true;
-        vm.SearchInHistory = SearchHistoryBox.IsChecked == true;
-        vm.DisplayFolderStructure = DisplayFolderStructureToggle.IsOn;
+    private SpotlightFilterGroup BuildRuleGroup() =>
+        new(
+            QueryText: PrimaryQueryTextBox.Text,
+            ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
+            MainModuleFilterText: MainModuleBox.Text,
+            RelatedModuleFilterText: RelatedModuleBox.Text,
+            CustomerCodeFilterText: CustomerCodeBox.Text,
+            TagsFilterText: TagsBox.Text,
+            ObjectFilterText: ObjectsBox.Text,
+            IncludeDeleted: IncludeDeletedBox.IsChecked == true,
+            SearchInHistory: SearchHistoryBox.IsChecked == true,
+            FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
+            CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
-        vm.SelectedFolder = FolderCombo.SelectedItem as FolderTreeOption;
-        vm.SelectedCollection = CollectionCombo.SelectedItem as ScriptCollection;
-    }
-
-    private async Task LoadProfilesAsync()
+    private void RefreshCatalogViews()
     {
-        ProfileFeedbackText.Text = string.Empty;
-        var username = App.CurrentUser?.Username;
-        if (string.IsNullOrWhiteSpace(username))
+        if (_vm is null)
             return;
 
-        var visible = await _searchProfileRepository.GetVisibleAsync(username, includeAll: App.CurrentUser?.IsAdmin == true);
-        _loadedProfiles.Clear();
-        _loadedProfiles.AddRange(visible.OrderByDescending(x => x.UpdatedUtc));
+        var moduleSearch = ModuleCatalogSearchTextBox.Text?.Trim() ?? string.Empty;
+        var tagSearch = TagCatalogSearchTextBox.Text?.Trim() ?? string.Empty;
 
-        SavedProfilesCombo.ItemsSource = _loadedProfiles;
+        RebuildFiltered(_vm.AvailableMainModules, _filteredMainModules, moduleSearch);
+        RebuildFiltered(_vm.AvailableRelatedModules, _filteredRelatedModules, moduleSearch);
+        RebuildFiltered(_vm.AvailableTags, _filteredTags, tagSearch);
+    }
+
+    private static void RebuildFiltered(IEnumerable<string> source, ObservableCollection<string> target, string search)
+    {
+        target.Clear();
+        foreach (var item in source.Where(x => string.IsNullOrWhiteSpace(search) || x.Contains(search, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x))
+            target.Add(item);
     }
 
     private void ApplyDefinition(SpotlightProfileDefinition definition)
@@ -120,121 +106,10 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
         FolderCombo.SelectedItem = (FolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FolderId);
         CollectionCombo.SelectedItem = (CollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.CollectionId);
-
-        GroupCombineModeCombo.SelectedIndex = definition.CombineWithAnd ? 0 : 1;
-        EnableSecondGroupCheckBox.IsChecked = definition.SecondGroup is not null;
-        EnableThirdGroupCheckBox.IsChecked = definition.ThirdGroup is not null;
-        EnableFourthGroupCheckBox.IsChecked = definition.FourthGroup is not null;
-        if (definition.SecondGroup is null)
-        {
-            ClearSecondGroup();
-        }
-        else
-        {
-            SecondQueryTextBox.Text = definition.SecondGroup.QueryText ?? string.Empty;
-            SecondScopeCombo.SelectedIndex = definition.SecondGroup.ScopeFilterIndex;
-            SecondMainModuleBox.Text = definition.SecondGroup.MainModule ?? string.Empty;
-            SecondRelatedModuleBox.Text = definition.SecondGroup.RelatedModule ?? string.Empty;
-            SecondCustomerCodeBox.Text = definition.SecondGroup.CustomerCode ?? string.Empty;
-            SecondTagsBox.Text = definition.SecondGroup.Tags ?? string.Empty;
-            SecondObjectsBox.Text = definition.SecondGroup.ReferencedObjects ?? string.Empty;
-            SecondIncludeDeletedBox.IsChecked = definition.SecondGroup.IncludeDeleted;
-            SecondSearchHistoryBox.IsChecked = definition.SecondGroup.SearchInHistory;
-            SecondFolderCombo.SelectedItem = (SecondFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.SecondGroup.FolderId);
-            SecondCollectionCombo.SelectedItem = (SecondCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.SecondGroup.CollectionId);
-        }
-
-        if (definition.ThirdGroup is null)
-        {
-            ClearThirdGroup();
-            return;
-        }
-
-        ThirdQueryTextBox.Text = definition.ThirdGroup.QueryText ?? string.Empty;
-        ThirdScopeCombo.SelectedIndex = definition.ThirdGroup.ScopeFilterIndex;
-        ThirdMainModuleBox.Text = definition.ThirdGroup.MainModule ?? string.Empty;
-        ThirdRelatedModuleBox.Text = definition.ThirdGroup.RelatedModule ?? string.Empty;
-        ThirdCustomerCodeBox.Text = definition.ThirdGroup.CustomerCode ?? string.Empty;
-        ThirdTagsBox.Text = definition.ThirdGroup.Tags ?? string.Empty;
-        ThirdObjectsBox.Text = definition.ThirdGroup.ReferencedObjects ?? string.Empty;
-        ThirdIncludeDeletedBox.IsChecked = definition.ThirdGroup.IncludeDeleted;
-        ThirdSearchHistoryBox.IsChecked = definition.ThirdGroup.SearchInHistory;
-        ThirdFolderCombo.SelectedItem = (ThirdFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.ThirdGroup.FolderId);
-        ThirdCollectionCombo.SelectedItem = (ThirdCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.ThirdGroup.CollectionId);
-
-        if (definition.FourthGroup is null)
-        {
-            ClearFourthGroup();
-            return;
-        }
-
-        FourthQueryTextBox.Text = definition.FourthGroup.QueryText ?? string.Empty;
-        FourthScopeCombo.SelectedIndex = definition.FourthGroup.ScopeFilterIndex;
-        FourthMainModuleBox.Text = definition.FourthGroup.MainModule ?? string.Empty;
-        FourthRelatedModuleBox.Text = definition.FourthGroup.RelatedModule ?? string.Empty;
-        FourthCustomerCodeBox.Text = definition.FourthGroup.CustomerCode ?? string.Empty;
-        FourthTagsBox.Text = definition.FourthGroup.Tags ?? string.Empty;
-        FourthObjectsBox.Text = definition.FourthGroup.ReferencedObjects ?? string.Empty;
-        FourthIncludeDeletedBox.IsChecked = definition.FourthGroup.IncludeDeleted;
-        FourthSearchHistoryBox.IsChecked = definition.FourthGroup.SearchInHistory;
-        FourthFolderCombo.SelectedItem = (FourthFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FourthGroup.FolderId);
-        FourthCollectionCombo.SelectedItem = (FourthCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.FourthGroup.CollectionId);
     }
 
-    private SpotlightProfileDefinition BuildDefinition()
-    {
-        SpotlightProfileGroupDefinition? secondGroup = null;
-        SpotlightProfileGroupDefinition? thirdGroup = null;
-        SpotlightProfileGroupDefinition? fourthGroup = null;
-        if (EnableSecondGroupCheckBox.IsChecked == true)
-        {
-            secondGroup = new SpotlightProfileGroupDefinition(
-                QueryText: SecondQueryTextBox.Text,
-                ScopeFilterIndex: SecondScopeCombo.SelectedIndex < 0 ? 0 : SecondScopeCombo.SelectedIndex,
-                MainModule: SecondMainModuleBox.Text,
-                RelatedModule: SecondRelatedModuleBox.Text,
-                CustomerCode: SecondCustomerCodeBox.Text,
-                Tags: SecondTagsBox.Text,
-                ReferencedObjects: SecondObjectsBox.Text,
-                IncludeDeleted: SecondIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: SecondSearchHistoryBox.IsChecked == true,
-                FolderId: (SecondFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (SecondCollectionCombo.SelectedItem as ScriptCollection)?.Id);
-        }
-
-        if (EnableThirdGroupCheckBox.IsChecked == true)
-        {
-            thirdGroup = new SpotlightProfileGroupDefinition(
-                QueryText: ThirdQueryTextBox.Text,
-                ScopeFilterIndex: ThirdScopeCombo.SelectedIndex < 0 ? 0 : ThirdScopeCombo.SelectedIndex,
-                MainModule: ThirdMainModuleBox.Text,
-                RelatedModule: ThirdRelatedModuleBox.Text,
-                CustomerCode: ThirdCustomerCodeBox.Text,
-                Tags: ThirdTagsBox.Text,
-                ReferencedObjects: ThirdObjectsBox.Text,
-                IncludeDeleted: ThirdIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: ThirdSearchHistoryBox.IsChecked == true,
-                FolderId: (ThirdFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (ThirdCollectionCombo.SelectedItem as ScriptCollection)?.Id);
-        }
-
-        if (EnableFourthGroupCheckBox.IsChecked == true)
-        {
-            fourthGroup = new SpotlightProfileGroupDefinition(
-                QueryText: FourthQueryTextBox.Text,
-                ScopeFilterIndex: FourthScopeCombo.SelectedIndex < 0 ? 0 : FourthScopeCombo.SelectedIndex,
-                MainModule: FourthMainModuleBox.Text,
-                RelatedModule: FourthRelatedModuleBox.Text,
-                CustomerCode: FourthCustomerCodeBox.Text,
-                Tags: FourthTagsBox.Text,
-                ReferencedObjects: FourthObjectsBox.Text,
-                IncludeDeleted: FourthIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: FourthSearchHistoryBox.IsChecked == true,
-                FolderId: (FourthFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (FourthCollectionCombo.SelectedItem as ScriptCollection)?.Id);
-        }
-
-        return new SpotlightProfileDefinition(
+    private SpotlightProfileDefinition BuildDefinition() =>
+        new(
             PrimaryQueryText: PrimaryQueryTextBox.Text,
             ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
             MainModule: MainModuleBox.Text,
@@ -246,177 +121,82 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             SearchInHistory: SearchHistoryBox.IsChecked == true,
             DisplayFolderStructure: DisplayFolderStructureToggle.IsOn,
             FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
-            CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id,
-            CombineWithAnd: GroupCombineModeCombo.SelectedIndex <= 0,
-            SecondGroup: secondGroup,
-            ThirdGroup: thirdGroup,
-            FourthGroup: fourthGroup);
+            CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
+
+    private void ClearFilters()
+    {
+        PrimaryQueryTextBox.Text = string.Empty;
+        ScopeCombo.SelectedIndex = 0;
+        MainModuleBox.Text = string.Empty;
+        RelatedModuleBox.Text = string.Empty;
+        CustomerCodeBox.Text = string.Empty;
+        TagsBox.Text = string.Empty;
+        ObjectsBox.Text = string.Empty;
+        IncludeDeletedBox.IsChecked = false;
+        SearchHistoryBox.IsChecked = false;
+        DisplayFolderStructureToggle.IsOn = false;
+        FolderCombo.SelectedItem = null;
+        CollectionCombo.SelectedItem = null;
     }
 
-    private IReadOnlyList<SpotlightFilterGroup> BuildRuleGroups()
+    private async Task LoadProfilesAsync()
     {
-        var groups = new List<SpotlightFilterGroup>
-        {
-            new(
-                QueryText: PrimaryQueryTextBox.Text,
-                ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
-                MainModuleFilterText: MainModuleBox.Text,
-                RelatedModuleFilterText: RelatedModuleBox.Text,
-                CustomerCodeFilterText: CustomerCodeBox.Text,
-                TagsFilterText: TagsBox.Text,
-                ObjectFilterText: ObjectsBox.Text,
-                IncludeDeleted: IncludeDeletedBox.IsChecked == true,
-                SearchInHistory: SearchHistoryBox.IsChecked == true,
-                FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id)
-        };
+        ProfileFeedbackText.Text = string.Empty;
+        var username = App.CurrentUser?.Username;
+        if (string.IsNullOrWhiteSpace(username))
+            return;
 
-        if (EnableSecondGroupCheckBox.IsChecked == true)
-        {
-            groups.Add(new SpotlightFilterGroup(
-                QueryText: SecondQueryTextBox.Text,
-                ScopeFilterIndex: SecondScopeCombo.SelectedIndex < 0 ? 0 : SecondScopeCombo.SelectedIndex,
-                MainModuleFilterText: SecondMainModuleBox.Text,
-                RelatedModuleFilterText: SecondRelatedModuleBox.Text,
-                CustomerCodeFilterText: SecondCustomerCodeBox.Text,
-                TagsFilterText: SecondTagsBox.Text,
-                ObjectFilterText: SecondObjectsBox.Text,
-                IncludeDeleted: SecondIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: SecondSearchHistoryBox.IsChecked == true,
-                FolderId: (SecondFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (SecondCollectionCombo.SelectedItem as ScriptCollection)?.Id));
-        }
+        var visible = await _searchProfileRepository.GetVisibleAsync(username, includeAll: App.CurrentUser?.IsAdmin == true);
+        _loadedProfiles.Clear();
+        _loadedProfiles.AddRange(visible.OrderByDescending(x => x.UpdatedUtc));
 
-        if (EnableThirdGroupCheckBox.IsChecked == true)
-        {
-            groups.Add(new SpotlightFilterGroup(
-                QueryText: ThirdQueryTextBox.Text,
-                ScopeFilterIndex: ThirdScopeCombo.SelectedIndex < 0 ? 0 : ThirdScopeCombo.SelectedIndex,
-                MainModuleFilterText: ThirdMainModuleBox.Text,
-                RelatedModuleFilterText: ThirdRelatedModuleBox.Text,
-                CustomerCodeFilterText: ThirdCustomerCodeBox.Text,
-                TagsFilterText: ThirdTagsBox.Text,
-                ObjectFilterText: ThirdObjectsBox.Text,
-                IncludeDeleted: ThirdIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: ThirdSearchHistoryBox.IsChecked == true,
-                FolderId: (ThirdFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (ThirdCollectionCombo.SelectedItem as ScriptCollection)?.Id));
-        }
-
-        if (EnableFourthGroupCheckBox.IsChecked == true)
-        {
-            groups.Add(new SpotlightFilterGroup(
-                QueryText: FourthQueryTextBox.Text,
-                ScopeFilterIndex: FourthScopeCombo.SelectedIndex < 0 ? 0 : FourthScopeCombo.SelectedIndex,
-                MainModuleFilterText: FourthMainModuleBox.Text,
-                RelatedModuleFilterText: FourthRelatedModuleBox.Text,
-                CustomerCodeFilterText: FourthCustomerCodeBox.Text,
-                TagsFilterText: FourthTagsBox.Text,
-                ObjectFilterText: FourthObjectsBox.Text,
-                IncludeDeleted: FourthIncludeDeletedBox.IsChecked == true,
-                SearchInHistory: FourthSearchHistoryBox.IsChecked == true,
-                FolderId: (FourthFolderCombo.SelectedItem as FolderTreeOption)?.Id,
-                CollectionId: (FourthCollectionCombo.SelectedItem as ScriptCollection)?.Id));
-        }
-
-        return groups;
+        SavedProfilesCombo.ItemsSource = _loadedProfiles;
     }
 
-    private void EnableSecondGroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    private void ModuleCatalogSearchTextBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshCatalogViews();
+
+    private void TagCatalogSearchTextBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshCatalogViews();
+
+    private void ApplyMainModuleFromCatalog_Click(object sender, RoutedEventArgs e)
     {
-        UpdateGroupPanelVisibility();
-        if (EnableSecondGroupCheckBox.IsChecked != true)
-        {
-            ClearSecondGroup();
-            EnableThirdGroupCheckBox.IsChecked = false;
-            EnableFourthGroupCheckBox.IsChecked = false;
-        }
+        if (sender is Button { Content: string module })
+            MainModuleBox.Text = module;
     }
 
-    private void EnableThirdGroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    private void ApplyRelatedModuleFromCatalog_Click(object sender, RoutedEventArgs e)
     {
-        if (EnableThirdGroupCheckBox.IsChecked == true)
-            EnableSecondGroupCheckBox.IsChecked = true;
+        if (sender is not Button { Content: string module })
+            return;
 
-        UpdateGroupPanelVisibility();
-        if (EnableThirdGroupCheckBox.IsChecked != true)
-        {
-            ClearThirdGroup();
-            EnableFourthGroupCheckBox.IsChecked = false;
-        }
+        var existing = (RelatedModuleBox.Text ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        existing.Add(module);
+        RelatedModuleBox.Text = string.Join(", ", existing.OrderBy(x => x));
     }
 
-    private void EnableFourthGroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    private void ToggleTagFromCatalog_Click(object sender, RoutedEventArgs e)
     {
-        if (EnableFourthGroupCheckBox.IsChecked == true)
-        {
-            EnableSecondGroupCheckBox.IsChecked = true;
-            EnableThirdGroupCheckBox.IsChecked = true;
-        }
+        if (sender is not Button { Content: string tag })
+            return;
 
-        UpdateGroupPanelVisibility();
-        if (EnableFourthGroupCheckBox.IsChecked != true)
-            ClearFourthGroup();
+        var existing = (TagsBox.Text ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!existing.Add(tag))
+            existing.Remove(tag);
+
+        TagsBox.Text = string.Join(", ", existing.OrderBy(x => x));
     }
 
-    private void UpdateGroupPanelVisibility()
+    private void SpotlightResultsList_ItemClick(object sender, ItemClickEventArgs e)
     {
-        SecondGroupPanel.Visibility = EnableSecondGroupCheckBox.IsChecked == true
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        _sessionMemoryProfile = BuildDefinition();
+        if (_vm is not null && e.ClickedItem is ScriptListItem item)
+            _vm.Selected = item;
 
-        ThirdGroupPanel.Visibility = EnableThirdGroupCheckBox.IsChecked == true
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        FourthGroupPanel.Visibility = EnableFourthGroupCheckBox.IsChecked == true
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-    }
-
-    private void ClearSecondGroup()
-    {
-        SecondQueryTextBox.Text = string.Empty;
-        SecondScopeCombo.SelectedIndex = 0;
-        SecondMainModuleBox.Text = string.Empty;
-        SecondRelatedModuleBox.Text = string.Empty;
-        SecondCustomerCodeBox.Text = string.Empty;
-        SecondTagsBox.Text = string.Empty;
-        SecondObjectsBox.Text = string.Empty;
-        SecondIncludeDeletedBox.IsChecked = false;
-        SecondSearchHistoryBox.IsChecked = false;
-        SecondFolderCombo.SelectedItem = null;
-        SecondCollectionCombo.SelectedItem = null;
-    }
-
-    private void ClearThirdGroup()
-    {
-        ThirdQueryTextBox.Text = string.Empty;
-        ThirdScopeCombo.SelectedIndex = 0;
-        ThirdMainModuleBox.Text = string.Empty;
-        ThirdRelatedModuleBox.Text = string.Empty;
-        ThirdCustomerCodeBox.Text = string.Empty;
-        ThirdTagsBox.Text = string.Empty;
-        ThirdObjectsBox.Text = string.Empty;
-        ThirdIncludeDeletedBox.IsChecked = false;
-        ThirdSearchHistoryBox.IsChecked = false;
-        ThirdFolderCombo.SelectedItem = null;
-        ThirdCollectionCombo.SelectedItem = null;
-    }
-
-    private void ClearFourthGroup()
-    {
-        FourthQueryTextBox.Text = string.Empty;
-        FourthScopeCombo.SelectedIndex = 0;
-        FourthMainModuleBox.Text = string.Empty;
-        FourthRelatedModuleBox.Text = string.Empty;
-        FourthCustomerCodeBox.Text = string.Empty;
-        FourthTagsBox.Text = string.Empty;
-        FourthObjectsBox.Text = string.Empty;
-        FourthIncludeDeletedBox.IsChecked = false;
-        FourthSearchHistoryBox.IsChecked = false;
-        FourthFolderCombo.SelectedItem = null;
-        FourthCollectionCombo.SelectedItem = null;
+        ResultsHintText.Text = "Session-Memory-Profil aktualisiert. Wird beim nächsten Öffnen wiederhergestellt.";
     }
 
     private async void LoadProfile_Click(object sender, RoutedEventArgs e)
@@ -437,6 +217,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             }
 
             ApplyDefinition(definition);
+            _sessionMemoryProfile = definition;
             ProfileNameBox.Text = profile.Name;
             ProfileVisibilityCombo.SelectedIndex = string.Equals(profile.Visibility, "global", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             ProfileFeedbackText.Text = $"Profil '{profile.Name}' geladen.";
@@ -519,22 +300,5 @@ public sealed record SpotlightProfileDefinition(
     bool IncludeDeleted,
     bool SearchInHistory,
     bool DisplayFolderStructure,
-    Guid? FolderId,
-    Guid? CollectionId,
-    bool CombineWithAnd,
-    SpotlightProfileGroupDefinition? SecondGroup,
-    SpotlightProfileGroupDefinition? ThirdGroup,
-    SpotlightProfileGroupDefinition? FourthGroup);
-
-public sealed record SpotlightProfileGroupDefinition(
-    string? QueryText,
-    int ScopeFilterIndex,
-    string? MainModule,
-    string? RelatedModule,
-    string? CustomerCode,
-    string? Tags,
-    string? ReferencedObjects,
-    bool IncludeDeleted,
-    bool SearchInHistory,
     Guid? FolderId,
     Guid? CollectionId);

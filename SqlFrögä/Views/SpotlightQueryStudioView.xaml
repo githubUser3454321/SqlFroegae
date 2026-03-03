@@ -6,192 +6,129 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer
-                  HorizontalAlignment="Stretch"
-                  VerticalAlignment="Stretch"
-                  VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="12"
-                    Padding="8,0,8,0">
-            <TextBlock Text="Phase 1: Vollbildsuche mit Filter-Parität zur bestehenden erweiterten Suche."
-                       TextWrapping="Wrap"
-                       FontWeight="SemiBold"/>
-            <TextBlock Text="Nächster Schritt: AND/OR-Regelgruppen, Suchprofile und Tree-Zusatzfunktion."
-                       TextWrapping="Wrap"
-                       Opacity="0.85"/>
+    <Grid RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="10">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Suchprofile"
-                               FontWeight="SemiBold"/>
+        <ScrollViewer Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      MaxHeight="420">
+            <StackPanel Spacing="12" Padding="8,0,8,0" MaxWidth="640">
+                <TextBlock Text="Filterkriterien" FontWeight="SemiBold" FontSize="18"/>
+                <TextBlock Text="Die Spotlight-Suche ist vom Standard-Suchformular getrennt und arbeitet nur in dieser Ansicht."
+                           TextWrapping="Wrap" Opacity="0.8"/>
 
-                    <ComboBox x:Name="SavedProfilesCombo"
-                              Header="Vorhandene Profile"
-                              DisplayMemberPath="Name"
-                              PlaceholderText="Profil auswählen"/>
+                <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="10">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Suchprofile" FontWeight="SemiBold"/>
+                        <ComboBox x:Name="SavedProfilesCombo"
+                                  Header="Vorhandene Profile"
+                                  DisplayMemberPath="Name"
+                                  PlaceholderText="Profil auswählen"/>
 
-                    <Grid ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="ProfileNameBox"
-                                 Header="Profilname"
-                                 PlaceholderText="z. B. Meine Favoriten-Suche"/>
+                            <TextBox x:Name="ProfileNameBox" Header="Profilname" PlaceholderText="z. B. Meine Favoriten-Suche"/>
 
-                        <ComboBox x:Name="ProfileVisibilityCombo"
-                                  Grid.Column="1"
-                                  Header="Sichtbarkeit"
-                                  MinWidth="160"
-                                  SelectedIndex="0">
-                            <ComboBoxItem Content="Für mich"/>
-                            <ComboBoxItem Content="Für alle"/>
-                        </ComboBox>
+                            <ComboBox x:Name="ProfileVisibilityCombo" Grid.Column="1" Header="Sichtbarkeit" MinWidth="160" SelectedIndex="0">
+                                <ComboBoxItem Content="Für mich"/>
+                                <ComboBoxItem Content="Für alle"/>
+                            </ComboBox>
 
-                        <StackPanel Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    Spacing="8"
-                                    VerticalAlignment="Bottom">
-                            <Button Content="Laden"
-                                    Click="LoadProfile_Click"/>
-                            <Button Content="Speichern"
-                                    Click="SaveProfile_Click"/>
-                            <Button Content="Löschen"
-                                    Click="DeleteProfile_Click"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                                <Button Content="Laden" Click="LoadProfile_Click"/>
+                                <Button Content="Speichern" Click="SaveProfile_Click"/>
+                                <Button Content="Löschen" Click="DeleteProfile_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock x:Name="ProfileFeedbackText" Opacity="0.75" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBox x:Name="PrimaryQueryTextBox" Header="Regelgruppe 1: Freitext" PlaceholderText="z. B. Invoice oder Kundenkürzel"/>
+                <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
+                    <ComboBoxItem Content="Bereich: Alle"/>
+                    <ComboBoxItem Content="Bereich: Global"/>
+                    <ComboBoxItem Content="Bereich: Kunde"/>
+                    <ComboBoxItem Content="Bereich: Modul"/>
+                </ComboBox>
+
+                <TextBox x:Name="MainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
+                <TextBox x:Name="RelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
+                <TextBox x:Name="CustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
+                <TextBox x:Name="TagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
+                <TextBox x:Name="ObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
+
+                <CheckBox x:Name="IncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
+                <CheckBox x:Name="SearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
+                <ToggleSwitch x:Name="DisplayFolderStructureToggle" Header="Display Folder Structure"/>
+
+                <ComboBox x:Name="FolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
+                <ComboBox x:Name="CollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
+
+                <Expander Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
+                    <StackPanel Spacing="8" Padding="0,8,0,0">
+                        <TextBox x:Name="ModuleCatalogSearchTextBox" Header="Module filtern" TextChanged="ModuleCatalogSearchTextBox_TextChanged"/>
+                        <TextBlock Text="Hauptmodule" Opacity="0.75"/>
+                        <ListView x:Name="MainModulesCatalogList" SelectionMode="None" MaxHeight="100">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ApplyMainModuleFromCatalog_Click"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <TextBlock Text="Verknüpfte Module" Opacity="0.75"/>
+                        <ListView x:Name="RelatedModulesCatalogList" SelectionMode="None" MaxHeight="100">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ApplyRelatedModuleFromCatalog_Click"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <TextBox x:Name="TagCatalogSearchTextBox" Header="Tags filtern" TextChanged="TagCatalogSearchTextBox_TextChanged"/>
+                        <ListView x:Name="TagsCatalogList" SelectionMode="None" MaxHeight="120">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ToggleTagFromCatalog_Click"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="1" Spacing="8">
+            <TextBlock Text="Spotlight-Ergebnisse" FontWeight="SemiBold"/>
+            <TextBlock x:Name="ResultsHintText" Opacity="0.75" Text="Suche starten und Ergebnis anklicken, um das Session-Memory-Profil zu merken."/>
+            <ListView x:Name="SpotlightResultsList"
+                      Height="260"
+                      IsItemClickEnabled="True"
+                      ItemClick="SpotlightResultsList_ItemClick">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Spacing="2" Padding="4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ScopeLabel}" Opacity="0.7"/>
+                            <TextBlock Text="{Binding MainModule}" Opacity="0.7"/>
                         </StackPanel>
-                    </Grid>
-
-                    <TextBlock x:Name="ProfileFeedbackText"
-                               Opacity="0.75"
-                               TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-
-            <TextBox x:Name="PrimaryQueryTextBox"
-                     Header="Regelgruppe 1: Freitext"
-                     PlaceholderText="z. B. Invoice oder Kundenkürzel"/>
-
-            <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
-                <ComboBoxItem Content="Bereich: Alle"/>
-                <ComboBoxItem Content="Bereich: Global"/>
-                <ComboBoxItem Content="Bereich: Kunde"/>
-                <ComboBoxItem Content="Bereich: Modul"/>
-            </ComboBox>
-
-            <TextBox x:Name="MainModuleBox"
-                     Header="Hauptmodul"
-                     PlaceholderText="z. B. Einkauf"/>
-            <TextBox x:Name="RelatedModuleBox"
-                     Header="Verknüpfte Module"
-                     PlaceholderText="komma-getrennt"/>
-            <TextBox x:Name="CustomerCodeBox"
-                     Header="Kundenkürzel"
-                     PlaceholderText="komma-getrennt"/>
-            <TextBox x:Name="TagsBox"
-                     Header="Tags"
-                     PlaceholderText="komma-getrennt"/>
-            <TextBox x:Name="ObjectsBox"
-                     Header="Referenzierte SQL-Objekte"
-                     PlaceholderText="komma-getrennt"/>
-
-            <CheckBox x:Name="IncludeDeletedBox"
-                      Content="Gelöschte Datensätze anzeigen (Temporal)"/>
-            <CheckBox x:Name="SearchHistoryBox"
-                      Content="Auch in Historien-Versionen suchen"/>
-
-            <ToggleSwitch x:Name="DisplayFolderStructureToggle"
-                          Header="Display Folder Structure"/>
-
-            <ComboBox x:Name="FolderCombo"
-                      Header="Ordnerfilter"
-                      DisplayMemberPath="DisplayName"
-                      PlaceholderText="Alle Ordner"/>
-
-            <ComboBox x:Name="CollectionCombo"
-                      Header="Collection-Filter"
-                      DisplayMemberPath="Name"
-                      PlaceholderText="Alle Collections"/>
-
-            <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="10">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="AND/OR-Regelgruppen (Frontend-Phase 2)" FontWeight="SemiBold"/>
-                    <ComboBox x:Name="GroupCombineModeCombo" Header="Gruppenverknüpfung" SelectedIndex="0" MinWidth="220">
-                        <ComboBoxItem Content="AND (Schnittmenge)"/>
-                        <ComboBoxItem Content="OR (Vereinigung)"/>
-                    </ComboBox>
-
-                    <CheckBox x:Name="EnableSecondGroupCheckBox" Content="Zweite Regelgruppe aktivieren"/>
-                    <CheckBox x:Name="EnableThirdGroupCheckBox" Content="Dritte Regelgruppe aktivieren"/>
-                    <CheckBox x:Name="EnableFourthGroupCheckBox" Content="Vierte Regelgruppe aktivieren"/>
-
-                    <StackPanel x:Name="SecondGroupPanel" Spacing="8">
-                        <TextBox x:Name="SecondQueryTextBox" Header="Regelgruppe 2: Freitext" PlaceholderText="optional"/>
-                        <ComboBox x:Name="SecondScopeCombo" SelectedIndex="0">
-                            <ComboBoxItem Content="Bereich: Alle"/>
-                            <ComboBoxItem Content="Bereich: Global"/>
-                            <ComboBoxItem Content="Bereich: Kunde"/>
-                            <ComboBoxItem Content="Bereich: Modul"/>
-                        </ComboBox>
-                        <TextBox x:Name="SecondMainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
-                        <TextBox x:Name="SecondRelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="SecondCustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="SecondTagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="SecondObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
-                        <CheckBox x:Name="SecondIncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
-                        <CheckBox x:Name="SecondSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
-                        <ComboBox x:Name="SecondFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
-                        <ComboBox x:Name="SecondCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
-                    </StackPanel>
-
-                    <StackPanel x:Name="ThirdGroupPanel" Spacing="8">
-                        <TextBox x:Name="ThirdQueryTextBox" Header="Regelgruppe 3: Freitext" PlaceholderText="optional"/>
-                        <ComboBox x:Name="ThirdScopeCombo" SelectedIndex="0">
-                            <ComboBoxItem Content="Bereich: Alle"/>
-                            <ComboBoxItem Content="Bereich: Global"/>
-                            <ComboBoxItem Content="Bereich: Kunde"/>
-                            <ComboBoxItem Content="Bereich: Modul"/>
-                        </ComboBox>
-                        <TextBox x:Name="ThirdMainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
-                        <TextBox x:Name="ThirdRelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="ThirdCustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="ThirdTagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="ThirdObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
-                        <CheckBox x:Name="ThirdIncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
-                        <CheckBox x:Name="ThirdSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
-                        <ComboBox x:Name="ThirdFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
-                        <ComboBox x:Name="ThirdCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
-                    </StackPanel>
-
-
-                    <StackPanel x:Name="FourthGroupPanel" Spacing="8">
-                        <TextBox x:Name="FourthQueryTextBox" Header="Regelgruppe 4: Freitext" PlaceholderText="optional"/>
-                        <ComboBox x:Name="FourthScopeCombo" SelectedIndex="0">
-                            <ComboBoxItem Content="Bereich: Alle"/>
-                            <ComboBoxItem Content="Bereich: Global"/>
-                            <ComboBoxItem Content="Bereich: Kunde"/>
-                            <ComboBoxItem Content="Bereich: Modul"/>
-                        </ComboBox>
-                        <TextBox x:Name="FourthMainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
-                        <TextBox x:Name="FourthRelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="FourthCustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="FourthTagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
-                        <TextBox x:Name="FourthObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
-                        <CheckBox x:Name="FourthIncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
-                        <CheckBox x:Name="FourthSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
-                        <ComboBox x:Name="FourthFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
-                        <ComboBox x:Name="FourthCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
         </StackPanel>
-    </ScrollViewer>
+    </Grid>
 </UserControl>
