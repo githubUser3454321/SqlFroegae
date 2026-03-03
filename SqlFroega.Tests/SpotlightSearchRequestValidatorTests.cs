@@ -152,6 +152,54 @@ public sealed class SpotlightSearchRequestValidatorTests
     }
 
     [Fact]
+    public void Validate_WithModuleOnly_IsAcceptedAsValidFilterGroup()
+    {
+        var request = new SpotlightSearchRequest(
+            "OR",
+            [new SpotlightRuleGroupRequest(
+                Query: null,
+                Scope: null,
+                CustomerId: null,
+                Module: "billing",
+                MainModule: null,
+                RelatedModule: null,
+                RelatedModules: null,
+                Tags: null,
+                ReferencedObject: null,
+                ReferencedObjects: null,
+                FolderId: null,
+                CollectionId: null)]);
+
+        var errors = SpotlightSearchRequestValidator.Validate(request);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Validate_WithReferencedObjectsOnly_IsAcceptedAsValidFilterGroup()
+    {
+        var request = new SpotlightSearchRequest(
+            "OR",
+            [new SpotlightRuleGroupRequest(
+                Query: null,
+                Scope: null,
+                CustomerId: null,
+                Module: null,
+                MainModule: null,
+                RelatedModule: null,
+                RelatedModules: null,
+                Tags: null,
+                ReferencedObject: null,
+                ReferencedObjects: "dbo.TableA,dbo.TableB",
+                FolderId: null,
+                CollectionId: null)]);
+
+        var errors = SpotlightSearchRequestValidator.Validate(request);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
     public void Validate_WithValidMinimalRequest_ReturnsNoErrors()
     {
         var request = new SpotlightSearchRequest("OR", [Group(query: "proc customer")], Take: 200, Skip: 0);

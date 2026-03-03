@@ -30,6 +30,17 @@ public sealed class FolderCollectionRequestValidatorTests
     }
 
     [Fact]
+    public void ValidateFolderUpsert_WithPostPayloadIdEqualParent_ReturnsParentError()
+    {
+        var id = Guid.NewGuid();
+        var request = new ScriptFolderUpsertRequest(id, "Folder", id);
+
+        var errors = FolderCollectionRequestValidator.ValidateFolderUpsert(request, request.Id);
+
+        Assert.True(errors.ContainsKey("parentId"));
+    }
+
+    [Fact]
     public void ValidateFolderUpsert_WithValidPayload_ReturnsNoError()
     {
         var request = new ScriptFolderUpsertRequest(null, "Folder", Guid.NewGuid());
@@ -59,6 +70,17 @@ public sealed class FolderCollectionRequestValidatorTests
         var request = new ScriptCollectionUpsertRequest(null, "Collection", id, "private");
 
         var errors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request, id);
+
+        Assert.True(errors.ContainsKey("parentId"));
+    }
+
+    [Fact]
+    public void ValidateCollectionUpsert_WithPostPayloadIdEqualParent_ReturnsParentError()
+    {
+        var id = Guid.NewGuid();
+        var request = new ScriptCollectionUpsertRequest(id, "Collection", id, "private");
+
+        var errors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request, request.Id);
 
         Assert.True(errors.ContainsKey("parentId"));
     }

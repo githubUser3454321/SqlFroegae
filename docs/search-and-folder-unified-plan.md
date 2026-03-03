@@ -225,6 +225,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - [x] Suchprofile: `POST /api/v1/search-profiles` auf „create only“ geschärft (keine `id` im Create-Flow).
 - [ ] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
 - [x] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
+- [x] Collections: Repository-Validierungen auf Folder-Niveau angehoben (Parent-Existenz, Duplicate-Namen je Ebene, Zyklusprüfung, Self-Parent-Guard).
 
 ### 11.5 Update 2026-03-03 (Backend)
 - Neuer Backend-Validator für `POST /api/v1/scripts/spotlight-search` ergänzt:
@@ -250,3 +251,11 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
   - Spotlight-Validator: zusätzliche Boundary- und Matrix-Cases für `groupOperator` (inkl. casing), `take`-Grenzen (0/1/500/501), negatives `skip`, gültige/ungültige Scopes, gruppenindizierte Fehlerzuordnung sowie gültige Gruppen nur mit `includeDeleted` oder `searchHistory`.
   - Folder/Collection-Validator: zusätzliche Cases für whitespace-only Namen, positive Validfälle ohne Fehler, `collectionIds = null` mit/ohne `primaryCollectionId`.
 - Ergebnis: Aktuell bekannte Validierungsfälle sind auf Unit-Level breit abgedeckt; der verbleibende offene Backend-Restpunkt sind weiterhin echte SQL-Integrations-/E2E-Tests.
+
+### 11.8 Update 2026-03-03 (Collections-Repository weiter stabilisiert)
+- `ScriptCollectionRepository.UpsertAsync` wurde funktional an die Folder-Validierungsstabilität angeglichen:
+  - Self-Parent wird aktiv blockiert.
+  - Parent-Existenz wird vor dem Upsert geprüft.
+  - Duplicate-Name im selben Parent-Kontext wird verhindert.
+  - Nach dem Upsert wird zyklische Parent-Referenz über CTE-Check abgefangen.
+- Ergebnis: Die Collection-Schreiblogik ist backendseitig konsistenter abgesichert; offen bleibt weiterhin ausschließlich die echte SQL-Integrations-/Race-Condition-Absicherung via E2E.
