@@ -201,7 +201,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 2. Folder-Read APIs + UI hinter Feature Flag — **in-progress** (`GET /api/v1/folders/tree` und `folderId`-Filter in Script-Suche backendseitig verfügbar; UI/Feature-Flag steht aus).
 3. Ordner-Schreiboperationen stabilisieren (inkl. Zykluschecks) — **in-progress** (Create/Update/Delete APIs vorhanden, inklusive Parent-Validierung, Duplicate-Check und Cycle-Check; erste Unit-Tests für zentrale Backend-Logik vorhanden, E2E-Härtung und UI-Flows fehlen).
 4. Toggle `Display Folder Structure` ausrollen — **DONE** (Frontend-Toggle + Ordnerstruktur-Filter in der Standard-Library umgesetzt).
-5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **DONE** (Spotlight-Dialog nutzt jetzt ca. 90% der verfügbaren Fensterfläche und behält die Filter-Parität des bisherigen Einstiegs bei).
+5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **DONE** (Spotlight läuft als eigene Vollflächen-Overlay-View innerhalb des Hauptfensters und behält die Filter-Parität des bisherigen Einstiegs bei).
 6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **in-progress** (Backend-Gruppenlogik per AND/OR verfügbar; Frontend kann jetzt bis zu drei Gruppen kombiniert ausführen, weitergehende Validierung und ein vollständig dynamischer n-Gruppen-Builder stehen noch aus).
 7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **DONE** (Frontend-Workflows zum Laden/Speichern/Löschen im Spotlight sind umgesetzt; Sichtbarkeit wird als „Für mich/Für alle“ abgebildet).
 8. Spotlight Phase 4: Admin-Filterverwaltung (Löschen) — **DONE** (Admin kann Profile backendseitig einsehen/löschen).
@@ -276,8 +276,8 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 
 
 ### 11.11 Update 2026-03-03 (Frontend-Spotlight-Fläche)
-- UI-Missverständnis adressiert: Das Spotlight Query Studio nutzt nicht mehr eine begrenzte Inhaltshöhe, sondern skaliert als Dialog auf ca. 90% der verfügbaren Breite/Höhe.
-- Die frühere Höhenbegrenzung im Spotlight-Inhalt wurde entfernt, damit die neue Suche den Screen sichtbar ausnutzt.
+- UI-Missverständnis adressiert: Das Spotlight Query Studio läuft jetzt nicht mehr als prozentual skalierter Dialog, sondern als eigene Vollflächen-Overlay-View über der gesamten Library-Ansicht.
+- Die bisherige Dialog-Größenlogik wurde entfernt; Spotlight darf die Anwendung vollständig überdecken und bleibt beim Schließen ohne Reload verlustfrei rückkehrbar.
 - Frontend-Status damit:
   - FR-1 Vollbild-Advanced-Suche bleibt **DONE**.
   - Spotlight Phase 1 bleibt **DONE**.

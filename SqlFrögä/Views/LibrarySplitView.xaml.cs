@@ -38,6 +38,7 @@ public sealed partial class LibrarySplitView : Page
 
     private readonly DispatcherQueueTimer _resizeDebounceTimer;
     private double _pendingResultsViewportHeight;
+    private bool _spotlightOverlayInitialized;
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -135,39 +136,41 @@ public sealed partial class LibrarySplitView : Page
 
     private async void OpenSpotlightQueryStudio_Click(object sender, RoutedEventArgs e)
     {
-        var spotlightView = new SpotlightQueryStudioView();
-        await spotlightView.InitializeFromAsync(VM);
-
-        var dialog = new ContentDialog
+        if (!_spotlightOverlayInitialized)
         {
-            XamlRoot = XamlRoot,
-            Title = "Spotlight Query Studio",
-            PrimaryButtonText = "Suche starten",
-            CloseButtonText = "Abbrechen",
-            DefaultButton = ContentDialogButton.Primary,
-            FullSizeDesired = true,
-            Content = spotlightView
-        };
-
-        if (XamlRoot is not null)
-        {
-            var targetWidth = XamlRoot.Size.Width * 0.9;
-            var targetHeight = XamlRoot.Size.Height * 0.9;
-
-            dialog.MaxWidth = targetWidth;
-            dialog.MaxHeight = targetHeight;
-            dialog.MinWidth = targetWidth;
-            dialog.MinHeight = targetHeight;
+            await SpotlightView.InitializeFromAsync(VM);
+            _spotlightOverlayInitialized = true;
         }
 
-        dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
-        dialog.CloseButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
+        SpotlightOverlay.Visibility = Visibility.Visible;
+        MainContentGrid.IsEnabled = false;
+        SpotlightOverlay.Focus(FocusState.Programmatic);
+    }
 
-        var result = await dialog.ShowAsync();
-        if (result != ContentDialogResult.Primary)
+    private async void ApplySpotlightOverlay_Click(object sender, RoutedEventArgs e)
+    {
+        await SpotlightView.ApplyAndSearchAsync(VM);
+        HideSpotlightOverlay();
+    }
+
+    private void CloseSpotlightOverlay_Click(object sender, RoutedEventArgs e)
+    {
+        HideSpotlightOverlay();
+    }
+
+    private void SpotlightOverlay_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Escape)
             return;
 
-        await spotlightView.ApplyAndSearchAsync(VM);
+        e.Handled = true;
+        HideSpotlightOverlay();
+    }
+
+    private void HideSpotlightOverlay()
+    {
+        SpotlightOverlay.Visibility = Visibility.Collapsed;
+        MainContentGrid.IsEnabled = true;
     }
 
     public async Task SaveWorkspaceStateAsync()

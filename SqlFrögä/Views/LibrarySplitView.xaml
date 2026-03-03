@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SqlFroega.ViewModels"
     xmlns:models="using:SqlFroega.Application.Models"
+    xmlns:views="using:SqlFroega.Views"
     Background="{ThemeResource AppPageBackgroundBrush}">
 
     <Page.DataContext>
@@ -13,11 +14,12 @@
     
     
 
-    <Grid Padding="16" ColumnSpacing="12">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="440"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <Grid x:Name="PageLayoutRoot">
+        <Grid x:Name="MainContentGrid" Padding="16" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="440"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
         <!-- LINKS: Suche -->
         <Grid Grid.Column="0"
@@ -333,15 +335,65 @@
                        Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"/>
         </Grid>
 
-        <!-- RIGHT: Detail -->
-        <Border Grid.Column="1"
-                CornerRadius="12"
-                BorderThickness="1"
-                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                Padding="0"
-                Background="{ThemeResource AppCardBrush}">
-            <Grid>
-                <Frame x:Name="DetailFrame"/>
+            <!-- RIGHT: Detail -->
+            <Border Grid.Column="1"
+                    CornerRadius="12"
+                    BorderThickness="1"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    Padding="0"
+                    Background="{ThemeResource AppCardBrush}">
+                <Grid>
+                    <Frame x:Name="DetailFrame"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border x:Name="SpotlightOverlay"
+                Visibility="Collapsed"
+                Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
+                Padding="12"
+                KeyDown="SpotlightOverlay_KeyDown"
+                IsTabStop="True">
+            <Grid RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Spotlight Query Studio"
+                               FontSize="24"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1"
+                            Content="Schließen"
+                            Click="CloseSpotlightOverlay_Click"/>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        Background="{ThemeResource AppCardBrush}">
+                    <views:SpotlightQueryStudioView x:Name="SpotlightView"/>
+                </Border>
+
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8">
+                    <Button Content="Abbrechen"
+                            Click="CloseSpotlightOverlay_Click"/>
+                    <Button Content="Suche starten"
+                            Click="ApplySpotlightOverlay_Click"/>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>
