@@ -33,4 +33,16 @@ public sealed class SearchProfileVisibilityTests
         var value = SearchProfileVisibility.NormalizeForStorage(raw);
         Assert.Equal(expected, value);
     }
+
+    [Theory]
+    [InlineData("owner", "owner", false, true)]
+    [InlineData("owner", "OWNER", false, true)]
+    [InlineData("owner", "other", false, false)]
+    [InlineData("owner", null, false, false)]
+    [InlineData("owner", "other", true, true)]
+    public void CanEditProfile_RespectsOwnerAndAdmin(string owner, string? requestingUser, bool isAdmin, bool expected)
+    {
+        var canEdit = SearchProfileVisibility.CanEditProfile(owner, requestingUser, isAdmin);
+        Assert.Equal(expected, canEdit);
+    }
 }

@@ -18,4 +18,19 @@ public static class SearchProfileVisibility
             ? "global"
             : "private";
     }
+
+    public static bool CanEditProfile(string profileOwnerUsername, string? requestingUsername, bool isAdmin)
+    {
+        if (isAdmin)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(profileOwnerUsername) || string.IsNullOrWhiteSpace(requestingUsername))
+        {
+            return false;
+        }
+
+        return string.Equals(profileOwnerUsername.Trim(), requestingUsername.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
 }

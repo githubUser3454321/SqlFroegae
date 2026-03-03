@@ -33,6 +33,17 @@ ORDER BY UpdatedUtc DESC, Name ASC";
         return rows.ToList();
     }
 
+    public async Task<SearchProfile?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        await using var conn = await _connectionFactory.OpenAsync(ct);
+        await EnsureSchemaAsync(conn, ct);
+
+        return await conn.QuerySingleOrDefaultAsync<SearchProfile>(new CommandDefinition(@"
+SELECT Id, Name, OwnerUsername, Visibility, DefinitionJson, CreatedUtc, UpdatedUtc
+FROM dbo.SearchProfiles
+WHERE Id = @id", new { id }, cancellationToken: ct));
+    }
+
     public async Task<SearchProfile> UpsertAsync(SearchProfileUpsert input, CancellationToken ct = default)
     {
         await using var conn = await _connectionFactory.OpenAsync(ct);

@@ -192,7 +192,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - FR-1: Vollbild-Advanced-Suche — **DONE** (Spotlight öffnet per eigenem Button als Vollbild-Overlay, Abbrechen möglich).
 - FR-2: Vollständiger Filterumfang — **Partialy DONE** (Scope, Hauptmodul, abhängige Module, Tags/Flags, SQL-Objekte, Kundenkürzel, IncludeDeleted/Historie sowie folderId/collectionId sind backendseitig verfügbar; regelblockbasiertes Multi-Set und vollständige UI-Bindung noch offen).
 - FR-3: AND/OR-Logik — **Partialy DONE** (Backend-Endpoint `/api/v1/scripts/spotlight-search` mit Gruppen-Verknüpfung per AND/OR umgesetzt; UI-Regelbuilder auf Frontend-Seite noch offen).
-- FR-4: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-CRUD für Suchprofile inkl. Sichtbarkeit `private/global` umgesetzt; Frontend-Integration und Speichern/Laden im Studio noch offen).
+- FR-4: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-CRUD inkl. `PATCH /api/v1/search-profiles/{id}` und Owner/Admin-Guard für Updates ist umgesetzt; Frontend-Integration und Speichern/Laden im Studio noch offen).
 - FR-5: Admin-Filterverwaltung — **DONE** (Admin-Liste und Löschpfad über `/api/v1/admin/search-profiles` und `/api/v1/search-profiles/{id}` backendseitig implementiert).
 - FR-6: Tree als Zusatzbaustein im Spotlight — **Partialy DONE** (Folder-Tree und Collection-Daten sind backendseitig über `/api/v1/navigation` und `/api/v1/folders/tree` abrufbar; Spotlight-UI-Integration noch offen).
 
@@ -203,7 +203,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 4. Toggle `Display Folder Structure` ausrollen — **NOT DONE**.
 5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **Partialy DONE** (Fullscreen + Filter-Parität im Spotlight-Einstieg implementiert und in eigene Spotlight-View ausgelagert; vollständige Regelblock-Engine noch offen).
 6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **Partialy DONE** (Backend-Gruppenlogik per AND/OR verfügbar; UI-Validierungszustände noch ausstehend).
-7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-Endpunkte für Anlegen/Liste/Löschen sind vorhanden; UI-Workflows noch offen).
+7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-Endpunkte für Anlegen/Liste/Update/Löschen sind vorhanden; UI-Workflows noch offen).
 8. Spotlight Phase 4: Admin-Filterverwaltung (Löschen) — **DONE** (Admin kann Profile backendseitig einsehen/löschen).
 9. DB-Migration B (`collection`, `script_collection`) schrittweise aktivieren — **Partialy DONE** (Schema-Ensure, CRUD-/Assignment-APIs und versioniertes SQL-Skript `Docs/003_folder_collection_searchprofile_migration.sql` vorhanden; produktive Aktivierung + UI-Anbindung noch ausstehend).
 10. Tree-Struktur als optionale Spotlight-Erweiterung finalisieren — **Partialy DONE** (Backend-Navigation liefert Views/Folders/Collections gebündelt; finale Spotlight-Frontend-Integration noch ausstehend).
@@ -218,3 +218,10 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 7. Toggle blendet Folder Structure zuverlässig ein/aus — **NOT DONE**.
 8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **Partialy DONE** (Backend liefert Tree-/Navigation-Daten; Frontend-Einbindung im Spotlight steht noch aus).
 9. Bestehende Suche bleibt funktional und strukturell unverändert — **DONE**.
+
+
+### 11.4 Offene TODOs (Backend-Fokus)
+- [x] Suchprofile: separates Update-Endpoint (`PATCH /api/v1/search-profiles/{id}`) ergänzt und gegen Fremd-Updates abgesichert (Owner/Admin-Check).
+- [x] Suchprofile: `POST /api/v1/search-profiles` auf „create only“ geschärft (keine `id` im Create-Flow).
+- [ ] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
+- [ ] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
