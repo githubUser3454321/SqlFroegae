@@ -200,13 +200,13 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 1. DB-Migration A (`script_folder`, `script.folder_id`) — **in-progress** (Schema-Ensure vorhanden und versioniertes SQL-Skript `Docs/003_folder_collection_searchprofile_migration.sql` ergänzt; Ausführung im Zielsystem/Release-Pipeline noch offen).
 2. Folder-Read APIs + UI hinter Feature Flag — **in-progress** (`GET /api/v1/folders/tree` und `folderId`-Filter in Script-Suche backendseitig verfügbar; UI/Feature-Flag steht aus).
 3. Ordner-Schreiboperationen stabilisieren (inkl. Zykluschecks) — **in-progress** (Create/Update/Delete APIs vorhanden, inklusive Parent-Validierung, Duplicate-Check und Cycle-Check; erste Unit-Tests für zentrale Backend-Logik vorhanden, E2E-Härtung und UI-Flows fehlen).
-4. Toggle `Display Folder Structure` ausrollen — **Not DONE**.
+4. Toggle `Display Folder Structure` ausrollen — **DONE** (Frontend-Toggle + Ordnerstruktur-Filter in der Standard-Library umgesetzt).
 5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **DONE** (Spotlight-Dialog nutzt jetzt ca. 90% der verfügbaren Fensterfläche und behält die Filter-Parität des bisherigen Einstiegs bei).
 6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **in-progress** (Backend-Gruppenlogik per AND/OR verfügbar; UI-Validierungszustände noch ausstehend).
 7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **in-progress** (Backend-Endpunkte für Anlegen/Liste/Update/Löschen sind vorhanden; UI-Workflows noch offen).
 8. Spotlight Phase 4: Admin-Filterverwaltung (Löschen) — **DONE** (Admin kann Profile backendseitig einsehen/löschen).
 9. DB-Migration B (`collection`, `script_collection`) schrittweise aktivieren — **in-progress** (Schema-Ensure, CRUD-/Assignment-APIs und versioniertes SQL-Skript `Docs/003_folder_collection_searchprofile_migration.sql` vorhanden; produktive Aktivierung + UI-Anbindung noch ausstehend).
-10. Tree-Struktur als optionale Spotlight-Erweiterung finalisieren — **in-progress** (Backend-Navigation liefert Views/Folders/Collections gebündelt; finale Spotlight-Frontend-Integration noch ausstehend).
+10. Tree-Struktur als optionale Spotlight-Erweiterung finalisieren — **in-progress** (Spotlight kann Ordner-/Collection-Filter nun laden und anwenden; vollständiger Regelgruppen-Tree-Builder bleibt offen).
 
 ### 11.3 Abnahmekriterien (DoD)
 1. Spotlight öffnet per Button als Vollbild-Overlay — **DONE**.
@@ -215,8 +215,8 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 4. AND/OR mit Regeln + Gruppen funktioniert konsistent — **in-progress** (Konsistente Gruppenverknüpfung im Backend verfügbar; Rule-Builder-UX im Frontend noch nicht final).
 5. Suchprofile sind speicherbar mit „Für mich“/„Für alle“ — **in-progress** (Backend unterstützt private/global Profile; UI-Speicherfunktion steht noch aus).
 6. Admin kann Suchprofile löschen — **DONE** (Backend-Endpunkte vorhanden und auf Admin-Berechtigung abgesichert).
-7. Toggle blendet Folder Structure zuverlässig ein/aus — **Not DONE**.
-8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **in-progress** (Backend liefert Tree-/Navigation-Daten; Frontend-Einbindung im Spotlight steht noch aus).
+7. Toggle blendet Folder Structure zuverlässig ein/aus — **DONE** (Toggle in der Library blendet die Ordnerstruktur-Filtersektion ein/aus).
+8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **in-progress** (Spotlight bietet jetzt Ordner-/Collection-Auswahl als Zusatzoption, finale Tree-UX noch offen).
 9. Bestehende Suche bleibt funktional und strukturell unverändert — **DONE**.
 
 
@@ -282,3 +282,15 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
   - FR-1 Vollbild-Advanced-Suche bleibt **DONE**.
   - Spotlight Phase 1 bleibt **DONE**.
   - Regelgruppen-Builder, Suchprofile-UI und Tree-Integration bleiben **in-progress**.
+
+### 11.12 Update 2026-03-03 (Frontend: Folder Structure + Spotlight-Filter)
+- Standard-Library erweitert:
+  - Neuer Toggle `Display Folder Structure` in der erweiterten Suche blendet die Ordnerstruktur-Sektion ein/aus.
+  - Ordnerbaum wird aus dem Folder-Repository geladen, für die Auswahl abgeflacht dargestellt und als `folderId` in die Suche übernommen.
+  - Collection-Auswahl ergänzt und als `collectionId` in die Suche übernommen.
+- Spotlight Query Studio erweitert:
+  - Übernimmt nun ebenfalls `Display Folder Structure` sowie Ordner-/Collection-Filter aus der Library und kann diese zurückschreiben.
+- Statuswirkung:
+  - Rollout-Task für den Toggle ist auf **DONE** angehoben.
+  - Spotlight-Tree-Task bleibt **in-progress**, da eine vollwertige Rule-Builder-/Tree-UX weiterhin offen ist.
+

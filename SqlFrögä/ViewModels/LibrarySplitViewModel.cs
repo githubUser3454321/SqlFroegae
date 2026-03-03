@@ -23,6 +23,8 @@ public partial class LibrarySplitViewModel : ObservableObject
     private readonly ICustomerMappingRepository _customerMappingRepository;
     private readonly IUserRepository _userRepository;
     private readonly IUserWorkspaceStateStore _workspaceStateStore;
+    private readonly IScriptFolderRepository _folderRepository;
+    private readonly IScriptCollectionRepository _collectionRepository;
     private Frame? _detailFrame;
     private ScriptSearchFilters? _activeFilters;
     private string? _activeSearchText;
@@ -37,6 +39,8 @@ public partial class LibrarySplitViewModel : ObservableObject
     public ObservableCollection<string> FilteredRelatedModules { get; } = new();
     public ObservableCollection<string> AvailableTags { get; } = new();
     public ObservableCollection<string> FilteredTags { get; } = new();
+    public ObservableCollection<FolderTreeOption> AvailableFolders { get; } = new();
+    public ObservableCollection<ScriptCollection> AvailableCollections { get; } = new();
 
     [ObservableProperty] private string _queryText = "";
     [ObservableProperty] private ScriptListItem? _selected;
@@ -54,6 +58,9 @@ public partial class LibrarySplitViewModel : ObservableObject
     [ObservableProperty] private bool _includeDeleted;
     [ObservableProperty] private bool _searchInHistory;
     [ObservableProperty] private bool _isAdvancedSearchExpanded;
+    [ObservableProperty] private bool _displayFolderStructure;
+    [ObservableProperty] private FolderTreeOption? _selectedFolder;
+    [ObservableProperty] private ScriptCollection? _selectedCollection;
     [ObservableProperty] private int _currentPage = 1;
     [ObservableProperty] private bool _hasNextPage;
     [ObservableProperty] private Visibility _paginationVisibility = Visibility.Collapsed;
@@ -78,6 +85,8 @@ public partial class LibrarySplitViewModel : ObservableObject
         _customerMappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
         _userRepository = App.Services.GetRequiredService<IUserRepository>();
         _workspaceStateStore = App.Services.GetRequiredService<IUserWorkspaceStateStore>();
+        _folderRepository = App.Services.GetRequiredService<IScriptFolderRepository>();
+        _collectionRepository = App.Services.GetRequiredService<IScriptCollectionRepository>();
     }
 
     public void AttachDetailFrame(Frame frame) => _detailFrame = frame;
@@ -264,6 +273,18 @@ public partial class LibrarySplitViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SelectFolder(FolderTreeOption? folder)
+    {
+        SelectedFolder = folder;
+    }
+
+    [RelayCommand]
+    private void ClearFolder()
+    {
+        SelectedFolder = null;
+    }
+
+    [RelayCommand]
     private void ApplyModuleFilter(string? module)
     {
         if (string.IsNullOrWhiteSpace(module))
@@ -319,6 +340,45 @@ public partial class LibrarySplitViewModel : ObservableObject
             AvailableTags.Add(tag);
 
         ApplyCatalogFilters();
+        await RefreshFolderAndCollectionOptionsAsync();
+    }
+
+    private async Task RefreshFolderAndCollectionOptionsAsync()
+    {
+        var folderTree = await _folderRepository.GetTreeAsync();
+        var flattenedFolders = new List<FolderTreeOption>();
+        foreach (var root in folderTree.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            FlattenFolder(root, flattenedFolders, 0);
+
+        AvailableFolders.Clear();
+        foreach (var folder in flattenedFolders)
+            AvailableFolders.Add(folder);
+
+        SelectedFolder = SelectedFolder is null
+            ? null
+            : AvailableFolders.FirstOrDefault(x => x.Id == SelectedFolder.Id);
+
+        var collections = await _collectionRepository.GetAllAsync();
+        var sortedCollections = collections
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        AvailableCollections.Clear();
+        foreach (var collection in sortedCollections)
+            AvailableCollections.Add(collection);
+
+        SelectedCollection = SelectedCollection is null
+            ? null
+            : AvailableCollections.FirstOrDefault(x => x.Id == SelectedCollection.Id);
+    }
+
+    private static void FlattenFolder(ScriptFolderTreeNode node, ICollection<FolderTreeOption> target, int level)
+    {
+        target.Add(new FolderTreeOption(node.Id, level, node.Name));
+
+        foreach (var child in node.Children.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            FlattenFolder(child, target, level + 1);
     }
 
     partial void OnModuleCatalogSearchTextChanged(string value)
@@ -563,6 +623,8 @@ public partial class LibrarySplitViewModel : ObservableObject
             Tags: tags,
             ReferencedObject: referencedObjects?.FirstOrDefault(),
             ReferencedObjects: referencedObjects,
+            FolderId: SelectedFolder?.Id,
+            CollectionId: SelectedCollection?.Id,
             IncludeDeleted: IncludeDeleted,
             SearchHistory: SearchInHistory);
     }
@@ -602,4 +664,9 @@ public partial class LibrarySplitViewModel : ObservableObject
 
         return string.Join(", ", values);
     }
+}
+
+public sealed record FolderTreeOption(Guid Id, int Level, string Name)
+{
+    public string DisplayName => $"{new string('•', Math.Max(1, Level + 1))} {Name}";
 }

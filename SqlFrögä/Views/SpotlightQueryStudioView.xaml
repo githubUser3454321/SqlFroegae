@@ -47,6 +47,19 @@
                       Content="Gelöschte Datensätze anzeigen (Temporal)"/>
             <CheckBox x:Name="SearchHistoryBox"
                       Content="Auch in Historien-Versionen suchen"/>
+
+            <ToggleSwitch x:Name="DisplayFolderStructureToggle"
+                          Header="Display Folder Structure"/>
+
+            <ComboBox x:Name="FolderCombo"
+                      Header="Ordnerfilter"
+                      DisplayMemberPath="DisplayName"
+                      PlaceholderText="Alle Ordner"/>
+
+            <ComboBox x:Name="CollectionCombo"
+                      Header="Collection-Filter"
+                      DisplayMemberPath="Name"
+                      PlaceholderText="Alle Collections"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
