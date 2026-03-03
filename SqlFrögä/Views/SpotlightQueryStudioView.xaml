@@ -129,6 +129,7 @@
                     </ComboBox>
 
                     <CheckBox x:Name="EnableSecondGroupCheckBox" Content="Zweite Regelgruppe aktivieren"/>
+                    <CheckBox x:Name="EnableThirdGroupCheckBox" Content="Dritte Regelgruppe aktivieren"/>
 
                     <StackPanel x:Name="SecondGroupPanel" Spacing="8">
                         <TextBox x:Name="SecondQueryTextBox" Header="Regelgruppe 2: Freitext" PlaceholderText="optional"/>
@@ -147,6 +148,25 @@
                         <CheckBox x:Name="SecondSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
                         <ComboBox x:Name="SecondFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
                         <ComboBox x:Name="SecondCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ThirdGroupPanel" Spacing="8">
+                        <TextBox x:Name="ThirdQueryTextBox" Header="Regelgruppe 3: Freitext" PlaceholderText="optional"/>
+                        <ComboBox x:Name="ThirdScopeCombo" SelectedIndex="0">
+                            <ComboBoxItem Content="Bereich: Alle"/>
+                            <ComboBoxItem Content="Bereich: Global"/>
+                            <ComboBoxItem Content="Bereich: Kunde"/>
+                            <ComboBoxItem Content="Bereich: Modul"/>
+                        </ComboBox>
+                        <TextBox x:Name="ThirdMainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
+                        <TextBox x:Name="ThirdRelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="ThirdCustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="ThirdTagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="ThirdObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
+                        <CheckBox x:Name="ThirdIncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
+                        <CheckBox x:Name="ThirdSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
+                        <ComboBox x:Name="ThirdFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
+                        <ComboBox x:Name="ThirdCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
