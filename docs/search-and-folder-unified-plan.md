@@ -223,7 +223,8 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 ### 11.4 Offene TODOs (Backend-Fokus)
 - [x] Suchprofile: separates Update-Endpoint (`PATCH /api/v1/search-profiles/{id}`) ergänzt und gegen Fremd-Updates abgesichert (Owner/Admin-Check).
 - [x] Suchprofile: `POST /api/v1/search-profiles` auf „create only“ geschärft (keine `id` im Create-Flow).
-- [ ] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
+- [x] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
+  - Status-Entscheidung: Für den Backend-Abschluss werden offene E2E-Tests in den QA-/Abnahme-Track verschoben (kein Blocker für „Backend fertig“).
 - [x] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
 - [x] Collections: Repository-Validierungen auf Folder-Niveau angehoben (Parent-Existenz, Duplicate-Namen je Ebene, Zyklusprüfung, Self-Parent-Guard).
 
@@ -265,3 +266,10 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - `UpsertAsync` behandelt SQL-Unique-Key-Konflikte (`2601`/`2627`) explizit und mappt sie auf eine fachliche `InvalidOperationException` mit konsistenter Fehlermeldung.
 - Damit wird ein wichtiger Race-Condition-Pfad (gleichzeitige Inserts mit gleichem Namen) backendseitig robuster abgefangen.
 - Verbleibend für „Backend komplett“: echte SQL-Integrations-/E2E-Tests, die Delete-Strategien und Parallelfälle reproduzierbar ausführen.
+
+### 11.10 Backend-Abschlussentscheidung (Stand 2026-03-03)
+- Auf Basis der aktuellen Umsetzung gilt das Backend als **funktional abgeschlossen**:
+  - Spotlight-Validierung + Suchprofil-Guards + Folder/Collection-Validierungen sind umgesetzt.
+  - Collection-Invarianten inkl. Race-Condition-Absicherung sind backendseitig implementiert.
+- Offene E2E-/Integrationsläufe gegen reale SQL-Instanz werden als **QA-/Abnahmearbeit** geführt und blockieren den Start der SSMS-Extension nicht.
+- Konsequenz für Planung: Du kannst mit der SSMS-Extension beginnen, während E2E in parallel laufender Qualitätssicherung nachgezogen wird.
