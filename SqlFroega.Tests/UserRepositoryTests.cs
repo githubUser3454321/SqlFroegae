@@ -128,4 +128,45 @@ public sealed class UserRepositoryTests
         Assert.NotNull(secondLookup);
     }
 
+
+
+    [Fact]
+    public async Task PermanentDelete_RemovesUserFromListAndLogin()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("remove-me", "secret", isAdmin: false);
+        var deleted = await repo.DeletePermanentlyAsync(user.Id);
+        var byCredentials = await repo.FindActiveByCredentialsAsync("remove-me", "secret");
+        var allUsers = await repo.GetAllAsync();
+
+        Assert.True(deleted);
+        Assert.Null(byCredentials);
+        Assert.DoesNotContain(allUsers, x => x.Id == user.Id);
+    }
+
+    [Fact]
+    public async Task PermanentDelete_UnknownUser_ReturnsFalse()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var deleted = await repo.DeletePermanentlyAsync(Guid.NewGuid());
+
+        Assert.False(deleted);
+    }
+
+    [Fact]
+    public async Task PermanentDelete_ClearsRememberedDeviceForDeletedUser()
+    {
+        var repo = new InMemoryUserRepository();
+
+        var user = await repo.AddAsync("remembered", "secret", isAdmin: false);
+        await repo.RememberDeviceAsync(user.Id);
+
+        await repo.DeletePermanentlyAsync(user.Id);
+        var byCurrentDevice = await repo.FindActiveByCurrentDeviceAsync();
+
+        Assert.Null(byCurrentDevice);
+    }
+
 }

@@ -65,4 +65,8 @@ public interface IScriptRepository
         CancellationToken ct = default);
 
     Task ClearEditLocksAsync(string? username, CancellationToken ct = default);
+
+    Task<int> ClearAllEditLocksAsync(CancellationToken ct = default);
+
+    Task<bool> ForceReleaseEditLockAsync(Guid scriptId, CancellationToken ct = default);
 }

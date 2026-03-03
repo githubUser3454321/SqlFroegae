@@ -195,6 +195,23 @@ WHERE Id = @userId", new { userId });
         return changed > 0;
     }
 
+
+    public async Task<bool> DeletePermanentlyAsync(Guid userId)
+    {
+        await using var conn = await _connFactory.OpenAsync();
+
+        var changed = await conn.ExecuteScalarAsync<int>(@"
+DELETE FROM dbo.AuthenticatedDevices
+WHERE UserId = @userId;
+
+DELETE FROM dbo.Users
+WHERE Id = @userId;
+
+SELECT @@ROWCOUNT;", new { userId });
+
+        return changed > 0;
+    }
+
     private static string HashPassword(string password)
     {
         var bytes = Encoding.Unicode.GetBytes(password ?? string.Empty);

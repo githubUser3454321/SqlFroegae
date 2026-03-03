@@ -57,7 +57,11 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8">
             <Button Content="Benutzer deaktivieren" Command="{Binding DeactivateSelectedCommand}"/>
             <Button Content="Benutzer reaktivieren" Command="{Binding ReactivateSelectedCommand}"/>
-            <TextBlock Text="{Binding Error}" Foreground="DarkRed"/>
+            <Button Content="Benutzer endgültig löschen" Command="{Binding DeleteSelectedPermanentlyCommand}"/>
+            <Button Content="RecordInUse leeren" Command="{Binding ClearRecordInUseCommand}"/>
+            <TextBox Width="260" PlaceholderText="RecordInUse via NumberId oder GUID" Text="{Binding RecordInUseTargetId, Mode=TwoWay}"/>
+            <Button Content="RecordInUse gezielt löschen" Command="{Binding ClearSpecificRecordInUseCommand}"/>
+            <TextBlock Text="{Binding Error}" Foreground="DarkRed" TextWrapping="Wrap" MaxWidth="520"/>
         </StackPanel>
     </Grid>
 </Page>
