@@ -63,6 +63,22 @@ public sealed class SpotlightSearchCombinerTests
         Assert.Null(visibility);
     }
 
+
+    [Fact]
+    public void Combine_NormalizesPaging_WhenSkipOrTakeInvalid()
+    {
+        var a = Script("A", 1);
+        var b = Script("B", 2);
+
+        var result = SpotlightSearchCombiner.Combine(
+            new List<IReadOnlyList<ScriptListItem>> { new[] { a, b } },
+            combineWithAnd: false,
+            skip: -5,
+            take: 0);
+
+        Assert.Equal(2, result.Count);
+    }
+
     private static ScriptListItem Script(string name, int numberId)
     {
         return new ScriptListItem(

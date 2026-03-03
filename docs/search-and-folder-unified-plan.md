@@ -194,7 +194,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - FR-3: AND/OR-Logik — **Partialy DONE** (Backend-Endpoint `/api/v1/scripts/spotlight-search` mit Gruppen-Verknüpfung per AND/OR umgesetzt; UI-Regelbuilder auf Frontend-Seite noch offen).
 - FR-4: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-CRUD für Suchprofile inkl. Sichtbarkeit `private/global` umgesetzt; Frontend-Integration und Speichern/Laden im Studio noch offen).
 - FR-5: Admin-Filterverwaltung — **DONE** (Admin-Liste und Löschpfad über `/api/v1/admin/search-profiles` und `/api/v1/search-profiles/{id}` backendseitig implementiert).
-- FR-6: Tree als Zusatzbaustein im Spotlight — **NOT DONE**.
+- FR-6: Tree als Zusatzbaustein im Spotlight — **Partialy DONE** (Folder-Tree und Collection-Daten sind backendseitig über `/api/v1/navigation` und `/api/v1/folders/tree` abrufbar; Spotlight-UI-Integration noch offen).
 
 ### 11.2 Migration & Rollout (Punkt für Punkt)
 1. DB-Migration A (`script_folder`, `script.folder_id`) — **Partialy DONE** (Backend legt `ScriptFolders` + `Scripts.FolderId` per Schema-Ensure an; dedizierte, versionierte SQL-Migration noch ausstehend).
@@ -205,7 +205,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **Partialy DONE** (Backend-Gruppenlogik per AND/OR verfügbar; UI-Validierungszustände noch ausstehend).
 7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **Partialy DONE** (Backend-Endpunkte für Anlegen/Liste/Löschen sind vorhanden; UI-Workflows noch offen).
 8. Spotlight Phase 4: Admin-Filterverwaltung (Löschen) — **DONE** (Admin kann Profile backendseitig einsehen/löschen).
-9. DB-Migration B (`collection`, `script_collection`) schrittweise aktivieren — **NOT DONE**.
+9. DB-Migration B (`collection`, `script_collection`) schrittweise aktivieren — **Partialy DONE** (Backend-Schema-Ensure und CRUD-/Assignment-APIs für Collections vorhanden; dedizierte, versionierte Migration und UI-Anbindung noch ausstehend).
 10. Tree-Struktur als optionale Spotlight-Erweiterung finalisieren — **NOT DONE**.
 
 ### 11.3 Abnahmekriterien (DoD)
@@ -216,5 +216,5 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 5. Suchprofile sind speicherbar mit „Für mich“/„Für alle“ — **Partialy DONE** (Backend unterstützt private/global Profile; UI-Speicherfunktion steht noch aus).
 6. Admin kann Suchprofile löschen — **DONE** (Backend-Endpunkte vorhanden und auf Admin-Berechtigung abgesichert).
 7. Toggle blendet Folder Structure zuverlässig ein/aus — **NOT DONE**.
-8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **NOT DONE**.
+8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **Partialy DONE** (Backend liefert Tree-/Navigation-Daten; Frontend-Einbindung im Spotlight steht noch aus).
 9. Bestehende Suche bleibt funktional und strukturell unverändert — **DONE**.

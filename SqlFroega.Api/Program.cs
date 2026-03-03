@@ -43,6 +43,7 @@ builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
 builder.Services.AddScoped<ISearchProfileRepository, SearchProfileRepository>();
 builder.Services.AddScoped<IScriptFolderRepository, ScriptFolderRepository>();
+builder.Services.AddScoped<IScriptCollectionRepository, ScriptCollectionRepository>();
 builder.Services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
 builder.Services.AddProblemDetails();
@@ -301,6 +302,83 @@ api.MapDelete("/folders/{id:guid}", async (Guid id, IScriptFolderRepository fold
     return deleted ? Results.NoContent() : Results.NotFound();
 }).RequireAuthorization(Policies.ScriptsWrite);
 
+
+api.MapGet("/collections", async (IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    var collections = await collectionRepository.GetAllAsync(ct);
+    return Results.Ok(collections);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
+{
+    var ownerScope = ResolveOwnerScope(request.OwnerScope, HasScope(context.User, "admin.users"));
+    if (ownerScope is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerScope"] = ["OwnerScope 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+        request.Id,
+        request.Name,
+        request.ParentId,
+        ownerScope,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/collections/{id:guid}", async (Guid id, ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
+{
+    var ownerScope = ResolveOwnerScope(request.OwnerScope, HasScope(context.User, "admin.users"));
+    if (ownerScope is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerScope"] = ["OwnerScope 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+        id,
+        request.Name,
+        request.ParentId,
+        ownerScope,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapDelete("/collections/{id:guid}", async (Guid id, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    var deleted = await collectionRepository.DeleteAsync(id, ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/scripts/{id:guid}/collections", async (Guid id, ScriptCollectionAssignmentRequest request, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    await collectionRepository.AssignScriptCollectionsAsync(id, request.CollectionIds ?? Array.Empty<Guid>(), request.PrimaryCollectionId, ct);
+    return Results.NoContent();
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapGet("/navigation", async (
+    IScriptFolderRepository folderRepository,
+    IScriptCollectionRepository collectionRepository,
+    CancellationToken ct) =>
+{
+    var folders = await folderRepository.GetTreeAsync(ct);
+    var collections = await collectionRepository.GetAllAsync(ct);
+
+    return Results.Ok(new
+    {
+        views = new[] { "all", "favorites", "recent", "uncategorized" },
+        folders,
+        collections
+    });
+}).RequireAuthorization(Policies.ScriptsRead);
+
 api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, CancellationToken ct) =>
 {
     var script = await scriptRepository.GetByIdAsync(id, ct);
@@ -499,6 +577,16 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
+static string? ResolveOwnerScope(string? ownerScope, bool isAdmin)
+{
+    if (string.Equals(ownerScope?.Trim(), "global", StringComparison.OrdinalIgnoreCase))
+    {
+        return isAdmin ? "global" : null;
+    }
+
+    return "private";
+}
+
 static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)
 {
     tenantContext = ResolveTenantContext(context, null, user);
@@ -665,6 +753,17 @@ internal sealed record ScriptFolderUpsertRequest(
     string Name,
     Guid? ParentId,
     int SortOrder = 0);
+
+internal sealed record ScriptCollectionUpsertRequest(
+    Guid? Id,
+    string Name,
+    Guid? ParentId,
+    string? OwnerScope,
+    int SortOrder = 0);
+
+internal sealed record ScriptCollectionAssignmentRequest(
+    IReadOnlyList<Guid>? CollectionIds,
+    Guid? PrimaryCollectionId);
 
 internal sealed record SearchProfileUpsertRequest(
     Guid? Id,
