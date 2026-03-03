@@ -38,7 +38,6 @@ public sealed partial class LibrarySplitView : Page
 
     private readonly DispatcherQueueTimer _resizeDebounceTimer;
     private double _pendingResultsViewportHeight;
-    private bool _spotlightOverlayInitialized;
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -136,11 +135,7 @@ public sealed partial class LibrarySplitView : Page
 
     private async void OpenSpotlightQueryStudio_Click(object sender, RoutedEventArgs e)
     {
-        if (!_spotlightOverlayInitialized)
-        {
-            await SpotlightView.InitializeFromAsync(VM);
-            _spotlightOverlayInitialized = true;
-        }
+        await SpotlightView.InitializeFromAsync(VM);
 
         SpotlightOverlay.Visibility = Visibility.Visible;
         MainContentGrid.IsHitTestVisible = false;
