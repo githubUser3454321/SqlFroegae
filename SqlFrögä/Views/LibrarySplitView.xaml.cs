@@ -136,7 +136,7 @@ public sealed partial class LibrarySplitView : Page
     private async void OpenSpotlightQueryStudio_Click(object sender, RoutedEventArgs e)
     {
         var spotlightView = new SpotlightQueryStudioView();
-        spotlightView.InitializeFrom(VM);
+        await spotlightView.InitializeFromAsync(VM);
 
         var dialog = new ContentDialog
         {

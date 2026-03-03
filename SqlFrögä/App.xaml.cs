@@ -180,6 +180,7 @@ public partial class App : Microsoft.UI.Xaml.Application
         services.AddScoped<IScriptRepository, ScriptRepository>();
         services.AddScoped<IScriptFolderRepository, ScriptFolderRepository>();
         services.AddScoped<IScriptCollectionRepository, ScriptCollectionRepository>();
+        services.AddScoped<ISearchProfileRepository, SearchProfileRepository>();
         services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
         services.AddScoped<IUserRepository, SqlUserRepository>();
         services.AddSingleton<IUserWorkspaceStateStore, UserWorkspaceStateFileStore>();
