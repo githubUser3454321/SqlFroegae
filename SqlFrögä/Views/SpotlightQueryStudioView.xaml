@@ -1,0 +1,49 @@
+<UserControl
+    x:Class="SqlFroega.Views.SpotlightQueryStudioView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer MaxHeight="800"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="12">
+            <TextBlock Text="Phase 1: Vollbildsuche mit Filter-Parität zur bestehenden erweiterten Suche."
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold"/>
+            <TextBlock Text="Nächster Schritt: AND/OR-Regelgruppen, Suchprofile und Tree-Zusatzfunktion."
+                       TextWrapping="Wrap"
+                       Opacity="0.85"/>
+
+            <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
+                <ComboBoxItem Content="Bereich: Alle"/>
+                <ComboBoxItem Content="Bereich: Global"/>
+                <ComboBoxItem Content="Bereich: Kunde"/>
+                <ComboBoxItem Content="Bereich: Modul"/>
+            </ComboBox>
+
+            <TextBox x:Name="MainModuleBox"
+                     Header="Hauptmodul"
+                     PlaceholderText="z. B. Einkauf"/>
+            <TextBox x:Name="RelatedModuleBox"
+                     Header="Verknüpfte Module"
+                     PlaceholderText="komma-getrennt"/>
+            <TextBox x:Name="CustomerCodeBox"
+                     Header="Kundenkürzel"
+                     PlaceholderText="komma-getrennt"/>
+            <TextBox x:Name="TagsBox"
+                     Header="Tags"
+                     PlaceholderText="komma-getrennt"/>
+            <TextBox x:Name="ObjectsBox"
+                     Header="Referenzierte SQL-Objekte"
+                     PlaceholderText="komma-getrennt"/>
+
+            <CheckBox x:Name="IncludeDeletedBox"
+                      Content="Gelöschte Datensätze anzeigen (Temporal)"/>
+            <CheckBox x:Name="SearchHistoryBox"
+                      Content="Auch in Historien-Versionen suchen"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -183,3 +183,38 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - **P2:** AND/OR-Regelgruppen + Suchprofile
 - **P3:** Admin-Filterverwaltung + Tree im Spotlight
 - **P4:** Multi-Collection + Primary Location + UX-Feinschliff
+
+---
+
+## 11) Umsetzungsstatus (aktueller Stand)
+
+### 11.1 Funktionale Anforderungen (FR)
+- FR-1: Vollbild-Advanced-Suche — **DONE** (Spotlight öffnet per eigenem Button als Vollbild-Overlay, Abbrechen möglich).
+- FR-2: Vollständiger Filterumfang — **Partialy DONE** (Scope, Hauptmodul, abhängige Module, Tags/Flags, SQL-Objekte, Kundenkürzel, IncludeDeleted/Historie im Spotlight-Dialog verfügbar; als eigene Spotlight-Komponente umgesetzt, regelblockbasiertes Multi-Set noch offen).
+- FR-3: AND/OR-Logik — **NOT DONE**.
+- FR-4: Suchprofile (Für mich/Für alle) — **NOT DONE**.
+- FR-5: Admin-Filterverwaltung — **NOT DONE**.
+- FR-6: Tree als Zusatzbaustein im Spotlight — **NOT DONE**.
+
+### 11.2 Migration & Rollout (Punkt für Punkt)
+1. DB-Migration A (`script_folder`, `script.folder_id`) — **NOT DONE**.
+2. Folder-Read APIs + UI hinter Feature Flag — **NOT DONE**.
+3. Ordner-Schreiboperationen stabilisieren (inkl. Zykluschecks) — **NOT DONE**.
+4. Toggle `Display Folder Structure` ausrollen — **NOT DONE**.
+5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **Partialy DONE** (Fullscreen + Filter-Parität im Spotlight-Einstieg implementiert und in eigene Spotlight-View ausgelagert; vollständige Regelblock-Engine noch offen).
+6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **NOT DONE**.
+7. Spotlight Phase 3: Suchprofile (Für mich/Für alle) — **NOT DONE**.
+8. Spotlight Phase 4: Admin-Filterverwaltung (Löschen) — **NOT DONE**.
+9. DB-Migration B (`collection`, `script_collection`) schrittweise aktivieren — **NOT DONE**.
+10. Tree-Struktur als optionale Spotlight-Erweiterung finalisieren — **NOT DONE**.
+
+### 11.3 Abnahmekriterien (DoD)
+1. Spotlight öffnet per Button als Vollbild-Overlay — **DONE**.
+2. Abbrechen stellt die vorherige Ansicht ohne Reload-Verlust wieder her — **DONE**.
+3. Alle bestehenden Filter sind in jedem Regelblock verfügbar — **Partialy DONE** (Filter sind im Spotlight vorhanden und suchbar; Regelblock-Mehrfachstruktur noch ausstehend).
+4. AND/OR mit Regeln + Gruppen funktioniert konsistent — **NOT DONE**.
+5. Suchprofile sind speicherbar mit „Für mich“/„Für alle“ — **NOT DONE**.
+6. Admin kann Suchprofile löschen — **NOT DONE**.
+7. Toggle blendet Folder Structure zuverlässig ein/aus — **NOT DONE**.
+8. Folder-Tree ist im Spotlight als zusätzliche Option nutzbar — **NOT DONE**.
+9. Bestehende Suche bleibt funktional und strukturell unverändert — **DONE**.
