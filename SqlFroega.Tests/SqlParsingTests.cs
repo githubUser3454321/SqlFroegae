@@ -1166,6 +1166,11 @@ OUTER APPLY (
         var service = new SqlCustomerRenderService(new FakeMappingRepository(mappings));
         var result = await service.NormalizeForStorageAsync(sql);
 
+        _output.WriteLine("NormalizeForStorage_Replaces_MyTable_InManySqlShapes");
+        _output.WriteLine($"Input SQL: {sql}");
+        _output.WriteLine($"Expected: {expected}");
+        _output.WriteLine($"Actual:   {result}");
+
         Assert.Equal(expected, result);
     }
 
