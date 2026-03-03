@@ -64,6 +64,14 @@ public sealed class SpotlightSearchCombinerTests
     }
 
 
+
+    [Fact]
+    public void Combine_WithNoGroups_ReturnsEmpty()
+    {
+        var result = SpotlightSearchCombiner.Combine(new List<IReadOnlyList<ScriptListItem>>(), combineWithAnd: false, skip: 0, take: 50);
+        Assert.Empty(result);
+    }
+
     [Fact]
     public void Combine_NormalizesPaging_WhenSkipOrTakeInvalid()
     {

@@ -8,6 +8,7 @@ public sealed class SearchProfileVisibilityTests
     [InlineData(null, false, "private")]
     [InlineData("private", false, "private")]
     [InlineData("global", true, "global")]
+    [InlineData("GLOBAL", true, "global")]
     public void NormalizeForRequest_ValidCases(string? raw, bool isAdmin, string expected)
     {
         var value = SearchProfileVisibility.NormalizeForRequest(raw, isAdmin);

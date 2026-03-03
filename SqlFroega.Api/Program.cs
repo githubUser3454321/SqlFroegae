@@ -220,6 +220,7 @@ api.MapGet("/scripts", async (
         query.ReferencedObject,
         referencedObjects,
         query.FolderId,
+        query.CollectionId,
         query.IncludeDeleted,
         query.SearchHistory);
 
@@ -256,6 +257,7 @@ api.MapPost("/scripts/spotlight-search", async (
             group.ReferencedObject,
             ParseCsv(group.ReferencedObjects),
             group.FolderId,
+            group.CollectionId,
             group.IncludeDeleted,
             group.SearchHistory);
 
@@ -311,7 +313,7 @@ api.MapGet("/collections", async (IScriptCollectionRepository collectionReposito
 
 api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
 {
-    var ownerScope = ResolveOwnerScope(request.OwnerScope, HasScope(context.User, "admin.users"));
+    var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
     if (ownerScope is null)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -332,7 +334,7 @@ api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScrip
 
 api.MapPatch("/collections/{id:guid}", async (Guid id, ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
 {
-    var ownerScope = ResolveOwnerScope(request.OwnerScope, HasScope(context.User, "admin.users"));
+    var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
     if (ownerScope is null)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -577,16 +579,6 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
-static string? ResolveOwnerScope(string? ownerScope, bool isAdmin)
-{
-    if (string.Equals(ownerScope?.Trim(), "global", StringComparison.OrdinalIgnoreCase))
-    {
-        return isAdmin ? "global" : null;
-    }
-
-    return "private";
-}
-
 static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)
 {
     tenantContext = ResolveTenantContext(context, null, user);
@@ -707,6 +699,7 @@ internal sealed record ScriptSearchQuery(
     string? Tags,
     string? ReferencedObject,
     Guid? FolderId,
+    Guid? CollectionId,
     bool IncludeDeleted = false,
     bool SearchHistory = false,
     int Take = 200,
@@ -730,6 +723,7 @@ internal sealed record SpotlightRuleGroupRequest(
     string? ReferencedObject,
     string? ReferencedObjects,
     Guid? FolderId,
+    Guid? CollectionId,
     bool IncludeDeleted = false,
     bool SearchHistory = false);
 

@@ -14,6 +14,7 @@ public sealed record ScriptSearchFilters(
     string? ReferencedObject,
     IReadOnlyList<string>? ReferencedObjects,
     Guid? FolderId = null,
+    Guid? CollectionId = null,
     bool IncludeDeleted = false,
     bool SearchHistory = false
 );

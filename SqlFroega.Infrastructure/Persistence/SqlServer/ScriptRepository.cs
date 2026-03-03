@@ -94,6 +94,12 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@folderId", filters.FolderId.Value);
         }
 
+        if (filters.CollectionId is not null)
+        {
+            sb.AppendLine("AND EXISTS (SELECT 1 FROM dbo.ScriptCollectionMap scm WHERE scm.ScriptId = s.Id AND scm.CollectionId = @collectionId)");
+            p.Add("@collectionId", filters.CollectionId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(filters.Module))
         {
             sb.AppendLine("AND (s.Module = @module OR COALESCE(s.RelatedModules, N'') LIKE '%' + @module + '%')");
@@ -141,6 +147,8 @@ public sealed class ScriptRepository : IScriptRepository
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
+        if (filters.CollectionId is not null)
+            await EnsureCollectionMapSchemaAsync(conn, ct);
         if (HasReferencedObjectFilters(filters))
             await EnsureScriptRefsTableAsync(conn, ct);
 
@@ -209,6 +217,12 @@ public sealed class ScriptRepository : IScriptRepository
         {
             sb.AppendLine("      AND s.FolderId = @folderId");
             p.Add("@folderId", filters.FolderId.Value);
+        }
+
+        if (filters.CollectionId is not null)
+        {
+            sb.AppendLine("      AND EXISTS (SELECT 1 FROM dbo.ScriptCollectionMap scm WHERE scm.ScriptId = s.Id AND scm.CollectionId = @collectionId)");
+            p.Add("@collectionId", filters.CollectionId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(filters.Module))
@@ -298,6 +312,8 @@ public sealed class ScriptRepository : IScriptRepository
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
+        if (filters.CollectionId is not null)
+            await EnsureCollectionMapSchemaAsync(conn, ct);
         if (HasReferencedObjectFilters(filters))
             await EnsureScriptRefsTableAsync(conn, ct);
 
@@ -1442,6 +1458,24 @@ END;";
         {
             throw new Exception("Database coruppted, drop everything and recreate the database.");
         }
+    }
+
+
+    private static Task EnsureCollectionMapSchemaAsync(System.Data.Common.DbConnection conn, CancellationToken ct)
+    {
+        return conn.ExecuteAsync(new CommandDefinition(@"
+IF OBJECT_ID('dbo.ScriptCollectionMap', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ScriptCollectionMap
+    (
+        ScriptId uniqueidentifier NOT NULL,
+        CollectionId uniqueidentifier NOT NULL,
+        IsPrimary bit NOT NULL CONSTRAINT DF_ScriptCollectionMap_IsPrimary DEFAULT (0),
+        CONSTRAINT PK_ScriptCollectionMap PRIMARY KEY (ScriptId, CollectionId)
+    );
+
+    CREATE INDEX IX_ScriptCollectionMap_Collection ON dbo.ScriptCollectionMap(CollectionId, ScriptId);
+END;", cancellationToken: ct));
     }
 
     private static (string Schema, string Table) SplitSchemaAndTable(string rawTable)
