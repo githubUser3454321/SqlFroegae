@@ -419,8 +419,11 @@ public partial class LibrarySplitViewModel : ObservableObject
     }
 
     private async Task<Guid?> ResolveCustomerFilterAsync()
+        => await ResolveCustomerFilterAsync(CustomerCodeFilterText, QueryText);
+
+    private async Task<Guid?> ResolveCustomerFilterAsync(string? customerCodeFilterText, string? queryText)
     {
-        var codeInput = CustomerCodeFilterText?.Trim() ?? string.Empty;
+        var codeInput = customerCodeFilterText?.Trim() ?? string.Empty;
         if (!string.IsNullOrWhiteSpace(codeInput))
         {
             var codeMapping = await _customerMappingRepository.GetByCodeAsync(codeInput);
@@ -430,12 +433,15 @@ public partial class LibrarySplitViewModel : ObservableObject
             return codeMapping.CustomerId;
         }
 
-        return await TryResolveCustomerIdFromQueryTextAsync();
+        return await TryResolveCustomerIdFromQueryTextAsync(queryText);
     }
 
     private async Task<Guid?> TryResolveCustomerIdFromQueryTextAsync()
+        => await TryResolveCustomerIdFromQueryTextAsync(QueryText);
+
+    private async Task<Guid?> TryResolveCustomerIdFromQueryTextAsync(string? queryText)
     {
-        var query = QueryText?.Trim() ?? string.Empty;
+        var query = queryText?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(query))
             return null;
 
@@ -478,6 +484,73 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (_detailFrame is null) return;
         CurrentDetailScriptId = id == Guid.Empty ? null : id;
         _detailFrame.Navigate(typeof(ScriptItemView), id);
+    }
+
+    public async Task SearchWithSpotlightGroupsAsync(IReadOnlyList<SpotlightFilterGroup> groups, bool combineWithAnd)
+    {
+        if (groups is null || groups.Count == 0)
+        {
+            Error = "Keine Spotlight-Regelgruppen übergeben.";
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            Error = null;
+
+            var activeGroups = groups.Where(HasAnyGroupFilter).ToList();
+            if (activeGroups.Count == 0)
+            {
+                Error = "Mindestens eine Regelgruppe benötigt einen Filterwert.";
+                return;
+            }
+
+            var groupedResults = new List<IReadOnlyList<ScriptListItem>>(activeGroups.Count);
+            foreach (var group in activeGroups)
+            {
+                var customerId = await ResolveCustomerFilterAsync(group.CustomerCodeFilterText, group.QueryText);
+                var searchText = ResolveSearchText(group.QueryText, group.CustomerCodeFilterText, customerId);
+                var filters = BuildFilters(
+                    group.ScopeFilterIndex,
+                    group.MainModuleFilterText,
+                    group.RelatedModuleFilterText,
+                    group.TagsFilterText,
+                    group.ObjectFilterText,
+                    group.IncludeDeleted,
+                    group.SearchInHistory,
+                    group.FolderId,
+                    group.CollectionId,
+                    customerId);
+
+                groupedResults.Add(await _repo.SearchAsync(searchText, filters, take: 5000, skip: 0));
+            }
+
+            var combined = CombineSpotlightGroups(groupedResults, combineWithAnd);
+
+            Results.Clear();
+            foreach (var item in combined)
+                Results.Add(item);
+
+            _activeSearchText = null;
+            _activeFilters = null;
+            CurrentPage = 1;
+            HasNextPage = false;
+            PaginationVisibility = Visibility.Collapsed;
+
+            OnPropertyChanged(nameof(ResultsCountText));
+            OnPropertyChanged(nameof(CanGoToPreviousPage));
+
+            await RefreshMetadataCatalogAsync();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private async Task LoadPageAsync(int page)
@@ -601,14 +674,64 @@ public partial class LibrarySplitViewModel : ObservableObject
     private async Task BuildAndStoreActiveSearchContextAsync()
     {
         var customerId = await ResolveCustomerFilterAsync();
-        var searchText = ResolveSearchText(customerId);
-        var tags = ParseTags();
+        _activeSearchText = ResolveSearchText(QueryText, CustomerCodeFilterText, customerId);
+        _activeFilters = BuildFilters(
+            ScopeFilterIndex,
+            MainModuleFilterText,
+            RelatedModuleFilterText,
+            TagsFilterText,
+            ObjectFilterText,
+            IncludeDeleted,
+            SearchInHistory,
+            SelectedFolder?.Id,
+            SelectedCollection?.Id,
+            customerId);
+    }
 
-        _activeSearchText = searchText;
-        var relatedModules = ParseCsvFilter(RelatedModuleFilterText);
-        var referencedObjects = ParseCsvFilter(ObjectFilterText);
-        _activeFilters = new ScriptSearchFilters(
-            Scope: ScopeFilterIndex switch
+    private static string? ResolveSearchText(string? queryText, string? customerCodeFilterText, Guid? customerId)
+    {
+        if (!string.IsNullOrWhiteSpace(queryText)
+            && string.IsNullOrWhiteSpace(customerCodeFilterText)
+            && customerId is not null)
+        {
+            return null;
+        }
+
+        return queryText;
+    }
+
+
+    private static bool HasAnyGroupFilter(SpotlightFilterGroup group)
+        => !string.IsNullOrWhiteSpace(group.QueryText)
+            || group.ScopeFilterIndex > 0
+            || !string.IsNullOrWhiteSpace(group.MainModuleFilterText)
+            || !string.IsNullOrWhiteSpace(group.RelatedModuleFilterText)
+            || !string.IsNullOrWhiteSpace(group.CustomerCodeFilterText)
+            || !string.IsNullOrWhiteSpace(group.TagsFilterText)
+            || !string.IsNullOrWhiteSpace(group.ObjectFilterText)
+            || group.IncludeDeleted
+            || group.SearchInHistory
+            || group.FolderId is not null
+            || group.CollectionId is not null;
+
+    private static ScriptSearchFilters BuildFilters(
+        int scopeFilterIndex,
+        string? mainModuleFilterText,
+        string? relatedModuleFilterText,
+        string? tagsFilterText,
+        string? objectFilterText,
+        bool includeDeleted,
+        bool searchInHistory,
+        Guid? selectedFolderId,
+        Guid? selectedCollectionId,
+        Guid? customerId)
+    {
+        var relatedModules = ParseCsvFilter(relatedModuleFilterText);
+        var tags = ParseCsvFilter(tagsFilterText);
+        var referencedObjects = ParseCsvFilter(objectFilterText);
+
+        return new ScriptSearchFilters(
+            Scope: scopeFilterIndex switch
             {
                 1 => 0,
                 2 => 1,
@@ -617,32 +740,45 @@ public partial class LibrarySplitViewModel : ObservableObject
             },
             CustomerId: customerId,
             Module: null,
-            MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
+            MainModule: string.IsNullOrWhiteSpace(mainModuleFilterText) ? null : mainModuleFilterText.Trim(),
             RelatedModule: relatedModules?.FirstOrDefault(),
             RelatedModules: relatedModules,
             Tags: tags,
             ReferencedObject: referencedObjects?.FirstOrDefault(),
             ReferencedObjects: referencedObjects,
-            FolderId: SelectedFolder?.Id,
-            CollectionId: SelectedCollection?.Id,
-            IncludeDeleted: IncludeDeleted,
-            SearchHistory: SearchInHistory);
+            FolderId: selectedFolderId,
+            CollectionId: selectedCollectionId,
+            IncludeDeleted: includeDeleted,
+            SearchHistory: searchInHistory);
     }
 
-    private string? ResolveSearchText(Guid? customerId)
+    private static IReadOnlyList<ScriptListItem> CombineSpotlightGroups(IReadOnlyList<IReadOnlyList<ScriptListItem>> groupedResults, bool combineWithAnd)
     {
-        if (!string.IsNullOrWhiteSpace(QueryText)
-            && string.IsNullOrWhiteSpace(CustomerCodeFilterText)
-            && customerId is not null)
+        if (groupedResults.Count == 0)
+            return Array.Empty<ScriptListItem>();
+
+        var combined = groupedResults[0].ToDictionary(x => x.Id, x => x);
+        for (var i = 1; i < groupedResults.Count; i++)
         {
-            return null;
+            var group = groupedResults[i];
+            if (combineWithAnd)
+            {
+                var ids = group.Select(x => x.Id).ToHashSet();
+                foreach (var id in combined.Keys.ToList())
+                {
+                    if (!ids.Contains(id))
+                        combined.Remove(id);
+                }
+
+                continue;
+            }
+
+            foreach (var item in group)
+                combined.TryAdd(item.Id, item);
         }
 
-        return QueryText;
+        return combined.Values.OrderBy(x => x.NumberId).ToList();
     }
-
-    private IReadOnlyList<string>? ParseTags()
-        => ParseCsvFilter(TagsFilterText);
 
     private static IReadOnlyList<string>? ParseCsvFilter(string? input)
     {
@@ -670,3 +806,17 @@ public sealed record FolderTreeOption(Guid Id, int Level, string Name)
 {
     public string DisplayName => $"{new string('•', Math.Max(1, Level + 1))} {Name}";
 }
+
+
+public sealed record SpotlightFilterGroup(
+    string? QueryText,
+    int ScopeFilterIndex,
+    string? MainModuleFilterText,
+    string? RelatedModuleFilterText,
+    string? CustomerCodeFilterText,
+    string? TagsFilterText,
+    string? ObjectFilterText,
+    bool IncludeDeleted,
+    bool SearchInHistory,
+    Guid? FolderId,
+    Guid? CollectionId);

@@ -72,6 +72,10 @@
                 </StackPanel>
             </Border>
 
+            <TextBox x:Name="PrimaryQueryTextBox"
+                     Header="Regelgruppe 1: Freitext"
+                     PlaceholderText="z. B. Invoice oder Kundenkürzel"/>
+
             <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
                 <ComboBoxItem Content="Bereich: Alle"/>
                 <ComboBoxItem Content="Bereich: Global"/>
@@ -112,6 +116,41 @@
                       Header="Collection-Filter"
                       DisplayMemberPath="Name"
                       PlaceholderText="Alle Collections"/>
+
+            <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="AND/OR-Regelgruppen (Frontend-Phase 2)" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="GroupCombineModeCombo" Header="Gruppenverknüpfung" SelectedIndex="0" MinWidth="220">
+                        <ComboBoxItem Content="AND (Schnittmenge)"/>
+                        <ComboBoxItem Content="OR (Vereinigung)"/>
+                    </ComboBox>
+
+                    <CheckBox x:Name="EnableSecondGroupCheckBox" Content="Zweite Regelgruppe aktivieren"/>
+
+                    <StackPanel x:Name="SecondGroupPanel" Spacing="8">
+                        <TextBox x:Name="SecondQueryTextBox" Header="Regelgruppe 2: Freitext" PlaceholderText="optional"/>
+                        <ComboBox x:Name="SecondScopeCombo" SelectedIndex="0">
+                            <ComboBoxItem Content="Bereich: Alle"/>
+                            <ComboBoxItem Content="Bereich: Global"/>
+                            <ComboBoxItem Content="Bereich: Kunde"/>
+                            <ComboBoxItem Content="Bereich: Modul"/>
+                        </ComboBox>
+                        <TextBox x:Name="SecondMainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
+                        <TextBox x:Name="SecondRelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="SecondCustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="SecondTagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
+                        <TextBox x:Name="SecondObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
+                        <CheckBox x:Name="SecondIncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
+                        <CheckBox x:Name="SecondSearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
+                        <ComboBox x:Name="SecondFolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
+                        <ComboBox x:Name="SecondCollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </ScrollViewer>
 </UserControl>

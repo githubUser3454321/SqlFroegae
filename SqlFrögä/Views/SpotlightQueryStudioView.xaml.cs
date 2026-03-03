@@ -21,10 +21,14 @@ public sealed partial class SpotlightQueryStudioView : UserControl
     {
         InitializeComponent();
         _searchProfileRepository = App.Services.GetRequiredService<ISearchProfileRepository>();
+        EnableSecondGroupCheckBox.Checked += EnableSecondGroupCheckBox_Changed;
+        EnableSecondGroupCheckBox.Unchecked += EnableSecondGroupCheckBox_Changed;
+        UpdateSecondGroupVisibility();
     }
 
     public async Task InitializeFromAsync(LibrarySplitViewModel vm)
     {
+        PrimaryQueryTextBox.Text = vm.QueryText;
         ScopeCombo.SelectedIndex = vm.ScopeFilterIndex;
         MainModuleBox.Text = vm.MainModuleFilterText;
         RelatedModuleBox.Text = vm.RelatedModuleFilterText;
@@ -38,16 +42,33 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
         FolderCombo.ItemsSource = vm.AvailableFolders;
         FolderCombo.SelectedItem = vm.SelectedFolder;
+        SecondFolderCombo.ItemsSource = vm.AvailableFolders;
 
         CollectionCombo.ItemsSource = vm.AvailableCollections;
         CollectionCombo.SelectedItem = vm.SelectedCollection;
+        SecondCollectionCombo.ItemsSource = vm.AvailableCollections;
 
         await LoadProfilesAsync();
+    }
+
+    public async Task ApplyAndSearchAsync(LibrarySplitViewModel vm)
+    {
+        ApplyTo(vm);
+
+        if (EnableSecondGroupCheckBox.IsChecked == true)
+        {
+            var combineWithAnd = GroupCombineModeCombo.SelectedIndex <= 0;
+            await vm.SearchWithSpotlightGroupsAsync(BuildRuleGroups(), combineWithAnd);
+            return;
+        }
+
+        await vm.SearchCommand.ExecuteAsync(null);
     }
 
     public void ApplyTo(LibrarySplitViewModel vm)
     {
         vm.IsAdvancedSearchExpanded = true;
+        vm.QueryText = PrimaryQueryTextBox.Text;
         vm.ScopeFilterIndex = ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex;
         vm.MainModuleFilterText = MainModuleBox.Text;
         vm.RelatedModuleFilterText = RelatedModuleBox.Text;
@@ -78,6 +99,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
     private void ApplyDefinition(SpotlightProfileDefinition definition)
     {
+        PrimaryQueryTextBox.Text = definition.PrimaryQueryText ?? string.Empty;
         ScopeCombo.SelectedIndex = definition.ScopeFilterIndex;
         MainModuleBox.Text = definition.MainModule ?? string.Empty;
         RelatedModuleBox.Text = definition.RelatedModule ?? string.Empty;
@@ -90,11 +112,49 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
         FolderCombo.SelectedItem = (FolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FolderId);
         CollectionCombo.SelectedItem = (CollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.CollectionId);
+
+        GroupCombineModeCombo.SelectedIndex = definition.CombineWithAnd ? 0 : 1;
+        EnableSecondGroupCheckBox.IsChecked = definition.SecondGroup is not null;
+        if (definition.SecondGroup is null)
+        {
+            ClearSecondGroup();
+            return;
+        }
+
+        SecondQueryTextBox.Text = definition.SecondGroup.QueryText ?? string.Empty;
+        SecondScopeCombo.SelectedIndex = definition.SecondGroup.ScopeFilterIndex;
+        SecondMainModuleBox.Text = definition.SecondGroup.MainModule ?? string.Empty;
+        SecondRelatedModuleBox.Text = definition.SecondGroup.RelatedModule ?? string.Empty;
+        SecondCustomerCodeBox.Text = definition.SecondGroup.CustomerCode ?? string.Empty;
+        SecondTagsBox.Text = definition.SecondGroup.Tags ?? string.Empty;
+        SecondObjectsBox.Text = definition.SecondGroup.ReferencedObjects ?? string.Empty;
+        SecondIncludeDeletedBox.IsChecked = definition.SecondGroup.IncludeDeleted;
+        SecondSearchHistoryBox.IsChecked = definition.SecondGroup.SearchInHistory;
+        SecondFolderCombo.SelectedItem = (SecondFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.SecondGroup.FolderId);
+        SecondCollectionCombo.SelectedItem = (SecondCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.SecondGroup.CollectionId);
     }
 
     private SpotlightProfileDefinition BuildDefinition()
     {
+        SpotlightProfileGroupDefinition? secondGroup = null;
+        if (EnableSecondGroupCheckBox.IsChecked == true)
+        {
+            secondGroup = new SpotlightProfileGroupDefinition(
+                QueryText: SecondQueryTextBox.Text,
+                ScopeFilterIndex: SecondScopeCombo.SelectedIndex < 0 ? 0 : SecondScopeCombo.SelectedIndex,
+                MainModule: SecondMainModuleBox.Text,
+                RelatedModule: SecondRelatedModuleBox.Text,
+                CustomerCode: SecondCustomerCodeBox.Text,
+                Tags: SecondTagsBox.Text,
+                ReferencedObjects: SecondObjectsBox.Text,
+                IncludeDeleted: SecondIncludeDeletedBox.IsChecked == true,
+                SearchInHistory: SecondSearchHistoryBox.IsChecked == true,
+                FolderId: (SecondFolderCombo.SelectedItem as FolderTreeOption)?.Id,
+                CollectionId: (SecondCollectionCombo.SelectedItem as ScriptCollection)?.Id);
+        }
+
         return new SpotlightProfileDefinition(
+            PrimaryQueryText: PrimaryQueryTextBox.Text,
             ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
             MainModule: MainModuleBox.Text,
             RelatedModule: RelatedModuleBox.Text,
@@ -105,7 +165,75 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             SearchInHistory: SearchHistoryBox.IsChecked == true,
             DisplayFolderStructure: DisplayFolderStructureToggle.IsOn,
             FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
-            CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
+            CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id,
+            CombineWithAnd: GroupCombineModeCombo.SelectedIndex <= 0,
+            SecondGroup: secondGroup);
+    }
+
+    private IReadOnlyList<SpotlightFilterGroup> BuildRuleGroups()
+    {
+        var groups = new List<SpotlightFilterGroup>
+        {
+            new(
+                QueryText: PrimaryQueryTextBox.Text,
+                ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
+                MainModuleFilterText: MainModuleBox.Text,
+                RelatedModuleFilterText: RelatedModuleBox.Text,
+                CustomerCodeFilterText: CustomerCodeBox.Text,
+                TagsFilterText: TagsBox.Text,
+                ObjectFilterText: ObjectsBox.Text,
+                IncludeDeleted: IncludeDeletedBox.IsChecked == true,
+                SearchInHistory: SearchHistoryBox.IsChecked == true,
+                FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
+                CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id)
+        };
+
+        if (EnableSecondGroupCheckBox.IsChecked == true)
+        {
+            groups.Add(new SpotlightFilterGroup(
+                QueryText: SecondQueryTextBox.Text,
+                ScopeFilterIndex: SecondScopeCombo.SelectedIndex < 0 ? 0 : SecondScopeCombo.SelectedIndex,
+                MainModuleFilterText: SecondMainModuleBox.Text,
+                RelatedModuleFilterText: SecondRelatedModuleBox.Text,
+                CustomerCodeFilterText: SecondCustomerCodeBox.Text,
+                TagsFilterText: SecondTagsBox.Text,
+                ObjectFilterText: SecondObjectsBox.Text,
+                IncludeDeleted: SecondIncludeDeletedBox.IsChecked == true,
+                SearchInHistory: SecondSearchHistoryBox.IsChecked == true,
+                FolderId: (SecondFolderCombo.SelectedItem as FolderTreeOption)?.Id,
+                CollectionId: (SecondCollectionCombo.SelectedItem as ScriptCollection)?.Id));
+        }
+
+        return groups;
+    }
+
+    private void EnableSecondGroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateSecondGroupVisibility();
+        if (EnableSecondGroupCheckBox.IsChecked != true)
+            ClearSecondGroup();
+    }
+
+    private void UpdateSecondGroupVisibility()
+    {
+        SecondGroupPanel.Visibility = EnableSecondGroupCheckBox.IsChecked == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    private void ClearSecondGroup()
+    {
+        SecondQueryTextBox.Text = string.Empty;
+        SecondScopeCombo.SelectedIndex = 0;
+        SecondMainModuleBox.Text = string.Empty;
+        SecondRelatedModuleBox.Text = string.Empty;
+        SecondCustomerCodeBox.Text = string.Empty;
+        SecondTagsBox.Text = string.Empty;
+        SecondObjectsBox.Text = string.Empty;
+        SecondIncludeDeletedBox.IsChecked = false;
+        SecondSearchHistoryBox.IsChecked = false;
+        SecondFolderCombo.SelectedItem = null;
+        SecondCollectionCombo.SelectedItem = null;
     }
 
     private async void LoadProfile_Click(object sender, RoutedEventArgs e)
@@ -198,6 +326,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 }
 
 public sealed record SpotlightProfileDefinition(
+    string? PrimaryQueryText,
     int ScopeFilterIndex,
     string? MainModule,
     string? RelatedModule,
@@ -207,5 +336,20 @@ public sealed record SpotlightProfileDefinition(
     bool IncludeDeleted,
     bool SearchInHistory,
     bool DisplayFolderStructure,
+    Guid? FolderId,
+    Guid? CollectionId,
+    bool CombineWithAnd,
+    SpotlightProfileGroupDefinition? SecondGroup);
+
+public sealed record SpotlightProfileGroupDefinition(
+    string? QueryText,
+    int ScopeFilterIndex,
+    string? MainModule,
+    string? RelatedModule,
+    string? CustomerCode,
+    string? Tags,
+    string? ReferencedObjects,
+    bool IncludeDeleted,
+    bool SearchInHistory,
     Guid? FolderId,
     Guid? CollectionId);
