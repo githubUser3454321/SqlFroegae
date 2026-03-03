@@ -88,6 +88,12 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@customerId", filters.CustomerId.Value);
         }
 
+        if (filters.FolderId is not null)
+        {
+            sb.AppendLine("AND s.FolderId = @folderId");
+            p.Add("@folderId", filters.FolderId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(filters.Module))
         {
             sb.AppendLine("AND (s.Module = @module OR COALESCE(s.RelatedModules, N'') LIKE '%' + @module + '%')");
@@ -197,6 +203,12 @@ public sealed class ScriptRepository : IScriptRepository
         {
             sb.AppendLine("      AND s.CustomerId = @customerId");
             p.Add("@customerId", filters.CustomerId.Value);
+        }
+
+        if (filters.FolderId is not null)
+        {
+            sb.AppendLine("      AND s.FolderId = @folderId");
+            p.Add("@folderId", filters.FolderId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(filters.Module))
@@ -1382,6 +1394,11 @@ END;
 IF COL_LENGTH('{_opt.ScriptsTable}', 'UpdateReason') IS NULL
 BEGIN
     ALTER TABLE {_opt.ScriptsTable} ADD UpdateReason nvarchar(max) NULL;
+END;
+
+IF COL_LENGTH('{_opt.ScriptsTable}', 'FolderId') IS NULL
+BEGIN
+    ALTER TABLE {_opt.ScriptsTable} ADD FolderId uniqueidentifier NULL;
 END;
 
 

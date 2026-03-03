@@ -13,6 +13,7 @@ public sealed record ScriptSearchFilters(
     IReadOnlyList<string>? Tags,
     string? ReferencedObject,
     IReadOnlyList<string>? ReferencedObjects,
+    Guid? FolderId = null,
     bool IncludeDeleted = false,
     bool SearchHistory = false
 );

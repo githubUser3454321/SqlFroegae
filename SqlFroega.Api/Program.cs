@@ -41,6 +41,7 @@ builder.Services.AddScoped<IScriptRepository, ScriptRepository>();
 builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
 builder.Services.AddScoped<ISearchProfileRepository, SearchProfileRepository>();
+builder.Services.AddScoped<IScriptFolderRepository, ScriptFolderRepository>();
 builder.Services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
 builder.Services.AddProblemDetails();
@@ -216,6 +217,7 @@ api.MapGet("/scripts", async (
         ParseCsv(query.Tags),
         query.ReferencedObject,
         referencedObjects,
+        query.FolderId,
         query.IncludeDeleted,
         query.SearchHistory);
 
@@ -251,6 +253,7 @@ api.MapPost("/scripts/spotlight-search", async (
             ParseCsv(group.Tags),
             group.ReferencedObject,
             ParseCsv(group.ReferencedObjects),
+            group.FolderId,
             group.IncludeDeleted,
             group.SearchHistory);
 
@@ -290,6 +293,41 @@ api.MapPost("/scripts/spotlight-search", async (
 
     return Results.Ok(combined);
 }).RequireAuthorization(Policies.ScriptsRead);
+
+
+api.MapGet("/folders/tree", async (IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var tree = await folderRepository.GetTreeAsync(ct);
+    return Results.Ok(tree);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/folders", async (ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+        request.Id,
+        request.Name,
+        request.ParentId,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/folders/{id:guid}", async (Guid id, ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+        id,
+        request.Name,
+        request.ParentId,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapDelete("/folders/{id:guid}", async (Guid id, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var deleted = await folderRepository.DeleteAsync(id, ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, CancellationToken ct) =>
 {
@@ -618,6 +656,7 @@ internal sealed record ScriptSearchQuery(
     string? RelatedModule,
     string? Tags,
     string? ReferencedObject,
+    Guid? FolderId,
     bool IncludeDeleted = false,
     bool SearchHistory = false,
     int Take = 200,
@@ -640,6 +679,7 @@ internal sealed record SpotlightRuleGroupRequest(
     string? Tags,
     string? ReferencedObject,
     string? ReferencedObjects,
+    Guid? FolderId,
     bool IncludeDeleted = false,
     bool SearchHistory = false);
 
@@ -657,6 +697,12 @@ internal sealed record UpsertScriptRequest(
     string? UpdateReason);
 
 internal sealed record ScriptLockRequest(string? Username);
+
+internal sealed record ScriptFolderUpsertRequest(
+    Guid? Id,
+    string Name,
+    Guid? ParentId,
+    int SortOrder = 0);
 
 internal sealed record SearchProfileUpsertRequest(
     Guid? Id,
