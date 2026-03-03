@@ -244,3 +244,9 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - Domain-/Repository-Validierungsfehler (`InvalidOperationException`) werden auf den Write-Endpunkten nun konsistent als `ValidationProblem` (statt 500) zurückgegeben.
 - Unit-Tests für die neue Request-Validierung ergänzt.
 - Backend-Fazit: Validierungsschicht und API-Fehlerverhalten sind jetzt deutlich robuster; offen bleibt weiterhin der SQL-Integrations-/Race-Condition-Blocker.
+
+### 11.7 Update 2026-03-03 (Test-Abdeckung erweitert)
+- Unit-Test-Abdeckung für die neuen Validatoren deutlich ausgebaut:
+  - Spotlight-Validator: zusätzliche Boundary- und Matrix-Cases für `groupOperator` (inkl. casing), `take`-Grenzen (0/1/500/501), negatives `skip`, gültige/ungültige Scopes, gruppenindizierte Fehlerzuordnung sowie gültige Gruppen nur mit `includeDeleted` oder `searchHistory`.
+  - Folder/Collection-Validator: zusätzliche Cases für whitespace-only Namen, positive Validfälle ohne Fehler, `collectionIds = null` mit/ohne `primaryCollectionId`.
+- Ergebnis: Aktuell bekannte Validierungsfälle sind auf Unit-Level breit abgedeckt; der verbleibende offene Backend-Restpunkt sind weiterhin echte SQL-Integrations-/E2E-Tests.

@@ -5,10 +5,13 @@ namespace SqlFroega.Tests;
 
 public sealed class FolderCollectionRequestValidatorTests
 {
-    [Fact]
-    public void ValidateFolderUpsert_WithMissingName_ReturnsNameError()
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    public void ValidateFolderUpsert_WithMissingName_ReturnsNameError(string name)
     {
-        var request = new ScriptFolderUpsertRequest(null, "", null);
+        var request = new ScriptFolderUpsertRequest(null, name, null);
 
         var errors = FolderCollectionRequestValidator.ValidateFolderUpsert(request);
 
@@ -27,9 +30,22 @@ public sealed class FolderCollectionRequestValidatorTests
     }
 
     [Fact]
-    public void ValidateCollectionUpsert_WithMissingName_ReturnsNameError()
+    public void ValidateFolderUpsert_WithValidPayload_ReturnsNoError()
     {
-        var request = new ScriptCollectionUpsertRequest(null, "   ", null, "private");
+        var request = new ScriptFolderUpsertRequest(null, "Folder", Guid.NewGuid());
+
+        var errors = FolderCollectionRequestValidator.ValidateFolderUpsert(request, Guid.NewGuid());
+
+        Assert.Empty(errors);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    public void ValidateCollectionUpsert_WithMissingName_ReturnsNameError(string name)
+    {
+        var request = new ScriptCollectionUpsertRequest(null, name, null, "private");
 
         var errors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request);
 
@@ -48,11 +64,19 @@ public sealed class FolderCollectionRequestValidatorTests
     }
 
     [Fact]
+    public void ValidateCollectionUpsert_WithValidPayload_ReturnsNoError()
+    {
+        var request = new ScriptCollectionUpsertRequest(null, "Collection", Guid.NewGuid(), "global");
+
+        var errors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request, Guid.NewGuid());
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
     public void ValidateCollectionAssignment_WithPrimaryOutsideCollectionIds_ReturnsError()
     {
-        var request = new ScriptCollectionAssignmentRequest(
-            [Guid.NewGuid(), Guid.NewGuid()],
-            Guid.NewGuid());
+        var request = new ScriptCollectionAssignmentRequest([Guid.NewGuid(), Guid.NewGuid()], Guid.NewGuid());
 
         var errors = FolderCollectionRequestValidator.ValidateCollectionAssignment(request);
 
@@ -60,12 +84,30 @@ public sealed class FolderCollectionRequestValidatorTests
     }
 
     [Fact]
+    public void ValidateCollectionAssignment_WithNullCollectionIdsAndPrimary_ReturnsError()
+    {
+        var request = new ScriptCollectionAssignmentRequest(null, Guid.NewGuid());
+
+        var errors = FolderCollectionRequestValidator.ValidateCollectionAssignment(request);
+
+        Assert.True(errors.ContainsKey("primaryCollectionId"));
+    }
+
+    [Fact]
+    public void ValidateCollectionAssignment_WithNullCollectionIdsAndNoPrimary_ReturnsNoError()
+    {
+        var request = new ScriptCollectionAssignmentRequest(null, null);
+
+        var errors = FolderCollectionRequestValidator.ValidateCollectionAssignment(request);
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
     public void ValidateCollectionAssignment_WithPrimaryInsideCollectionIds_ReturnsNoError()
     {
         var first = Guid.NewGuid();
-        var request = new ScriptCollectionAssignmentRequest(
-            [first, Guid.NewGuid(), first],
-            first);
+        var request = new ScriptCollectionAssignmentRequest([first, Guid.NewGuid(), first], first);
 
         var errors = FolderCollectionRequestValidator.ValidateCollectionAssignment(request);
 
