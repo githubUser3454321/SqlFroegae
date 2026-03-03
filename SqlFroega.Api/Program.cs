@@ -233,12 +233,10 @@ api.MapPost("/scripts/spotlight-search", async (
     IScriptRepository scriptRepository,
     CancellationToken ct) =>
 {
-    if (request.Groups is null || request.Groups.Count == 0)
+    var validationErrors = SpotlightSearchRequestValidator.Validate(request);
+    if (validationErrors.Count > 0)
     {
-        return Results.ValidationProblem(new Dictionary<string, string[]>
-        {
-            ["groups"] = ["Mindestens eine Regelgruppe ist erforderlich."]
-        });
+        return Results.ValidationProblem(validationErrors);
     }
 
     var combineWithAnd = string.Equals(request.GroupOperator, "AND", StringComparison.OrdinalIgnoreCase);
@@ -278,30 +276,63 @@ api.MapGet("/folders/tree", async (IScriptFolderRepository folderRepository, Can
 
 api.MapPost("/folders", async (ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
 {
-    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
-        request.Id,
-        request.Name,
-        request.ParentId,
-        request.SortOrder), ct);
+    var validationErrors = FolderCollectionRequestValidator.ValidateFolderUpsert(request, request.Id);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
 
-    return Results.Ok(saved);
+    try
+    {
+        var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+            request.Id,
+            request.Name,
+            request.ParentId,
+            request.SortOrder), ct);
+
+        return Results.Ok(saved);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["folder"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapPatch("/folders/{id:guid}", async (Guid id, ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
 {
-    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
-        id,
-        request.Name,
-        request.ParentId,
-        request.SortOrder), ct);
+    var validationErrors = FolderCollectionRequestValidator.ValidateFolderUpsert(request, id);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
 
-    return Results.Ok(saved);
+    try
+    {
+        var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+            id,
+            request.Name,
+            request.ParentId,
+            request.SortOrder), ct);
+
+        return Results.Ok(saved);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["folder"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapDelete("/folders/{id:guid}", async (Guid id, IScriptFolderRepository folderRepository, CancellationToken ct) =>
 {
-    var deleted = await folderRepository.DeleteAsync(id, ct);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    try
+    {
+        var deleted = await folderRepository.DeleteAsync(id, ct);
+        return deleted ? Results.NoContent() : Results.NotFound();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["folder"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 
@@ -313,6 +344,12 @@ api.MapGet("/collections", async (IScriptCollectionRepository collectionReposito
 
 api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
 {
+    var validationErrors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request, request.Id);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
+
     var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
     if (ownerScope is null)
     {
@@ -322,18 +359,31 @@ api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScrip
         });
     }
 
-    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
-        request.Id,
-        request.Name,
-        request.ParentId,
-        ownerScope,
-        request.SortOrder), ct);
+    try
+    {
+        var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+            request.Id,
+            request.Name,
+            request.ParentId,
+            ownerScope,
+            request.SortOrder), ct);
 
-    return Results.Ok(saved);
+        return Results.Ok(saved);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["collection"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapPatch("/collections/{id:guid}", async (Guid id, ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
 {
+    var validationErrors = FolderCollectionRequestValidator.ValidateCollectionUpsert(request, id);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
+
     var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
     if (ownerScope is null)
     {
@@ -343,24 +393,44 @@ api.MapPatch("/collections/{id:guid}", async (Guid id, ScriptCollectionUpsertReq
         });
     }
 
-    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
-        id,
-        request.Name,
-        request.ParentId,
-        ownerScope,
-        request.SortOrder), ct);
+    try
+    {
+        var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+            id,
+            request.Name,
+            request.ParentId,
+            ownerScope,
+            request.SortOrder), ct);
 
-    return Results.Ok(saved);
+        return Results.Ok(saved);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["collection"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapDelete("/collections/{id:guid}", async (Guid id, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
 {
-    var deleted = await collectionRepository.DeleteAsync(id, ct);
-    return deleted ? Results.NoContent() : Results.NotFound();
+    try
+    {
+        var deleted = await collectionRepository.DeleteAsync(id, ct);
+        return deleted ? Results.NoContent() : Results.NotFound();
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]> { ["collection"] = [ex.Message] });
+    }
 }).RequireAuthorization(Policies.ScriptsWrite);
 
 api.MapPatch("/scripts/{id:guid}/collections", async (Guid id, ScriptCollectionAssignmentRequest request, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
 {
+    var validationErrors = FolderCollectionRequestValidator.ValidateCollectionAssignment(request);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
+
     await collectionRepository.AssignScriptCollectionsAsync(id, request.CollectionIds ?? Array.Empty<Guid>(), request.PrimaryCollectionId, ct);
     return Results.NoContent();
 }).RequireAuthorization(Policies.ScriptsWrite);

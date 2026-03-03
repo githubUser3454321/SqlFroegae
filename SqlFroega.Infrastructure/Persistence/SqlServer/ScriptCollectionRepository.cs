@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Data.SqlClient;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 
@@ -43,7 +44,38 @@ ORDER BY SortOrder ASC, Name ASC", cancellationToken: ct));
             ? "global"
             : "private";
 
-        await conn.ExecuteAsync(new CommandDefinition(@"
+        if (input.ParentId == id)
+        {
+            throw new InvalidOperationException("Eine Collection kann nicht ihr eigener Parent sein.");
+        }
+
+        if (input.ParentId is not null)
+        {
+            var parentExists = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM dbo.ScriptCollections WHERE Id = @parentId",
+                new { parentId = input.ParentId.Value }, cancellationToken: ct));
+
+            if (parentExists == 0)
+            {
+                throw new InvalidOperationException("Parent-Collection wurde nicht gefunden.");
+            }
+        }
+
+        var duplicate = await conn.ExecuteScalarAsync<int>(new CommandDefinition(@"
+SELECT COUNT(1)
+FROM dbo.ScriptCollections
+WHERE Name = @normalizedName
+  AND ((ParentId IS NULL AND @parentId IS NULL) OR ParentId = @parentId)
+  AND Id <> @id", new { normalizedName, parentId = input.ParentId, id }, cancellationToken: ct));
+
+        if (duplicate > 0)
+        {
+            throw new InvalidOperationException("Eine Collection mit diesem Namen existiert bereits auf derselben Ebene.");
+        }
+
+        try
+        {
+            await conn.ExecuteAsync(new CommandDefinition(@"
 MERGE dbo.ScriptCollections AS target
 USING (SELECT @Id AS Id) AS src
 ON target.Id = src.Id
@@ -52,15 +84,22 @@ WHEN MATCHED THEN
 WHEN NOT MATCHED THEN
     INSERT (Id, Name, ParentId, OwnerScope, SortOrder, CreatedUtc, UpdatedUtc)
     VALUES (@Id, @Name, @ParentId, @OwnerScope, @SortOrder, @CreatedUtc, @UpdatedUtc);", new
+            {
+                Id = id,
+                Name = normalizedName,
+                ParentId = input.ParentId,
+                OwnerScope = ownerScope,
+                SortOrder = input.SortOrder,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            }, cancellationToken: ct));
+        }
+        catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
-            Id = id,
-            Name = normalizedName,
-            ParentId = input.ParentId,
-            OwnerScope = ownerScope,
-            SortOrder = input.SortOrder,
-            CreatedUtc = now,
-            UpdatedUtc = now
-        }, cancellationToken: ct));
+            throw new InvalidOperationException("Eine Collection mit diesem Namen existiert bereits auf derselben Ebene.", ex);
+        }
+
+        await EnsureNoCyclesAsync(conn, id, ct);
 
         return await conn.QuerySingleAsync<ScriptCollection>(new CommandDefinition(@"
 SELECT Id, Name, ParentId, OwnerScope, SortOrder, CreatedUtc, UpdatedUtc
@@ -125,6 +164,16 @@ BEGIN
     CREATE INDEX IX_ScriptCollections_Parent ON dbo.ScriptCollections(ParentId, SortOrder, Name);
 END;
 
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_ScriptCollections_Parent_Name'
+      AND object_id = OBJECT_ID('dbo.ScriptCollections')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_ScriptCollections_Parent_Name ON dbo.ScriptCollections(ParentId, Name);
+END;
+
 IF OBJECT_ID('dbo.ScriptCollectionMap', 'U') IS NULL
 BEGIN
     CREATE TABLE dbo.ScriptCollectionMap
@@ -138,5 +187,27 @@ BEGIN
 
     CREATE INDEX IX_ScriptCollectionMap_Collection ON dbo.ScriptCollectionMap(CollectionId, ScriptId);
 END;", cancellationToken: ct));
+    }
+
+    private static async Task EnsureNoCyclesAsync(System.Data.Common.DbConnection conn, Guid startId, CancellationToken ct)
+    {
+        var cycle = await conn.ExecuteScalarAsync<int>(new CommandDefinition(@"
+;WITH cte AS (
+    SELECT Id, ParentId, CAST(CONCAT('/', CONVERT(nvarchar(36), Id), '/') AS nvarchar(max)) AS Path
+    FROM dbo.ScriptCollections
+    WHERE Id = @startId
+    UNION ALL
+    SELECT c.Id, c.ParentId, CONCAT(cte.Path, CONVERT(nvarchar(36), c.Id), '/')
+    FROM dbo.ScriptCollections c
+    INNER JOIN cte ON c.Id = cte.ParentId
+)
+SELECT COUNT(1)
+FROM cte
+WHERE ParentId IS NOT NULL AND Path LIKE '%/' + CONVERT(nvarchar(36), ParentId) + '/%';", new { startId }, cancellationToken: ct));
+
+        if (cycle > 0)
+        {
+            throw new InvalidOperationException("Zyklische Collection-Struktur ist nicht erlaubt.");
+        }
     }
 }
