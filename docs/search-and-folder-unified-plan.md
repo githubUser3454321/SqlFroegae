@@ -259,3 +259,9 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
   - Duplicate-Name im selben Parent-Kontext wird verhindert.
   - Nach dem Upsert wird zyklische Parent-Referenz über CTE-Check abgefangen.
 - Ergebnis: Die Collection-Schreiblogik ist backendseitig konsistenter abgesichert; offen bleibt weiterhin ausschließlich die echte SQL-Integrations-/Race-Condition-Absicherung via E2E.
+
+### 11.9 Update 2026-03-03 (Race-Condition-Härtung Collections)
+- DB-seitige Eindeutigkeit für Collections pro Parent-Ebene auf Schema-Ensure-Ebene nachgezogen (`UX_ScriptCollections_Parent_Name`).
+- `UpsertAsync` behandelt SQL-Unique-Key-Konflikte (`2601`/`2627`) explizit und mappt sie auf eine fachliche `InvalidOperationException` mit konsistenter Fehlermeldung.
+- Damit wird ein wichtiger Race-Condition-Pfad (gleichzeitige Inserts mit gleichem Namen) backendseitig robuster abgefangen.
+- Verbleibend für „Backend komplett“: echte SQL-Integrations-/E2E-Tests, die Delete-Strategien und Parallelfälle reproduzierbar ausführen.

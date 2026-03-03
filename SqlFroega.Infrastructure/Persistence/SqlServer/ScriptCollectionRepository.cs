@@ -1,4 +1,5 @@
 using Dapper;
+using Microsoft.Data.SqlClient;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
 
@@ -72,7 +73,9 @@ WHERE Name = @normalizedName
             throw new InvalidOperationException("Eine Collection mit diesem Namen existiert bereits auf derselben Ebene.");
         }
 
-        await conn.ExecuteAsync(new CommandDefinition(@"
+        try
+        {
+            await conn.ExecuteAsync(new CommandDefinition(@"
 MERGE dbo.ScriptCollections AS target
 USING (SELECT @Id AS Id) AS src
 ON target.Id = src.Id
@@ -81,15 +84,20 @@ WHEN MATCHED THEN
 WHEN NOT MATCHED THEN
     INSERT (Id, Name, ParentId, OwnerScope, SortOrder, CreatedUtc, UpdatedUtc)
     VALUES (@Id, @Name, @ParentId, @OwnerScope, @SortOrder, @CreatedUtc, @UpdatedUtc);", new
+            {
+                Id = id,
+                Name = normalizedName,
+                ParentId = input.ParentId,
+                OwnerScope = ownerScope,
+                SortOrder = input.SortOrder,
+                CreatedUtc = now,
+                UpdatedUtc = now
+            }, cancellationToken: ct));
+        }
+        catch (SqlException ex) when (ex.Number is 2601 or 2627)
         {
-            Id = id,
-            Name = normalizedName,
-            ParentId = input.ParentId,
-            OwnerScope = ownerScope,
-            SortOrder = input.SortOrder,
-            CreatedUtc = now,
-            UpdatedUtc = now
-        }, cancellationToken: ct));
+            throw new InvalidOperationException("Eine Collection mit diesem Namen existiert bereits auf derselben Ebene.", ex);
+        }
 
         await EnsureNoCyclesAsync(conn, id, ct);
 
@@ -154,6 +162,16 @@ BEGIN
     );
 
     CREATE INDEX IX_ScriptCollections_Parent ON dbo.ScriptCollections(ParentId, SortOrder, Name);
+END;
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = 'UX_ScriptCollections_Parent_Name'
+      AND object_id = OBJECT_ID('dbo.ScriptCollections')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_ScriptCollections_Parent_Name ON dbo.ScriptCollections(ParentId, Name);
 END;
 
 IF OBJECT_ID('dbo.ScriptCollectionMap', 'U') IS NULL
