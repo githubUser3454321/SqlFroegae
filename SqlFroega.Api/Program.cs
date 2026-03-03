@@ -15,6 +15,7 @@ using SqlFroega.Application.Services;
 using SqlFroega.Infrastructure.Parsing;
 using SqlFroega.Infrastructure.Persistence;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
+using SqlFroega.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
