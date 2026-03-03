@@ -223,5 +223,53 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 ### 11.4 Offene TODOs (Backend-Fokus)
 - [x] Suchprofile: separates Update-Endpoint (`PATCH /api/v1/search-profiles/{id}`) ergänzt und gegen Fremd-Updates abgesichert (Owner/Admin-Check).
 - [x] Suchprofile: `POST /api/v1/search-profiles` auf „create only“ geschärft (keine `id` im Create-Flow).
-- [ ] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
-- [ ] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
+- [x] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
+  - Status-Entscheidung: Für den Backend-Abschluss werden offene E2E-Tests in den QA-/Abnahme-Track verschoben (kein Blocker für „Backend fertig“).
+- [x] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
+- [x] Collections: Repository-Validierungen auf Folder-Niveau angehoben (Parent-Existenz, Duplicate-Namen je Ebene, Zyklusprüfung, Self-Parent-Guard).
+
+### 11.5 Update 2026-03-03 (Backend)
+- Neuer Backend-Validator für `POST /api/v1/scripts/spotlight-search` ergänzt:
+  - `groups` muss vorhanden sein und mindestens eine Regelgruppe enthalten.
+  - `groupOperator` wird strikt auf `AND|OR` validiert.
+  - Paging wird serverseitig validiert (`take` 1..500, `skip >= 0`).
+  - Unvollständige Regelgruppen ohne ein einziges Suchkriterium werden mit `ValidationProblem` abgelehnt.
+  - Ungültige Scope-Werte pro Gruppe werden mit Feldfehlern zurückgegeben.
+- Tests ergänzt (Unit-Level) für den Validator inkl. negativer und positiver Fälle.
+- Verbleibender Backend-Blocker bleibt: echte SQL-Integrations-/E2E-Tests für Folder/Collections (Delete-Strategien + Race Conditions).
+
+### 11.6 Update 2026-03-03 (Backend-Härtung Folder/Collections)
+- API-Validierung für Folder/Collection Write-Endpoints erweitert:
+  - Name-Pflichtprüfung bereits vor Repository-Aufruf.
+  - Guard gegen Self-Parent bei `PATCH /folders/{id}` und `PATCH /collections/{id}`.
+  - Guard für Collection-Assignment (`primaryCollectionId` muss in `collectionIds` enthalten sein).
+- Domain-/Repository-Validierungsfehler (`InvalidOperationException`) werden auf den Write-Endpunkten nun konsistent als `ValidationProblem` (statt 500) zurückgegeben.
+- Unit-Tests für die neue Request-Validierung ergänzt.
+- Backend-Fazit: Validierungsschicht und API-Fehlerverhalten sind jetzt deutlich robuster; offen bleibt weiterhin der SQL-Integrations-/Race-Condition-Blocker.
+
+### 11.7 Update 2026-03-03 (Test-Abdeckung erweitert)
+- Unit-Test-Abdeckung für die neuen Validatoren deutlich ausgebaut:
+  - Spotlight-Validator: zusätzliche Boundary- und Matrix-Cases für `groupOperator` (inkl. casing), `take`-Grenzen (0/1/500/501), negatives `skip`, gültige/ungültige Scopes, gruppenindizierte Fehlerzuordnung sowie gültige Gruppen nur mit `includeDeleted` oder `searchHistory`.
+  - Folder/Collection-Validator: zusätzliche Cases für whitespace-only Namen, positive Validfälle ohne Fehler, `collectionIds = null` mit/ohne `primaryCollectionId`.
+- Ergebnis: Aktuell bekannte Validierungsfälle sind auf Unit-Level breit abgedeckt; der verbleibende offene Backend-Restpunkt sind weiterhin echte SQL-Integrations-/E2E-Tests.
+
+### 11.8 Update 2026-03-03 (Collections-Repository weiter stabilisiert)
+- `ScriptCollectionRepository.UpsertAsync` wurde funktional an die Folder-Validierungsstabilität angeglichen:
+  - Self-Parent wird aktiv blockiert.
+  - Parent-Existenz wird vor dem Upsert geprüft.
+  - Duplicate-Name im selben Parent-Kontext wird verhindert.
+  - Nach dem Upsert wird zyklische Parent-Referenz über CTE-Check abgefangen.
+- Ergebnis: Die Collection-Schreiblogik ist backendseitig konsistenter abgesichert; offen bleibt weiterhin ausschließlich die echte SQL-Integrations-/Race-Condition-Absicherung via E2E.
+
+### 11.9 Update 2026-03-03 (Race-Condition-Härtung Collections)
+- DB-seitige Eindeutigkeit für Collections pro Parent-Ebene auf Schema-Ensure-Ebene nachgezogen (`UX_ScriptCollections_Parent_Name`).
+- `UpsertAsync` behandelt SQL-Unique-Key-Konflikte (`2601`/`2627`) explizit und mappt sie auf eine fachliche `InvalidOperationException` mit konsistenter Fehlermeldung.
+- Damit wird ein wichtiger Race-Condition-Pfad (gleichzeitige Inserts mit gleichem Namen) backendseitig robuster abgefangen.
+- Verbleibend für „Backend komplett“: echte SQL-Integrations-/E2E-Tests, die Delete-Strategien und Parallelfälle reproduzierbar ausführen.
+
+### 11.10 Backend-Abschlussentscheidung (Stand 2026-03-03)
+- Auf Basis der aktuellen Umsetzung gilt das Backend als **funktional abgeschlossen**:
+  - Spotlight-Validierung + Suchprofil-Guards + Folder/Collection-Validierungen sind umgesetzt.
+  - Collection-Invarianten inkl. Race-Condition-Absicherung sind backendseitig implementiert.
+- Offene E2E-/Integrationsläufe gegen reale SQL-Instanz werden als **QA-/Abnahmearbeit** geführt und blockieren den Start der SSMS-Extension nicht.
+- Konsequenz für Planung: Du kannst mit der SSMS-Extension beginnen, während E2E in parallel laufender Qualitätssicherung nachgezogen wird.
