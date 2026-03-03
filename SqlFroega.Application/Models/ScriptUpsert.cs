@@ -9,6 +9,7 @@ public sealed record ScriptUpsert(
     string Content,
     int Scope,                // für DB/Transport erstmal int (0/1/2)
     Guid? CustomerId,
+    Guid? FolderId,
     string? MainModule,
     IReadOnlyList<string> RelatedModules,
     string? Description,

@@ -12,6 +12,7 @@ public sealed record ScriptDetail(
     string? MainModule,
     IReadOnlyList<string> RelatedModules,
     Guid? CustomerId,
+    Guid? FolderId,
     string? CustomerName,
     string? Description,
     IReadOnlyList<string> Tags

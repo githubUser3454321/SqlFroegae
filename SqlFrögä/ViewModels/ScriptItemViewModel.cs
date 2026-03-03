@@ -17,6 +17,7 @@ public partial class ScriptItemViewModel : ObservableObject
     private readonly IScriptRepository _repo;
     private readonly ICustomerMappingRepository _mappingRepository;
     private readonly ISqlCustomerRenderService _renderService;
+    private readonly IScriptFolderRepository _folderRepository;
     private Guid _id;
     private string _loadedNormalizedContent = string.Empty;
     private ScriptEditAwareness? _editAwareness;
@@ -28,6 +29,9 @@ public partial class ScriptItemViewModel : ObservableObject
     public ObservableCollection<string> SelectedRelatedModules { get; } = new();
     public ObservableCollection<string> AvailableFlags { get; } = new();
     public ObservableCollection<string> SelectedFlags { get; } = new();
+    public ObservableCollection<FolderTreeOption> AvailableFolders { get; } = new();
+
+    public static FolderTreeOption NoFolderOption { get; } = new(Guid.Empty, 0, "(Kein Folder)");
 
     [ObservableProperty] private bool _isBusy;
     [ObservableProperty] private string? _error;
@@ -47,6 +51,7 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private string _selectedCustomerCode = "";
     [ObservableProperty] private string _scriptCustomerCode = "";
     [ObservableProperty] private bool _replaceDatabaseUserAndPrefix = true;
+    [ObservableProperty] private FolderTreeOption? _selectedFolder = NoFolderOption;
 
     public event Func<string, Task>? WarningRequested;
 
@@ -61,6 +66,7 @@ public partial class ScriptItemViewModel : ObservableObject
         _repo = App.Services.GetRequiredService<IScriptRepository>();
         _mappingRepository = App.Services.GetRequiredService<ICustomerMappingRepository>();
         _renderService = App.Services.GetRequiredService<ISqlCustomerRenderService>();
+        _folderRepository = App.Services.GetRequiredService<IScriptFolderRepository>();
     }
 
     public async Task LoadAsync(Guid id)
@@ -69,6 +75,7 @@ public partial class ScriptItemViewModel : ObservableObject
         await LoadMappingsAsync();
         await LoadModulesAsync();
         await LoadFlagsAsync();
+        await LoadFoldersAsync();
 
         if (id == Guid.Empty)
         {
@@ -82,6 +89,7 @@ public partial class ScriptItemViewModel : ObservableObject
             Description = "";
             SetFlags(Array.Empty<string>());
             ScriptCustomerCode = "";
+            SelectedFolder = NoFolderOption;
             IsReadOnlyMode = false;
             IsEditUnlocked = true;
             ReplaceDatabaseUserAndPrefix = true;
@@ -110,6 +118,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 Description = "Der Eintrag wurde gelöscht. Es wird eine schreibgeschützte temporale Historie angezeigt.";
                 SetFlags(Array.Empty<string>());
                 ScriptCustomerCode = "";
+                SelectedFolder = NoFolderOption;
                 IsReadOnlyMode = true;
                 ReplaceDatabaseUserAndPrefix = false;
 
@@ -134,6 +143,10 @@ public partial class ScriptItemViewModel : ObservableObject
             ReplaceDatabaseUserAndPrefix = true;
             _editAwareness = await _repo.RegisterViewAsync(id, App.CurrentUser?.Username);
             _hasEditAwarenessWarning = false;
+
+            SelectedFolder = detail.FolderId.HasValue
+                ? AvailableFolders.FirstOrDefault(x => x.Id == detail.FolderId.Value) ?? NoFolderOption
+                : NoFolderOption;
 
             ScriptCustomerCode = "";
             if (detail.CustomerId.HasValue)
@@ -503,6 +516,7 @@ public partial class ScriptItemViewModel : ObservableObject
                 Content: normalizedContent,
                 Scope: Scope,
                 CustomerId: customerId,
+                FolderId: SelectedFolder?.Id == Guid.Empty ? null : SelectedFolder?.Id,
                 MainModule: string.IsNullOrWhiteSpace(MainModule) ? null : MainModule.Trim(),
                 RelatedModules: SelectedRelatedModules.ToList(),
                 Description: string.IsNullOrWhiteSpace(Description) ? null : Description.Trim(),
@@ -594,6 +608,32 @@ public partial class ScriptItemViewModel : ObservableObject
         {
             AvailableFlags.Add(flag);
         }
+    }
+
+
+    private async Task LoadFoldersAsync()
+    {
+        var folderTree = await _folderRepository.GetTreeAsync();
+        var flattenedFolders = new List<FolderTreeOption> { NoFolderOption };
+
+        foreach (var root in folderTree.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            FlattenFolder(root, flattenedFolders, 0);
+
+        AvailableFolders.Clear();
+        foreach (var folder in flattenedFolders)
+            AvailableFolders.Add(folder);
+
+        SelectedFolder = SelectedFolder is null
+            ? NoFolderOption
+            : AvailableFolders.FirstOrDefault(x => x.Id == SelectedFolder.Id) ?? NoFolderOption;
+    }
+
+    private static void FlattenFolder(ScriptFolderTreeNode node, ICollection<FolderTreeOption> target, int level)
+    {
+        target.Add(new FolderTreeOption(node.Id, level, node.Name));
+
+        foreach (var child in node.Children.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            FlattenFolder(child, target, level + 1);
     }
 
     private void SetRelatedModules(IEnumerable<string> modules)
