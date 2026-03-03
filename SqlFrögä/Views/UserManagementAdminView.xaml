@@ -59,7 +59,7 @@
             <Button Content="Benutzer reaktivieren" Command="{Binding ReactivateSelectedCommand}"/>
             <Button Content="Benutzer endgültig löschen" Command="{Binding DeleteSelectedPermanentlyCommand}"/>
             <Button Content="RecordInUse leeren" Command="{Binding ClearRecordInUseCommand}"/>
-            <TextBox Width="260" PlaceholderText="RecordInUse via NumberId oder GUID" Text="{Binding RecordInUseTargetId, Mode=TwoWay}"/>
+            <TextBox Width="260" PlaceholderText="RecordInUse via NumberId" Text="{Binding RecordInUseTargetId, Mode=TwoWay}"/>
             <Button Content="RecordInUse gezielt löschen" Command="{Binding ClearSpecificRecordInUseCommand}"/>
             <TextBlock Text="{Binding Error}" Foreground="DarkRed" TextWrapping="Wrap" MaxWidth="520"/>
         </StackPanel>

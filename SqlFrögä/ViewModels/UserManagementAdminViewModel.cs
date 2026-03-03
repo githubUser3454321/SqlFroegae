@@ -222,7 +222,7 @@ public partial class UserManagementAdminViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(RecordInUseTargetId))
         {
-            Error = "Bitte eine NumberId oder GUID eingeben.";
+            Error = "Bitte eine NumberId eingeben.";
             return;
         }
 
@@ -232,31 +232,23 @@ public partial class UserManagementAdminViewModel : ObservableObject
             Error = null;
 
             var raw = RecordInUseTargetId.Trim();
-            Guid? scriptId = null;
+            if (!int.TryParse(raw, out var numberId) || numberId <= 0)
+            {
+                Error = "Ungültiger Wert. Bitte eine NumberId (z.B. 123) angeben.";
+                return;
+            }
 
-            if (Guid.TryParse(raw, out var parsedGuid))
+            var scriptId = await _scriptRepository.GetIdByNumberIdAsync(numberId);
+            if (!scriptId.HasValue)
             {
-                scriptId = parsedGuid;
-            }
-            else if (int.TryParse(raw, out var numberId) && numberId > 0)
-            {
-                scriptId = await _scriptRepository.GetIdByNumberIdAsync(numberId);
-                if (!scriptId.HasValue)
-                {
-                    Error = $"Kein Skript mit NumberId {numberId} gefunden.";
-                    return;
-                }
-            }
-            else
-            {
-                Error = "Ungültiger Wert. Bitte NumberId (z.B. 123) oder GUID angeben.";
+                Error = $"Kein Skript mit NumberId {numberId} gefunden.";
                 return;
             }
 
             var removed = await _scriptRepository.ForceReleaseEditLockAsync(scriptId.Value);
             Error = removed
-                ? $"RecordInUse für ScriptId {scriptId.Value} wurde entfernt."
-                : $"Kein RecordInUse-Eintrag für ScriptId {scriptId.Value} vorhanden.";
+                ? $"RecordInUse für NumberId {numberId} wurde entfernt."
+                : $"Kein RecordInUse-Eintrag für NumberId {numberId} vorhanden.";
         }
         catch (Exception ex)
         {
