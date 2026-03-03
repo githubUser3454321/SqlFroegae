@@ -100,11 +100,7 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@mainModule", filters.MainModule);
         }
 
-        if (!string.IsNullOrWhiteSpace(filters.RelatedModule))
-        {
-            sb.AppendLine("AND COALESCE(s.RelatedModules, N'') LIKE '%' + @relatedModule + '%'");
-            p.Add("@relatedModule", filters.RelatedModule);
-        }
+        AppendRelatedModuleFilters(sb, p, ResolveRelatedModuleFilters(filters), "", "s");
 
         if (filters.Tags is { Count: > 0 })
         {
@@ -119,7 +115,7 @@ public sealed class ScriptRepository : IScriptRepository
         if (!string.IsNullOrWhiteSpace(queryText))
         {
             queryText = queryText.Trim();
-            if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
+            if (_opt.UseFullTextSearch && !HasReferencedObjectFilters(filters))
             {
                 sb.AppendLine("AND (CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q) OR s.Module LIKE '%' + @qlike + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @qlike + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @qlike + '%')");
                 p.Add("@q", queryText);
@@ -132,26 +128,14 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
-        {
-            var objectSearchText = NormalizeIdentifier(filters.ReferencedObject);
-            if (string.IsNullOrWhiteSpace(objectSearchText))
-            {
-                sb.AppendLine("AND 1 = 0");
-            }
-            else
-            {
-                sb.AppendLine($"AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND LOWER(r.ObjectName) LIKE '%' + @objectSearchText + '%')");
-                p.Add("@objectSearchText", objectSearchText);
-            }
-        }
+        AppendReferencedObjectFilters(sb, p, ResolveReferencedObjectFilters(filters), "", "s");
 
         sb.AppendLine("ORDER BY s.Name ASC");
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
-        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        if (HasReferencedObjectFilters(filters))
             await EnsureScriptRefsTableAsync(conn, ct);
 
         var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
@@ -227,11 +211,7 @@ public sealed class ScriptRepository : IScriptRepository
             p.Add("@mainModule", filters.MainModule);
         }
 
-        if (!string.IsNullOrWhiteSpace(filters.RelatedModule))
-        {
-            sb.AppendLine("      AND COALESCE(s.RelatedModules, N'') LIKE '%' + @relatedModule + '%'");
-            p.Add("@relatedModule", filters.RelatedModule);
-        }
+        AppendRelatedModuleFilters(sb, p, ResolveRelatedModuleFilters(filters), "      ", "s");
 
         if (filters.Tags is { Count: > 0 })
         {
@@ -248,7 +228,7 @@ public sealed class ScriptRepository : IScriptRepository
             queryText = queryText.Trim();
             p.Add("@q", queryText);
 
-            if (_opt.UseFullTextSearch && string.IsNullOrWhiteSpace(filters.ReferencedObject))
+            if (_opt.UseFullTextSearch && !HasReferencedObjectFilters(filters))
             {
                 sb.AppendLine("      AND (");
                 sb.AppendLine("          CONTAINS(s.Content, @q) OR CONTAINS(s.Name, @q) OR CONTAINS(s.Description, @q) OR s.Module LIKE '%' + @q + '%' OR COALESCE(s.RelatedModules, N'') LIKE '%' + @q + '%' OR COALESCE(s.Tags, N'') LIKE '%' + @q + '%'");
@@ -278,19 +258,7 @@ public sealed class ScriptRepository : IScriptRepository
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
-        {
-            var objectSearchText = NormalizeIdentifier(filters.ReferencedObject);
-            if (string.IsNullOrWhiteSpace(objectSearchText))
-            {
-                sb.AppendLine("      AND 1 = 0");
-            }
-            else
-            {
-                sb.AppendLine($"      AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = s.Id AND LOWER(r.ObjectName) LIKE '%' + @objectSearchText + '%')");
-                p.Add("@objectSearchText", objectSearchText);
-            }
-        }
+        AppendReferencedObjectFilters(sb, p, ResolveReferencedObjectFilters(filters), "      ", "s");
 
         sb.AppendLine(")");
         sb.AppendLine("SELECT");
@@ -318,7 +286,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
-        if (!string.IsNullOrWhiteSpace(filters.ReferencedObject))
+        if (HasReferencedObjectFilters(filters))
             await EnsureScriptRefsTableAsync(conn, ct);
 
         var rows = await conn.QueryAsync<ScriptListItemRow>(new CommandDefinition(sb.ToString(), p, cancellationToken: ct));
@@ -1186,6 +1154,63 @@ END";
         tokens.Add($"{schema}.{table}.{obj}");
 
         return tokens.ToList();
+    }
+
+    private bool HasReferencedObjectFilters(ScriptSearchFilters filters)
+        => ResolveReferencedObjectFilters(filters).Count > 0;
+
+    private static IReadOnlyList<string> ResolveRelatedModuleFilters(ScriptSearchFilters filters)
+    {
+        if (filters.RelatedModules is { Count: > 0 })
+            return filters.RelatedModules;
+
+        return string.IsNullOrWhiteSpace(filters.RelatedModule)
+            ? Array.Empty<string>()
+            : new[] { filters.RelatedModule.Trim() };
+    }
+
+    private static IReadOnlyList<string> ResolveReferencedObjectFilters(ScriptSearchFilters filters)
+    {
+        if (filters.ReferencedObjects is { Count: > 0 })
+            return filters.ReferencedObjects;
+
+        return string.IsNullOrWhiteSpace(filters.ReferencedObject)
+            ? Array.Empty<string>()
+            : new[] { filters.ReferencedObject.Trim() };
+    }
+
+    private void AppendRelatedModuleFilters(StringBuilder sb, DynamicParameters p, IReadOnlyList<string>? relatedModules, string indent, string scriptAlias)
+    {
+        var items = relatedModules?.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+            ?? new List<string>();
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var parameterName = $"@relatedModule{i}";
+            sb.AppendLine($"{indent}AND COALESCE({scriptAlias}.RelatedModules, N'') LIKE '%' + {parameterName} + '%'");
+            p.Add(parameterName, items[i]);
+        }
+    }
+
+    private void AppendReferencedObjectFilters(StringBuilder sb, DynamicParameters p, IReadOnlyList<string>? referencedObjects, string indent, string scriptAlias)
+    {
+        var hasAnyValid = false;
+        var normalized = referencedObjects?
+            .Select(NormalizeIdentifier)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        for (var i = 0; i < normalized.Count; i++)
+        {
+            var parameterName = $"@objectSearchText{i}";
+            sb.AppendLine($"{indent}AND EXISTS (SELECT 1 FROM {_opt.ScriptObjectRefsTable} r WHERE r.ScriptId = {scriptAlias}.Id AND LOWER(r.ObjectName) LIKE '%' + {parameterName} + '%')");
+            p.Add(parameterName, normalized[i]);
+            hasAnyValid = true;
+        }
+
+        if (referencedObjects is { Count: > 0 } && !hasAnyValid)
+            sb.AppendLine($"{indent}AND 1 = 0");
     }
 
     private static string NormalizeIdentifier(string? raw)

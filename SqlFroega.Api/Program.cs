@@ -202,14 +202,19 @@ api.MapGet("/scripts", async (
     IScriptRepository scriptRepository,
     CancellationToken ct) =>
 {
+    var relatedModules = ParseCsv(query.RelatedModule);
+    var referencedObjects = ParseCsv(query.ReferencedObject);
+
     var filters = new ScriptSearchFilters(
         query.Scope,
         query.CustomerId,
         query.Module,
         query.MainModule,
         query.RelatedModule,
+        relatedModules,
         ParseCsv(query.Tags),
         query.ReferencedObject,
+        referencedObjects,
         query.IncludeDeleted,
         query.SearchHistory);
 

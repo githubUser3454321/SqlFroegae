@@ -278,7 +278,7 @@ public partial class LibrarySplitViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(module))
             return;
 
-        RelatedModuleFilterText = module.Trim();
+        RelatedModuleFilterText = AppendFilterToken(RelatedModuleFilterText, module);
     }
 
     [RelayCommand]
@@ -545,6 +545,8 @@ public partial class LibrarySplitViewModel : ObservableObject
         var tags = ParseTags();
 
         _activeSearchText = searchText;
+        var relatedModules = ParseCsvFilter(RelatedModuleFilterText);
+        var referencedObjects = ParseCsvFilter(ObjectFilterText);
         _activeFilters = new ScriptSearchFilters(
             Scope: ScopeFilterIndex switch
             {
@@ -556,9 +558,11 @@ public partial class LibrarySplitViewModel : ObservableObject
             CustomerId: customerId,
             Module: null,
             MainModule: string.IsNullOrWhiteSpace(MainModuleFilterText) ? null : MainModuleFilterText.Trim(),
-            RelatedModule: string.IsNullOrWhiteSpace(RelatedModuleFilterText) ? null : RelatedModuleFilterText.Trim(),
+            RelatedModule: relatedModules?.FirstOrDefault(),
+            RelatedModules: relatedModules,
             Tags: tags,
-            ReferencedObject: string.IsNullOrWhiteSpace(ObjectFilterText) ? null : ObjectFilterText.Trim(),
+            ReferencedObject: referencedObjects?.FirstOrDefault(),
+            ReferencedObjects: referencedObjects,
             IncludeDeleted: IncludeDeleted,
             SearchHistory: SearchInHistory);
     }
@@ -576,14 +580,26 @@ public partial class LibrarySplitViewModel : ObservableObject
     }
 
     private IReadOnlyList<string>? ParseTags()
+        => ParseCsvFilter(TagsFilterText);
+
+    private static IReadOnlyList<string>? ParseCsvFilter(string? input)
     {
-        if (string.IsNullOrWhiteSpace(TagsFilterText))
+        if (string.IsNullOrWhiteSpace(input))
             return null;
 
-        return TagsFilterText
+        return input
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static string AppendFilterToken(string? currentValue, string token)
+    {
+        var values = ParseCsvFilter(currentValue)?.ToList() ?? new List<string>();
+        if (!values.Contains(token, StringComparer.OrdinalIgnoreCase))
+            values.Add(token.Trim());
+
+        return string.Join(", ", values);
     }
 }
