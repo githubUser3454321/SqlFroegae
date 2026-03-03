@@ -504,6 +504,14 @@ api.MapGet("/search-profiles", async (ISearchProfileRepository searchProfileRepo
 
 api.MapPost("/search-profiles", async (SearchProfileUpsertRequest request, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
 {
+    if (request.Id is not null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["id"] = ["Beim Erstellen darf keine Id gesetzt sein. Verwende PATCH /search-profiles/{id} für Updates."]
+        });
+    }
+
     if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.DefinitionJson))
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -523,11 +531,53 @@ api.MapPost("/search-profiles", async (SearchProfileUpsertRequest request, ISear
 
     var owner = user.Identity?.Name ?? string.Empty;
     var saved = await searchProfileRepository.UpsertAsync(new SearchProfileUpsert(
-        request.Id,
+        null,
         request.Name,
         visibility,
         request.DefinitionJson,
         owner), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPatch("/search-profiles/{id:guid}", async (Guid id, SearchProfileUpsertRequest request, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.DefinitionJson))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["name"] = ["Name und DefinitionJson sind erforderlich."]
+        });
+    }
+
+    var existing = await searchProfileRepository.GetByIdAsync(id, ct);
+    if (existing is null)
+    {
+        return Results.NotFound();
+    }
+
+    var isAdmin = HasScope(context.User, "admin.users");
+    var username = user.Identity?.Name;
+    if (!SearchProfileVisibility.CanEditProfile(existing.OwnerUsername, username, isAdmin))
+    {
+        return Results.Forbid();
+    }
+
+    var visibility = SearchProfileVisibility.NormalizeForRequest(request.Visibility, isAdmin);
+    if (visibility is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["visibility"] = ["Sichtbarkeit 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var saved = await searchProfileRepository.UpsertAsync(new SearchProfileUpsert(
+        id,
+        request.Name,
+        visibility,
+        request.DefinitionJson,
+        existing.OwnerUsername), ct);
 
     return Results.Ok(saved);
 }).RequireAuthorization(Policies.ScriptsRead);
