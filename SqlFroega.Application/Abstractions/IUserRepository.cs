@@ -13,4 +13,5 @@ public interface IUserRepository
     Task<UserAccount> AddAsync(string username, string password, bool isAdmin);
     Task<bool> DeactivateAsync(Guid userId);
     Task<bool> ReactivateAsync(Guid userId);
+    Task<bool> DeletePermanentlyAsync(Guid userId);
 }

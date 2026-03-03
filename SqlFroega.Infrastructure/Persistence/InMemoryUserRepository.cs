@@ -158,6 +158,20 @@ public sealed class InMemoryUserRepository : IUserRepository
         }
     }
 
+    public Task<bool> DeletePermanentlyAsync(Guid userId)
+    {
+        lock (_sync)
+        {
+            var removed = _users.RemoveAll(x => x.Id == userId) > 0;
+            if (removed && _rememberedDevice.HasValue && _rememberedDevice.Value.userId == userId)
+            {
+                _rememberedDevice = null;
+            }
+
+            return Task.FromResult(removed);
+        }
+    }
+
     private static UserAccount CopyUser(UserAccount source)
     {
         return new UserAccount

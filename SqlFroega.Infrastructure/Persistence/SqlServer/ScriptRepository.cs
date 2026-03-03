@@ -495,12 +495,47 @@ SELECT CAST(0 AS bit) AS Acquired, @existingOwner AS LockedBy;";
             cancellationToken: ct));
     }
 
+    public async Task<int> ClearAllEditLocksAsync(CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+        return await conn.ExecuteAsync(new CommandDefinition("DELETE FROM dbo.RecordInUse;", cancellationToken: ct));
+    }
+
+
+    public async Task<bool> ForceReleaseEditLockAsync(Guid scriptId, CancellationToken ct = default)
+    {
+        await using var conn = await _connFactory.OpenAsync(ct);
+        await EnsureModuleSchemaAsync(conn, ct);
+        var changed = await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM dbo.RecordInUse WHERE ScriptId = @scriptId;",
+            new { scriptId },
+            cancellationToken: ct));
+
+        return changed > 0;
+    }
+
     public async Task<Guid> UpsertAsync(ScriptUpsert script, CancellationToken ct = default)
     {
         var useSoftDelete = _opt.EnableSoftDelete && await SupportsSoftDeleteAsync(ct);
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
         await ValidateModulesExistAsync(conn, script.MainModule, script.RelatedModules, ct);
+
+        if (script.Id.HasValue)
+        {
+            var editor = string.IsNullOrWhiteSpace(script.UpdatedBy) ? null : script.UpdatedBy.Trim();
+            if (string.IsNullOrWhiteSpace(editor))
+                throw new InvalidOperationException("Zum Speichern eines bestehenden Skripts ist ein Benutzername erforderlich.");
+
+            var hasLock = await conn.ExecuteScalarAsync<int>(new CommandDefinition(
+                "SELECT COUNT(1) FROM dbo.RecordInUse WHERE ScriptId = @scriptId AND LockedBy = @editor;",
+                new { scriptId = script.Id.Value, editor },
+                cancellationToken: ct));
+
+            if (hasLock == 0)
+                throw new InvalidOperationException("Speichern nicht möglich: Kein gültiger [dbo].[RecordInUse]-Datensatz für diesen Benutzer vorhanden. Bitte zuerst entsperren/bearbeiten.");
+        }
 
         var auditColumns = await TryGetUpsertAuditColumnsAsync(conn, ct);
         var changedByIdentifier = auditColumns.ChangedByColumn is null ? null : QuoteIdentifier(auditColumns.ChangedByColumn);
