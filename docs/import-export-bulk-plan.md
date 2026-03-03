@@ -1,105 +1,211 @@
 # Plan: Bulk-Import / Bulk-Speicherung für SqlFrögä
 
-## Ziel
-Das Dokument beschreibt die nächsten Schritte für **Import und Massen-Speicherung** von Skripten.
-Der Fokus liegt auf den aktuell relevanten Umsetzungsbereichen:
-- **Desktop-App**
-- **API**
+## 0) Analyse-Update (Stand: 2026-03-03)
+Dieses Dokument wurde gegen den aktuellen Backend-Code und die vorhandenen Pläne abgeglichen.
 
-Manueller **Export** ist aktuell **nicht** Teil des Umfangs.
+### Was ist bereits im Backend vorhanden (relevante Grundlage)
+- Folder-/Collections-Struktur inkl. APIs und Validierung ist vorhanden (`/api/v1/folders/tree`, `/api/v1/folders`, `/api/v1/collections`, `/api/v1/navigation`, `folderId`/`collectionId`-Filter in Script-Suche).
+- Spotlight-/Search-Profile-Themen sind weit fortgeschritten und separat dokumentiert.
 
-## Scope (aktuell)
+### Was für Bulk-Import/-Speicherung **noch nicht** vorhanden ist
+- Keine dedizierten Bulk-Import-Endpunkte (`/api/bulk/import/preview`, `/api/bulk/import/commit`).
+- Kein Import-Preview-/Commit-Workflow in Desktop-App/SSMS im aktuellen Codebestand.
 
-### UC-1: SSMS-Extension Import
-Referenz: `Docs/ssms-extension-plan.md`
+### Überschneidungen mit anderen Dokumenten
+- `docs/search-and-folder-unified-plan.md` bleibt führend für Navigation, Folder-Tree, Collections, Spotlight.
+- `Docs/ssms-extension-plan.md` bleibt führend für SSMS-UX/Workspace/Save-Interception.
+- Dieses Dokument fokussiert nur auf Bulk-Import/-Speicherung und referenziert die bereits vorhandene Folder-/Collection-Basis, statt sie erneut zu planen.
 
-- Die SSMS-Extension liefert Import-Payloads an die API.
-- Die API validiert die Payload (Schema, Pflichtfelder, Referenzen).
-- Die Desktop-App kann denselben Import-Preview-Report anzeigen (Wiederverwendung der API).
-- Ziel: gleicher technischer Contract für Desktop-App und SSMS-Extension.
+---
 
-### UC-2: Massen-Speicherung (auch für SSMS-Extension)
-Referenz: `Docs/ssms-extension-plan.md`
+## 1) Ziel (bereinigt)
+Bulk-Import und Massen-Speicherung sollen auf der bereits vorhandenen Script-Organisation aufbauen:
+- Dateisystem-Quelle (Windows Folder) **und/oder**
+- SqlFrögä Folder-/Collection-Zuordnung
 
-- Mehrere Skripte/Objekte werden in einem Vorgang gespeichert.
-- Verarbeitung erfolgt transaktional oder in klar definierten Batches.
-- Ergebnisreport enthält mindestens: erstellt, aktualisiert, übersprungen, fehlerhaft.
-- Konfliktstrategien sind für SSMS-Extension und Desktop-App identisch.
+Export bleibt außerhalb des Scopes.
 
-### UC-3: Manueller Import im Tool (Desktop-App)
+**Status:** IN PROGRESS
 
-- Datei/Payload wird manuell im Tool ausgewählt.
-- Vor dem Speichern wird ein Preview-/Validierungsreport angezeigt.
-- Nutzer wählt Konfliktstrategie und startet den Commit.
-- Fokus ist Bedienbarkeit im Import-Flow, nicht Export.
+---
 
-## Nicht-Ziele (aktuell)
+## 2) Scope (bereinigt, ohne Doppelplanung)
+
+### UC-1: Bulk-Import via API (für Desktop + SSMS)
+- Gemeinsamer API-Contract für Preview + Commit.
+- Einheitliche Validierungs-/Ergebnisreports für beide Clients.
+- Nutzung der vorhandenen Folder-/Collection-Logik zur Zuordnung.
+
+**Status:** NOT DONE
+
+### UC-2: Massen-Speicherung bestehender/neuer Skripte
+- Verarbeitung großer Mengen in Batches/Transaktionen.
+- Upsert-Verhalten für bestehende und neue Skripte.
+- Ergebnisreport: `created`, `updated`, `skipped`, `failed`.
+
+**Status:** NOT DONE
+
+### UC-3: Importquelle „Windows Folder“
+- Dateien aus lokalem Windows-Ordner einlesen.
+- Mapping auf Script-Metadaten und Ziel-Folder/Collection.
+- Preview vor Commit inkl. Konfliktanzeige.
+
+**Status:** NOT DONE
+
+### UC-4: Importziel „SqlFrögä Folder/Collection“
+- Importierte/aktualisierte Skripte werden gezielt Foldern und Collections zugeordnet.
+- Optionales Re-Assignment bestehender Skripte.
+
+**Status:** IN PROGRESS
+
+Begründung: Folder-/Collection-APIs und Assignment sind vorhanden; der eigentliche Import-Workflow fehlt noch.
+
+---
+
+## 3) Nicht-Ziele
 - Manueller Export in der Desktop-App.
 - Separater Export-Flow in der SSMS-Extension.
 - Live-Synchronisation zwischen Umgebungen.
 
-## Technischer Contract (Import + Massen-Speicherung)
+**Status:** DONE
 
-### API-Endpunkte (Vorschlag)
-- `POST /api/bulk/import/preview`
-  - Input: Import-Payload (Datei oder JSON-Body je Client)
+---
+
+## 4) Technischer Contract (API) – Zielbild + Ist-Status
+
+### 4.1 Preview-Endpunkt
+- `POST /api/v1/bulk/import/preview`
+  - Input: Payload (JSON, optional Datei-Metadaten)
   - Output: Validierungsreport (`new`, `update`, `conflict`, `error`, `warnings`)
 
-- `POST /api/bulk/import/commit`
-  - Input: identische Payload + Konfliktstrategie + optional Batch-Optionen
-  - Output: Persistenz-Report (`created`, `updated`, `skipped`, `failed`)
+**Status:** NOT DONE
 
-### Konfliktstrategien
-- `SkipExisting`: bestehende Einträge nie überschreiben.
+### 4.2 Commit-Endpunkt
+- `POST /api/v1/bulk/import/commit`
+  - Input: identische Payload + Konfliktstrategie + Batch-Optionen
+  - Output: Persistenzreport (`created`, `updated`, `skipped`, `failed`)
+
+**Status:** NOT DONE
+
+### 4.3 Bulk-Laden bestehender Skripte (SSMS-relevant)
+- `POST /api/v1/scripts/bulk-get`
+  - Input: `scriptIds[]`
+  - Output: Inhalte + Metadaten + Version/ETag
+
+**Status:** NOT DONE
+
+### 4.4 Bereits vorhandene Basis-Endpunkte (nicht neu planen)
+- Folder-/Tree-/Navigation-Endpunkte
+- Collections-CRUD + Script-Collection-Assignment
+- Script-Suche mit `folderId` / `collectionId`
+
+**Status:** DONE
+
+---
+
+## 5) Konfliktstrategien (einheitlich für Desktop + SSMS)
+- `SkipExisting`: bestehende Einträge nicht überschreiben.
 - `UpdateIfNewer`: nur überschreiben, wenn Quelle neuer ist.
-- `ForceUpdate`: immer überschreiben (nur Admin/Power User).
+- `ForceUpdate`: immer überschreiben (nur berechtigte Rollen).
 
-### Validierungen
-- Pflichtfelder pro Datensatz: `id`, `name`, `scope`, SQL-Inhalt.
-- Format-/Schema-Version muss unterstützt sein.
-- Referenzen müssen auflösbar oder als Warnung markiert sein.
-- Bei Batch-Verarbeitung: klare Fehlerzuordnung pro Item.
+**Status:** NOT DONE
 
-## UI-/Client-Flows
+---
 
-### Desktop-App (UC-3)
-1. Import-Quelle auswählen
+## 6) Validierungen
+- Pflichtfelder je Datensatz: `name`, `scope`, SQL-Inhalt (ID je nach Modus create/update).
+- Unterstützte Format-/Schema-Version.
+- Referenzen auflösbar oder als Warning markiert.
+- Fehlerzuordnung pro Item im Batch.
+- Validierung der Zielzuordnung auf vorhandene SqlFrögä Folder/Collections.
+
+**Status:** IN PROGRESS
+
+Begründung: Generelle API-Validierung für Folder/Collections/Spotlight ist vorhanden; import-spezifische Batch-Validierung fehlt.
+
+---
+
+## 7) Client-Flows
+
+### 7.1 Desktop-App (manueller Import)
+1. Quelle wählen (Windows Folder / Datei)
 2. Preview laden
 3. Konfliktstrategie wählen
 4. Commit starten
 5. Ergebnisreport anzeigen
 
-### SSMS-Extension (UC-1/UC-2)
-1. Auswahl/Erzeugung der zu importierenden oder zu speichernden Payload
+**Status:** NOT DONE
+
+### 7.2 SSMS-Extension
+1. Payload aus Auswahl erzeugen
 2. Preview gegen API
-3. Commit mit gewählter Konfliktstrategie
-4. Ergebnisreport im Extension-Kontext anzeigen
+3. Commit mit Konfliktstrategie
+4. Ergebnisreport im Extension-Kontext
 
-## Sicherheit & Betrieb
-- Import und Massen-Speicherung nur für berechtigte Rollen.
-- Größenlimits/Batches zur Stabilität (kein Voll-Laden großer Datenmengen in RAM).
-- Audit-Log für alle Commit-Vorgänge (wer, wann, wie viele Datensätze, Ergebnis).
+**Status:** NOT DONE
 
-## Umsetzungsetappen
-1. **Etappe 1 – Import Contract vereinheitlichen (API)**
-   - Preview-/Commit-Endpunkte für Desktop-App und SSMS-Extension finalisieren
-   - Einheitliche Response-Modelle für Validierung und Ergebnis
+---
 
-2. **Etappe 2 – Massen-Speicherung robust machen (API)**
-   - Batch-/Transaktionslogik implementieren
-   - Fehler- und Konfliktbehandlung pro Item
+## 8) Sicherheit & Betrieb
+- Bulk-Import/-Commit nur für berechtigte Rollen.
+- Größenlimits/Batches zur Stabilität.
+- Audit-Log für Commit-Vorgänge.
 
-3. **Etappe 3 – Desktop-App Import-Flow (UC-3)**
-   - Manueller Import inkl. Preview, Strategieauswahl und Commit
-   - Ergebnisreport und UX-Verbesserungen
+**Status:** IN PROGRESS
 
-4. **Etappe 4 – SSMS-Extension-Integration (UC-1/UC-2)**
-   - Anbindung an denselben API-Contract laut `Docs/ssms-extension-plan.md`
-   - End-to-End Validierung der Massen-Speicherung
+Begründung: Rollen-/Auth-/Audit-Bausteine sind API-weit vorhanden; bulk-spezifische Policies/Audit-Events fehlen.
 
-## Akzeptanzkriterien
-- UC-1: SSMS-Extension kann Import-Preview und Commit über den gemeinsamen API-Contract ausführen.
-- UC-2: Massen-Speicherung verarbeitet große Mengen stabil und liefert einen vollständigen Ergebnisreport.
-- UC-3: Desktop-App bietet einen vollständigen manuellen Import-Flow mit Preview und Commit.
-- Konfliktstrategien werden in Desktop-App und SSMS-Extension identisch umgesetzt.
-- Audit-Log dokumentiert alle Commit-Vorgänge nachvollziehbar.
+---
+
+## 9) Umsetzungsetappen (konsolidiert)
+
+1. **Etappe 1 – Contract & Modelle (API)**
+   - DTOs für Preview/Commit + standardisierte Reports
+   - Endpunkte `bulk/import/preview` und `bulk/import/commit`
+
+   **Status:** NOT DONE
+
+2. **Etappe 2 – Bulk-Persistenzlogik (API)**
+   - Batch-/Transaktionslogik
+   - Konfliktstrategie-Ausführung
+   - Folder-/Collection-Zuordnung beim Import
+
+   **Status:** NOT DONE
+
+3. **Etappe 3 – Desktop-Import-Flow**
+   - UI für Quelle, Preview, Strategie, Commit
+
+   **Status:** NOT DONE
+
+4. **Etappe 4 – SSMS-Integration**
+   - Anbindung an denselben Contract
+   - E2E-Validierung mit realen Ordner-/Script-Mengen
+
+   **Status:** NOT DONE
+
+---
+
+## 10) Akzeptanzkriterien mit Status
+- AC-1: API bietet Preview + Commit für Bulk-Import über gemeinsamen Contract.
+  - **Status:** NOT DONE
+- AC-2: Bulk-Commit verarbeitet große Mengen stabil (Batching/Transaktion) und liefert vollständigen Ergebnisreport.
+  - **Status:** NOT DONE
+- AC-3: Import kann aus Windows Folder gelesen und auf SqlFrögä Folder/Collections gemappt werden.
+  - **Status:** NOT DONE
+- AC-4: Konfliktstrategien sind in Desktop und SSMS identisch wirksam.
+  - **Status:** NOT DONE
+- AC-5: Bulk-Commits sind nachvollziehbar auditierbar.
+  - **Status:** IN PROGRESS
+- AC-6: Vorhandene Folder-/Collection-Basis wird wiederverwendet (keine Doppelimplementierung).
+  - **Status:** DONE
+
+---
+
+## 11) Konkrete Abgrenzung „was nicht nötig ist in diesem Dokument“
+Nicht erneut detailliert planen (weil bereits in anderen Dokumenten/Code vorhanden):
+- Spotlight Query Studio Details
+- Allgemeine Folder-/Collection-Navigation
+- Suchprofil-Management
+- Allgemeine API-Basis (Auth, Rollen, Rate-Limits)
+
+Dieses Dokument soll nur die Bulk-Import/-Speicher-Lücke beschreiben, die auf der vorhandenen Folder-Struktur aufsetzt.
