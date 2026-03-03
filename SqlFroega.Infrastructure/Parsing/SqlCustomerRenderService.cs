@@ -395,7 +395,12 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         }
 
         private static string FormatIdentifier(Identifier original, string value)
-            => original.QuoteType == QuoteType.SquareBracket ? $"[{value}]" : value;
+            => original.QuoteType switch
+            {
+                QuoteType.SquareBracket => $"[{value}]",
+                QuoteType.DoubleQuote => $"\"{value}\"",
+                _ => value
+            };
     }
 
     private sealed class SchemaObjectNameRewriter : TSqlFragmentVisitor
