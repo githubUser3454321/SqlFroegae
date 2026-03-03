@@ -20,6 +20,58 @@
                        TextWrapping="Wrap"
                        Opacity="0.85"/>
 
+            <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Suchprofile"
+                               FontWeight="SemiBold"/>
+
+                    <ComboBox x:Name="SavedProfilesCombo"
+                              Header="Vorhandene Profile"
+                              DisplayMemberPath="Name"
+                              PlaceholderText="Profil auswählen"/>
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="ProfileNameBox"
+                                 Header="Profilname"
+                                 PlaceholderText="z. B. Meine Favoriten-Suche"/>
+
+                        <ComboBox x:Name="ProfileVisibilityCombo"
+                                  Grid.Column="1"
+                                  Header="Sichtbarkeit"
+                                  MinWidth="160"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="Für mich"/>
+                            <ComboBoxItem Content="Für alle"/>
+                        </ComboBox>
+
+                        <StackPanel Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    Spacing="8"
+                                    VerticalAlignment="Bottom">
+                            <Button Content="Laden"
+                                    Click="LoadProfile_Click"/>
+                            <Button Content="Speichern"
+                                    Click="SaveProfile_Click"/>
+                            <Button Content="Löschen"
+                                    Click="DeleteProfile_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock x:Name="ProfileFeedbackText"
+                               Opacity="0.75"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
                 <ComboBoxItem Content="Bereich: Alle"/>
                 <ComboBoxItem Content="Bereich: Global"/>
