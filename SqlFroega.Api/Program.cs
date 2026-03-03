@@ -11,6 +11,7 @@ using SqlFroega.Api.Auth;
 using SqlFroega.Api.Infrastructure;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
+using SqlFroega.Application.Services;
 using SqlFroega.Infrastructure.Parsing;
 using SqlFroega.Infrastructure.Persistence;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
@@ -40,6 +41,9 @@ builder.Services.AddSingleton<IRefreshTokenStore>(sp =>
 builder.Services.AddScoped<IScriptRepository, ScriptRepository>();
 builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
+builder.Services.AddScoped<ISearchProfileRepository, SearchProfileRepository>();
+builder.Services.AddScoped<IScriptFolderRepository, ScriptFolderRepository>();
+builder.Services.AddScoped<IScriptCollectionRepository, ScriptCollectionRepository>();
 builder.Services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
 builder.Services.AddProblemDetails();
@@ -215,11 +219,166 @@ api.MapGet("/scripts", async (
         ParseCsv(query.Tags),
         query.ReferencedObject,
         referencedObjects,
+        query.FolderId,
+        query.CollectionId,
         query.IncludeDeleted,
         query.SearchHistory);
 
     var scripts = await scriptRepository.SearchAsync(query.Query, filters, query.Take, query.Skip, ct);
     return Results.Ok(scripts);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/scripts/spotlight-search", async (
+    SpotlightSearchRequest request,
+    IScriptRepository scriptRepository,
+    CancellationToken ct) =>
+{
+    if (request.Groups is null || request.Groups.Count == 0)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["groups"] = ["Mindestens eine Regelgruppe ist erforderlich."]
+        });
+    }
+
+    var combineWithAnd = string.Equals(request.GroupOperator, "AND", StringComparison.OrdinalIgnoreCase);
+    var groupResults = new List<IReadOnlyList<ScriptListItem>>(request.Groups.Count);
+
+    foreach (var group in request.Groups)
+    {
+        var filters = new ScriptSearchFilters(
+            group.Scope,
+            group.CustomerId,
+            group.Module,
+            group.MainModule,
+            group.RelatedModule,
+            ParseCsv(group.RelatedModules),
+            ParseCsv(group.Tags),
+            group.ReferencedObject,
+            ParseCsv(group.ReferencedObjects),
+            group.FolderId,
+            group.CollectionId,
+            group.IncludeDeleted,
+            group.SearchHistory);
+
+        var rows = await scriptRepository.SearchAsync(group.Query, filters, 500, 0, ct);
+        groupResults.Add(rows);
+    }
+
+    var combined = SpotlightSearchCombiner.Combine(groupResults, combineWithAnd, request.Skip, request.Take);
+    return Results.Ok(combined);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+
+api.MapGet("/folders/tree", async (IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var tree = await folderRepository.GetTreeAsync(ct);
+    return Results.Ok(tree);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/folders", async (ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+        request.Id,
+        request.Name,
+        request.ParentId,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/folders/{id:guid}", async (Guid id, ScriptFolderUpsertRequest request, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var saved = await folderRepository.UpsertAsync(new ScriptFolderUpsert(
+        id,
+        request.Name,
+        request.ParentId,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapDelete("/folders/{id:guid}", async (Guid id, IScriptFolderRepository folderRepository, CancellationToken ct) =>
+{
+    var deleted = await folderRepository.DeleteAsync(id, ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+
+api.MapGet("/collections", async (IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    var collections = await collectionRepository.GetAllAsync(ct);
+    return Results.Ok(collections);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/collections", async (ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
+{
+    var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
+    if (ownerScope is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerScope"] = ["OwnerScope 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+        request.Id,
+        request.Name,
+        request.ParentId,
+        ownerScope,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/collections/{id:guid}", async (Guid id, ScriptCollectionUpsertRequest request, IScriptCollectionRepository collectionRepository, HttpContext context, CancellationToken ct) =>
+{
+    var ownerScope = SearchProfileVisibility.NormalizeForRequest(request.OwnerScope, HasScope(context.User, "admin.users"));
+    if (ownerScope is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["ownerScope"] = ["OwnerScope 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var saved = await collectionRepository.UpsertAsync(new ScriptCollectionUpsert(
+        id,
+        request.Name,
+        request.ParentId,
+        ownerScope,
+        request.SortOrder), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapDelete("/collections/{id:guid}", async (Guid id, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    var deleted = await collectionRepository.DeleteAsync(id, ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapPatch("/scripts/{id:guid}/collections", async (Guid id, ScriptCollectionAssignmentRequest request, IScriptCollectionRepository collectionRepository, CancellationToken ct) =>
+{
+    await collectionRepository.AssignScriptCollectionsAsync(id, request.CollectionIds ?? Array.Empty<Guid>(), request.PrimaryCollectionId, ct);
+    return Results.NoContent();
+}).RequireAuthorization(Policies.ScriptsWrite);
+
+api.MapGet("/navigation", async (
+    IScriptFolderRepository folderRepository,
+    IScriptCollectionRepository collectionRepository,
+    CancellationToken ct) =>
+{
+    var folders = await folderRepository.GetTreeAsync(ct);
+    var collections = await collectionRepository.GetAllAsync(ct);
+
+    return Results.Ok(new
+    {
+        views = new[] { "all", "favorites", "recent", "uncategorized" },
+        folders,
+        collections
+    });
 }).RequireAuthorization(Policies.ScriptsRead);
 
 api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, CancellationToken ct) =>
@@ -332,6 +491,57 @@ api.MapGet("/admin/users", async (IUserRepository userRepository) =>
 {
     var users = await userRepository.GetAllAsync();
     var result = users.Select(u => new { u.Id, u.Username, u.IsAdmin, u.IsActive });
+    return Results.Ok(result);
+}).RequireAuthorization(Policies.AdminUsers);
+
+api.MapGet("/search-profiles", async (ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    var username = user.Identity?.Name ?? string.Empty;
+    var includeAll = HasScope(context.User, "admin.users");
+    var profiles = await searchProfileRepository.GetVisibleAsync(username, includeAll, ct);
+    return Results.Ok(profiles);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/search-profiles", async (SearchProfileUpsertRequest request, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.DefinitionJson))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["name"] = ["Name und DefinitionJson sind erforderlich."]
+        });
+    }
+
+    var visibility = SearchProfileVisibility.NormalizeForRequest(request.Visibility, HasScope(context.User, "admin.users"));
+    if (visibility is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["visibility"] = ["Sichtbarkeit 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var owner = user.Identity?.Name ?? string.Empty;
+    var saved = await searchProfileRepository.UpsertAsync(new SearchProfileUpsert(
+        request.Id,
+        request.Name,
+        visibility,
+        request.DefinitionJson,
+        owner), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapDelete("/search-profiles/{id:guid}", async (Guid id, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    var deleted = await searchProfileRepository.DeleteAsync(id, user.Identity?.Name ?? string.Empty, HasScope(context.User, "admin.users"), ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapGet("/admin/search-profiles", async (ISearchProfileRepository searchProfileRepository, CancellationToken ct) =>
+{
+    var profiles = await searchProfileRepository.GetVisibleAsync(string.Empty, includeAll: true, ct);
+    var result = profiles.Select(x => new { x.Id, x.Name, x.OwnerUsername, x.Visibility, x.UpdatedUtc });
     return Results.Ok(result);
 }).RequireAuthorization(Policies.AdminUsers);
 
@@ -488,10 +698,34 @@ internal sealed record ScriptSearchQuery(
     string? RelatedModule,
     string? Tags,
     string? ReferencedObject,
+    Guid? FolderId,
+    Guid? CollectionId,
     bool IncludeDeleted = false,
     bool SearchHistory = false,
     int Take = 200,
     int Skip = 0);
+
+internal sealed record SpotlightSearchRequest(
+    string? GroupOperator,
+    IReadOnlyList<SpotlightRuleGroupRequest> Groups,
+    int Take = 200,
+    int Skip = 0);
+
+internal sealed record SpotlightRuleGroupRequest(
+    string? Query,
+    int? Scope,
+    Guid? CustomerId,
+    string? Module,
+    string? MainModule,
+    string? RelatedModule,
+    string? RelatedModules,
+    string? Tags,
+    string? ReferencedObject,
+    string? ReferencedObjects,
+    Guid? FolderId,
+    Guid? CollectionId,
+    bool IncludeDeleted = false,
+    bool SearchHistory = false);
 
 internal sealed record UpsertScriptRequest(
     Guid? Id,
@@ -507,6 +741,29 @@ internal sealed record UpsertScriptRequest(
     string? UpdateReason);
 
 internal sealed record ScriptLockRequest(string? Username);
+
+internal sealed record ScriptFolderUpsertRequest(
+    Guid? Id,
+    string Name,
+    Guid? ParentId,
+    int SortOrder = 0);
+
+internal sealed record ScriptCollectionUpsertRequest(
+    Guid? Id,
+    string Name,
+    Guid? ParentId,
+    string? OwnerScope,
+    int SortOrder = 0);
+
+internal sealed record ScriptCollectionAssignmentRequest(
+    IReadOnlyList<Guid>? CollectionIds,
+    Guid? PrimaryCollectionId);
+
+internal sealed record SearchProfileUpsertRequest(
+    Guid? Id,
+    string Name,
+    string? Visibility,
+    string DefinitionJson);
 
 internal sealed record RenderSqlRequest(string Sql);
 
