@@ -25,6 +25,8 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         EnableSecondGroupCheckBox.Unchecked += EnableSecondGroupCheckBox_Changed;
         EnableThirdGroupCheckBox.Checked += EnableThirdGroupCheckBox_Changed;
         EnableThirdGroupCheckBox.Unchecked += EnableThirdGroupCheckBox_Changed;
+        EnableFourthGroupCheckBox.Checked += EnableFourthGroupCheckBox_Changed;
+        EnableFourthGroupCheckBox.Unchecked += EnableFourthGroupCheckBox_Changed;
         UpdateGroupPanelVisibility();
     }
 
@@ -46,11 +48,13 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         FolderCombo.SelectedItem = vm.SelectedFolder;
         SecondFolderCombo.ItemsSource = vm.AvailableFolders;
         ThirdFolderCombo.ItemsSource = vm.AvailableFolders;
+        FourthFolderCombo.ItemsSource = vm.AvailableFolders;
 
         CollectionCombo.ItemsSource = vm.AvailableCollections;
         CollectionCombo.SelectedItem = vm.SelectedCollection;
         SecondCollectionCombo.ItemsSource = vm.AvailableCollections;
         ThirdCollectionCombo.ItemsSource = vm.AvailableCollections;
+        FourthCollectionCombo.ItemsSource = vm.AvailableCollections;
 
         await LoadProfilesAsync();
     }
@@ -59,7 +63,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
     {
         ApplyTo(vm);
 
-        if (EnableSecondGroupCheckBox.IsChecked == true || EnableThirdGroupCheckBox.IsChecked == true)
+        if (EnableSecondGroupCheckBox.IsChecked == true || EnableThirdGroupCheckBox.IsChecked == true || EnableFourthGroupCheckBox.IsChecked == true)
         {
             var combineWithAnd = GroupCombineModeCombo.SelectedIndex <= 0;
             await vm.SearchWithSpotlightGroupsAsync(BuildRuleGroups(), combineWithAnd);
@@ -120,6 +124,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         GroupCombineModeCombo.SelectedIndex = definition.CombineWithAnd ? 0 : 1;
         EnableSecondGroupCheckBox.IsChecked = definition.SecondGroup is not null;
         EnableThirdGroupCheckBox.IsChecked = definition.ThirdGroup is not null;
+        EnableFourthGroupCheckBox.IsChecked = definition.FourthGroup is not null;
         if (definition.SecondGroup is null)
         {
             ClearSecondGroup();
@@ -156,12 +161,31 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ThirdSearchHistoryBox.IsChecked = definition.ThirdGroup.SearchInHistory;
         ThirdFolderCombo.SelectedItem = (ThirdFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.ThirdGroup.FolderId);
         ThirdCollectionCombo.SelectedItem = (ThirdCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.ThirdGroup.CollectionId);
+
+        if (definition.FourthGroup is null)
+        {
+            ClearFourthGroup();
+            return;
+        }
+
+        FourthQueryTextBox.Text = definition.FourthGroup.QueryText ?? string.Empty;
+        FourthScopeCombo.SelectedIndex = definition.FourthGroup.ScopeFilterIndex;
+        FourthMainModuleBox.Text = definition.FourthGroup.MainModule ?? string.Empty;
+        FourthRelatedModuleBox.Text = definition.FourthGroup.RelatedModule ?? string.Empty;
+        FourthCustomerCodeBox.Text = definition.FourthGroup.CustomerCode ?? string.Empty;
+        FourthTagsBox.Text = definition.FourthGroup.Tags ?? string.Empty;
+        FourthObjectsBox.Text = definition.FourthGroup.ReferencedObjects ?? string.Empty;
+        FourthIncludeDeletedBox.IsChecked = definition.FourthGroup.IncludeDeleted;
+        FourthSearchHistoryBox.IsChecked = definition.FourthGroup.SearchInHistory;
+        FourthFolderCombo.SelectedItem = (FourthFolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FourthGroup.FolderId);
+        FourthCollectionCombo.SelectedItem = (FourthCollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.FourthGroup.CollectionId);
     }
 
     private SpotlightProfileDefinition BuildDefinition()
     {
         SpotlightProfileGroupDefinition? secondGroup = null;
         SpotlightProfileGroupDefinition? thirdGroup = null;
+        SpotlightProfileGroupDefinition? fourthGroup = null;
         if (EnableSecondGroupCheckBox.IsChecked == true)
         {
             secondGroup = new SpotlightProfileGroupDefinition(
@@ -194,6 +218,22 @@ public sealed partial class SpotlightQueryStudioView : UserControl
                 CollectionId: (ThirdCollectionCombo.SelectedItem as ScriptCollection)?.Id);
         }
 
+        if (EnableFourthGroupCheckBox.IsChecked == true)
+        {
+            fourthGroup = new SpotlightProfileGroupDefinition(
+                QueryText: FourthQueryTextBox.Text,
+                ScopeFilterIndex: FourthScopeCombo.SelectedIndex < 0 ? 0 : FourthScopeCombo.SelectedIndex,
+                MainModule: FourthMainModuleBox.Text,
+                RelatedModule: FourthRelatedModuleBox.Text,
+                CustomerCode: FourthCustomerCodeBox.Text,
+                Tags: FourthTagsBox.Text,
+                ReferencedObjects: FourthObjectsBox.Text,
+                IncludeDeleted: FourthIncludeDeletedBox.IsChecked == true,
+                SearchInHistory: FourthSearchHistoryBox.IsChecked == true,
+                FolderId: (FourthFolderCombo.SelectedItem as FolderTreeOption)?.Id,
+                CollectionId: (FourthCollectionCombo.SelectedItem as ScriptCollection)?.Id);
+        }
+
         return new SpotlightProfileDefinition(
             PrimaryQueryText: PrimaryQueryTextBox.Text,
             ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
@@ -209,7 +249,8 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id,
             CombineWithAnd: GroupCombineModeCombo.SelectedIndex <= 0,
             SecondGroup: secondGroup,
-            ThirdGroup: thirdGroup);
+            ThirdGroup: thirdGroup,
+            FourthGroup: fourthGroup);
     }
 
     private IReadOnlyList<SpotlightFilterGroup> BuildRuleGroups()
@@ -262,6 +303,22 @@ public sealed partial class SpotlightQueryStudioView : UserControl
                 CollectionId: (ThirdCollectionCombo.SelectedItem as ScriptCollection)?.Id));
         }
 
+        if (EnableFourthGroupCheckBox.IsChecked == true)
+        {
+            groups.Add(new SpotlightFilterGroup(
+                QueryText: FourthQueryTextBox.Text,
+                ScopeFilterIndex: FourthScopeCombo.SelectedIndex < 0 ? 0 : FourthScopeCombo.SelectedIndex,
+                MainModuleFilterText: FourthMainModuleBox.Text,
+                RelatedModuleFilterText: FourthRelatedModuleBox.Text,
+                CustomerCodeFilterText: FourthCustomerCodeBox.Text,
+                TagsFilterText: FourthTagsBox.Text,
+                ObjectFilterText: FourthObjectsBox.Text,
+                IncludeDeleted: FourthIncludeDeletedBox.IsChecked == true,
+                SearchInHistory: FourthSearchHistoryBox.IsChecked == true,
+                FolderId: (FourthFolderCombo.SelectedItem as FolderTreeOption)?.Id,
+                CollectionId: (FourthCollectionCombo.SelectedItem as ScriptCollection)?.Id));
+        }
+
         return groups;
     }
 
@@ -272,6 +329,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         {
             ClearSecondGroup();
             EnableThirdGroupCheckBox.IsChecked = false;
+            EnableFourthGroupCheckBox.IsChecked = false;
         }
     }
 
@@ -282,7 +340,23 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
         UpdateGroupPanelVisibility();
         if (EnableThirdGroupCheckBox.IsChecked != true)
+        {
             ClearThirdGroup();
+            EnableFourthGroupCheckBox.IsChecked = false;
+        }
+    }
+
+    private void EnableFourthGroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (EnableFourthGroupCheckBox.IsChecked == true)
+        {
+            EnableSecondGroupCheckBox.IsChecked = true;
+            EnableThirdGroupCheckBox.IsChecked = true;
+        }
+
+        UpdateGroupPanelVisibility();
+        if (EnableFourthGroupCheckBox.IsChecked != true)
+            ClearFourthGroup();
     }
 
     private void UpdateGroupPanelVisibility()
@@ -292,6 +366,10 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             : Visibility.Collapsed;
 
         ThirdGroupPanel.Visibility = EnableThirdGroupCheckBox.IsChecked == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        FourthGroupPanel.Visibility = EnableFourthGroupCheckBox.IsChecked == true
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -324,6 +402,21 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ThirdSearchHistoryBox.IsChecked = false;
         ThirdFolderCombo.SelectedItem = null;
         ThirdCollectionCombo.SelectedItem = null;
+    }
+
+    private void ClearFourthGroup()
+    {
+        FourthQueryTextBox.Text = string.Empty;
+        FourthScopeCombo.SelectedIndex = 0;
+        FourthMainModuleBox.Text = string.Empty;
+        FourthRelatedModuleBox.Text = string.Empty;
+        FourthCustomerCodeBox.Text = string.Empty;
+        FourthTagsBox.Text = string.Empty;
+        FourthObjectsBox.Text = string.Empty;
+        FourthIncludeDeletedBox.IsChecked = false;
+        FourthSearchHistoryBox.IsChecked = false;
+        FourthFolderCombo.SelectedItem = null;
+        FourthCollectionCombo.SelectedItem = null;
     }
 
     private async void LoadProfile_Click(object sender, RoutedEventArgs e)
@@ -430,7 +523,8 @@ public sealed record SpotlightProfileDefinition(
     Guid? CollectionId,
     bool CombineWithAnd,
     SpotlightProfileGroupDefinition? SecondGroup,
-    SpotlightProfileGroupDefinition? ThirdGroup);
+    SpotlightProfileGroupDefinition? ThirdGroup,
+    SpotlightProfileGroupDefinition? FourthGroup);
 
 public sealed record SpotlightProfileGroupDefinition(
     string? QueryText,
