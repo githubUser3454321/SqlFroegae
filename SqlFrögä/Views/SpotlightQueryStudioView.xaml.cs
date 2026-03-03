@@ -20,6 +20,14 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = vm.ObjectFilterText;
         IncludeDeletedBox.IsChecked = vm.IncludeDeleted;
         SearchHistoryBox.IsChecked = vm.SearchInHistory;
+
+        DisplayFolderStructureToggle.IsOn = vm.DisplayFolderStructure;
+
+        FolderCombo.ItemsSource = vm.AvailableFolders;
+        FolderCombo.SelectedItem = vm.SelectedFolder;
+
+        CollectionCombo.ItemsSource = vm.AvailableCollections;
+        CollectionCombo.SelectedItem = vm.SelectedCollection;
     }
 
     public void ApplyTo(LibrarySplitViewModel vm)
@@ -33,5 +41,9 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         vm.ObjectFilterText = ObjectsBox.Text;
         vm.IncludeDeleted = IncludeDeletedBox.IsChecked == true;
         vm.SearchInHistory = SearchHistoryBox.IsChecked == true;
+        vm.DisplayFolderStructure = DisplayFolderStructureToggle.IsOn;
+
+        vm.SelectedFolder = FolderCombo.SelectedItem as FolderTreeOption;
+        vm.SelectedCollection = CollectionCombo.SelectedItem as SqlFroega.Application.Models.ScriptCollection;
     }
 }
