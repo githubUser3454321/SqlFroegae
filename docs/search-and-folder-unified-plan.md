@@ -224,4 +224,23 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 - [x] Suchprofile: separates Update-Endpoint (`PATCH /api/v1/search-profiles/{id}`) ergänzt und gegen Fremd-Updates abgesichert (Owner/Admin-Check).
 - [x] Suchprofile: `POST /api/v1/search-profiles` auf „create only“ geschärft (keine `id` im Create-Flow).
 - [ ] Folder/Collections: zusätzliche Integration-/E2E-Tests gegen reale SQL-Instanz (Delete-Strategien + Race Conditions) ergänzen.
-- [ ] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
+- [x] Spotlight: Backend-Validierungsmodell für unvollständige Regelblöcke weiter verfeinern (vor UI-Regelbuilder-Finalisierung).
+
+### 11.5 Update 2026-03-03 (Backend)
+- Neuer Backend-Validator für `POST /api/v1/scripts/spotlight-search` ergänzt:
+  - `groups` muss vorhanden sein und mindestens eine Regelgruppe enthalten.
+  - `groupOperator` wird strikt auf `AND|OR` validiert.
+  - Paging wird serverseitig validiert (`take` 1..500, `skip >= 0`).
+  - Unvollständige Regelgruppen ohne ein einziges Suchkriterium werden mit `ValidationProblem` abgelehnt.
+  - Ungültige Scope-Werte pro Gruppe werden mit Feldfehlern zurückgegeben.
+- Tests ergänzt (Unit-Level) für den Validator inkl. negativer und positiver Fälle.
+- Verbleibender Backend-Blocker bleibt: echte SQL-Integrations-/E2E-Tests für Folder/Collections (Delete-Strategien + Race Conditions).
+
+### 11.6 Update 2026-03-03 (Backend-Härtung Folder/Collections)
+- API-Validierung für Folder/Collection Write-Endpoints erweitert:
+  - Name-Pflichtprüfung bereits vor Repository-Aufruf.
+  - Guard gegen Self-Parent bei `PATCH /folders/{id}` und `PATCH /collections/{id}`.
+  - Guard für Collection-Assignment (`primaryCollectionId` muss in `collectionIds` enthalten sein).
+- Domain-/Repository-Validierungsfehler (`InvalidOperationException`) werden auf den Write-Endpunkten nun konsistent als `ValidationProblem` (statt 500) zurückgegeben.
+- Unit-Tests für die neue Request-Validierung ergänzt.
+- Backend-Fazit: Validierungsschicht und API-Fehlerverhalten sind jetzt deutlich robuster; offen bleibt weiterhin der SQL-Integrations-/Race-Condition-Blocker.
