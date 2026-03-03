@@ -1,6 +1,7 @@
 using Dapper;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
+using SqlFroega.Application.Services;
 
 namespace SqlFroega.Infrastructure.Persistence.SqlServer;
 
@@ -39,7 +40,7 @@ ORDER BY UpdatedUtc DESC, Name ASC";
 
         var now = DateTime.UtcNow;
         var id = input.Id ?? Guid.NewGuid();
-        var visibility = NormalizeVisibility(input.Visibility);
+        var visibility = SearchProfileVisibility.NormalizeForStorage(input.Visibility);
 
         await conn.ExecuteAsync(new CommandDefinition(@"
 MERGE dbo.SearchProfiles AS target
@@ -88,11 +89,6 @@ WHERE Id = @id
             cancellationToken: ct));
 
         return affected > 0;
-    }
-
-    private static string NormalizeVisibility(string raw)
-    {
-        return string.Equals(raw?.Trim(), "global", StringComparison.OrdinalIgnoreCase) ? "global" : "private";
     }
 
     private static Task EnsureSchemaAsync(System.Data.Common.DbConnection conn, CancellationToken ct)

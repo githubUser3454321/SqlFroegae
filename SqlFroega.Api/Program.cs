@@ -11,6 +11,7 @@ using SqlFroega.Api.Auth;
 using SqlFroega.Api.Infrastructure;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Application.Models;
+using SqlFroega.Application.Services;
 using SqlFroega.Infrastructure.Parsing;
 using SqlFroega.Infrastructure.Persistence;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
@@ -239,7 +240,7 @@ api.MapPost("/scripts/spotlight-search", async (
     }
 
     var combineWithAnd = string.Equals(request.GroupOperator, "AND", StringComparison.OrdinalIgnoreCase);
-    Dictionary<Guid, ScriptListItem>? accumulator = null;
+    var groupResults = new List<IReadOnlyList<ScriptListItem>>(request.Groups.Count);
 
     foreach (var group in request.Groups)
     {
@@ -258,39 +259,10 @@ api.MapPost("/scripts/spotlight-search", async (
             group.SearchHistory);
 
         var rows = await scriptRepository.SearchAsync(group.Query, filters, 500, 0, ct);
-        var current = rows.ToDictionary(x => x.Id, x => x);
-
-        if (accumulator is null)
-        {
-            accumulator = current;
-            continue;
-        }
-
-        if (combineWithAnd)
-        {
-            var intersected = accumulator
-                .Where(kvp => current.ContainsKey(kvp.Key))
-                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            accumulator = intersected;
-        }
-        else
-        {
-            foreach (var kvp in current)
-            {
-                accumulator[kvp.Key] = kvp.Value;
-            }
-        }
+        groupResults.Add(rows);
     }
 
-    var skip = Math.Max(request.Skip, 0);
-    var take = request.Take <= 0 ? 200 : Math.Min(request.Take, 500);
-    var combined = (accumulator ?? new Dictionary<Guid, ScriptListItem>())
-        .Values
-        .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
-        .Skip(skip)
-        .Take(take)
-        .ToList();
-
+    var combined = SpotlightSearchCombiner.Combine(groupResults, combineWithAnd, request.Skip, request.Take);
     return Results.Ok(combined);
 }).RequireAuthorization(Policies.ScriptsRead);
 
@@ -460,7 +432,7 @@ api.MapPost("/search-profiles", async (SearchProfileUpsertRequest request, ISear
         });
     }
 
-    var visibility = NormalizeVisibility(request.Visibility, HasScope(context.User, "admin.users"));
+    var visibility = SearchProfileVisibility.NormalizeForRequest(request.Visibility, HasScope(context.User, "admin.users"));
     if (visibility is null)
     {
         return Results.ValidationProblem(new Dictionary<string, string[]>
@@ -525,16 +497,6 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     }
 
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-}
-
-static string? NormalizeVisibility(string? raw, bool isAdmin)
-{
-    if (string.Equals(raw?.Trim(), "global", StringComparison.OrdinalIgnoreCase))
-    {
-        return isAdmin ? "global" : null;
-    }
-
-    return "private";
 }
 
 static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)

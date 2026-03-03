@@ -199,7 +199,7 @@ Im Spotlight sind pro Regelblock alle heute verfügbaren Filter auswählbar:
 ### 11.2 Migration & Rollout (Punkt für Punkt)
 1. DB-Migration A (`script_folder`, `script.folder_id`) — **Partialy DONE** (Backend legt `ScriptFolders` + `Scripts.FolderId` per Schema-Ensure an; dedizierte, versionierte SQL-Migration noch ausstehend).
 2. Folder-Read APIs + UI hinter Feature Flag — **Partialy DONE** (`GET /api/v1/folders/tree` und `folderId`-Filter in Script-Suche backendseitig verfügbar; UI/Feature-Flag steht aus).
-3. Ordner-Schreiboperationen stabilisieren (inkl. Zykluschecks) — **Partialy DONE** (Create/Update/Delete APIs vorhanden, inklusive Parent-Validierung, Duplicate-Check und Cycle-Check; E2E-Härtung und UI-Flows fehlen).
+3. Ordner-Schreiboperationen stabilisieren (inkl. Zykluschecks) — **Partialy DONE** (Create/Update/Delete APIs vorhanden, inklusive Parent-Validierung, Duplicate-Check und Cycle-Check; erste Unit-Tests für zentrale Backend-Logik vorhanden, E2E-Härtung und UI-Flows fehlen).
 4. Toggle `Display Folder Structure` ausrollen — **NOT DONE**.
 5. Spotlight Phase 1: Fullscreen + bestehende Filter 1:1 — **Partialy DONE** (Fullscreen + Filter-Parität im Spotlight-Einstieg implementiert und in eigene Spotlight-View ausgelagert; vollständige Regelblock-Engine noch offen).
 6. Spotlight Phase 2: AND/OR-Regelgruppen + Validierung — **Partialy DONE** (Backend-Gruppenlogik per AND/OR verfügbar; UI-Validierungszustände noch ausstehend).
