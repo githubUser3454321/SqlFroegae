@@ -25,7 +25,11 @@ SELECT Id, Name, ParentId, SortOrder, CreatedUtc, UpdatedUtc
 FROM dbo.ScriptFolders
 ORDER BY SortOrder ASC, Name ASC", cancellationToken: ct))).ToList();
 
-        var byParent = rows.GroupBy(x => x.ParentId).ToDictionary(g => g.Key, g => g.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList());
+        var byParent = rows
+            .ToLookup(x => x.ParentId, x => x)
+            .ToDictionary(
+                g => g.Key ?? Guid.Empty,
+                g => g.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase).ToList());
         return BuildTree(byParent, null);
     }
 
@@ -136,9 +140,9 @@ WHERE ParentId IS NOT NULL AND Path LIKE '%/' + CONVERT(nvarchar(36), ParentId) 
         }
     }
 
-    private static List<ScriptFolderTreeNode> BuildTree(Dictionary<Guid?, List<ScriptFolder>> byParent, Guid? parentId)
+    private static List<ScriptFolderTreeNode> BuildTree(Dictionary<Guid, List<ScriptFolder>> byParent, Guid? parentId)
     {
-        if (!byParent.TryGetValue(parentId, out var children))
+        if (!byParent.TryGetValue(parentId ?? Guid.Empty, out var children))
         {
             return new List<ScriptFolderTreeNode>();
         }
