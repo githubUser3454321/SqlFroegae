@@ -40,6 +40,7 @@ builder.Services.AddSingleton<IRefreshTokenStore>(sp =>
 builder.Services.AddScoped<IScriptRepository, ScriptRepository>();
 builder.Services.AddScoped<ICustomerMappingRepository, CustomerMappingRepository>();
 builder.Services.AddScoped<IUserRepository, SqlUserRepository>();
+builder.Services.AddScoped<ISearchProfileRepository, SearchProfileRepository>();
 builder.Services.AddScoped<ISqlCustomerRenderService, SqlCustomerRenderService>();
 
 builder.Services.AddProblemDetails();
@@ -222,6 +223,74 @@ api.MapGet("/scripts", async (
     return Results.Ok(scripts);
 }).RequireAuthorization(Policies.ScriptsRead);
 
+api.MapPost("/scripts/spotlight-search", async (
+    SpotlightSearchRequest request,
+    IScriptRepository scriptRepository,
+    CancellationToken ct) =>
+{
+    if (request.Groups is null || request.Groups.Count == 0)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["groups"] = ["Mindestens eine Regelgruppe ist erforderlich."]
+        });
+    }
+
+    var combineWithAnd = string.Equals(request.GroupOperator, "AND", StringComparison.OrdinalIgnoreCase);
+    Dictionary<Guid, ScriptListItem>? accumulator = null;
+
+    foreach (var group in request.Groups)
+    {
+        var filters = new ScriptSearchFilters(
+            group.Scope,
+            group.CustomerId,
+            group.Module,
+            group.MainModule,
+            group.RelatedModule,
+            ParseCsv(group.RelatedModules),
+            ParseCsv(group.Tags),
+            group.ReferencedObject,
+            ParseCsv(group.ReferencedObjects),
+            group.IncludeDeleted,
+            group.SearchHistory);
+
+        var rows = await scriptRepository.SearchAsync(group.Query, filters, 500, 0, ct);
+        var current = rows.ToDictionary(x => x.Id, x => x);
+
+        if (accumulator is null)
+        {
+            accumulator = current;
+            continue;
+        }
+
+        if (combineWithAnd)
+        {
+            var intersected = accumulator
+                .Where(kvp => current.ContainsKey(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            accumulator = intersected;
+        }
+        else
+        {
+            foreach (var kvp in current)
+            {
+                accumulator[kvp.Key] = kvp.Value;
+            }
+        }
+    }
+
+    var skip = Math.Max(request.Skip, 0);
+    var take = request.Take <= 0 ? 200 : Math.Min(request.Take, 500);
+    var combined = (accumulator ?? new Dictionary<Guid, ScriptListItem>())
+        .Values
+        .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+        .Skip(skip)
+        .Take(take)
+        .ToList();
+
+    return Results.Ok(combined);
+}).RequireAuthorization(Policies.ScriptsRead);
+
 api.MapGet("/scripts/{id:guid}", async (Guid id, IScriptRepository scriptRepository, CancellationToken ct) =>
 {
     var script = await scriptRepository.GetByIdAsync(id, ct);
@@ -335,6 +404,57 @@ api.MapGet("/admin/users", async (IUserRepository userRepository) =>
     return Results.Ok(result);
 }).RequireAuthorization(Policies.AdminUsers);
 
+api.MapGet("/search-profiles", async (ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    var username = user.Identity?.Name ?? string.Empty;
+    var includeAll = HasScope(context.User, "admin.users");
+    var profiles = await searchProfileRepository.GetVisibleAsync(username, includeAll, ct);
+    return Results.Ok(profiles);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapPost("/search-profiles", async (SearchProfileUpsertRequest request, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.DefinitionJson))
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["name"] = ["Name und DefinitionJson sind erforderlich."]
+        });
+    }
+
+    var visibility = NormalizeVisibility(request.Visibility, HasScope(context.User, "admin.users"));
+    if (visibility is null)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["visibility"] = ["Sichtbarkeit 'global' ist nur für Admins erlaubt."]
+        });
+    }
+
+    var owner = user.Identity?.Name ?? string.Empty;
+    var saved = await searchProfileRepository.UpsertAsync(new SearchProfileUpsert(
+        request.Id,
+        request.Name,
+        visibility,
+        request.DefinitionJson,
+        owner), ct);
+
+    return Results.Ok(saved);
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapDelete("/search-profiles/{id:guid}", async (Guid id, ISearchProfileRepository searchProfileRepository, ClaimsPrincipal user, HttpContext context, CancellationToken ct) =>
+{
+    var deleted = await searchProfileRepository.DeleteAsync(id, user.Identity?.Name ?? string.Empty, HasScope(context.User, "admin.users"), ct);
+    return deleted ? Results.NoContent() : Results.NotFound();
+}).RequireAuthorization(Policies.ScriptsRead);
+
+api.MapGet("/admin/search-profiles", async (ISearchProfileRepository searchProfileRepository, CancellationToken ct) =>
+{
+    var profiles = await searchProfileRepository.GetVisibleAsync(string.Empty, includeAll: true, ct);
+    var result = profiles.Select(x => new { x.Id, x.Name, x.OwnerUsername, x.Visibility, x.UpdatedUtc });
+    return Results.Ok(result);
+}).RequireAuthorization(Policies.AdminUsers);
+
 api.MapPost("/render/{customerCode}", async (string customerCode, RenderSqlRequest request, ISqlCustomerRenderService renderService, CancellationToken ct) =>
 {
     if (string.IsNullOrWhiteSpace(request.Sql))
@@ -367,6 +487,16 @@ static IReadOnlyList<string>? ParseCsv(string? raw)
     }
 
     return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+static string? NormalizeVisibility(string? raw, bool isAdmin)
+{
+    if (string.Equals(raw?.Trim(), "global", StringComparison.OrdinalIgnoreCase))
+    {
+        return isAdmin ? "global" : null;
+    }
+
+    return "private";
 }
 
 static bool TryGetTenantContext(HttpContext context, ClaimsPrincipal user, out IResult? errorResult, out string tenantContext)
@@ -493,6 +623,26 @@ internal sealed record ScriptSearchQuery(
     int Take = 200,
     int Skip = 0);
 
+internal sealed record SpotlightSearchRequest(
+    string? GroupOperator,
+    IReadOnlyList<SpotlightRuleGroupRequest> Groups,
+    int Take = 200,
+    int Skip = 0);
+
+internal sealed record SpotlightRuleGroupRequest(
+    string? Query,
+    int? Scope,
+    Guid? CustomerId,
+    string? Module,
+    string? MainModule,
+    string? RelatedModule,
+    string? RelatedModules,
+    string? Tags,
+    string? ReferencedObject,
+    string? ReferencedObjects,
+    bool IncludeDeleted = false,
+    bool SearchHistory = false);
+
 internal sealed record UpsertScriptRequest(
     Guid? Id,
     string Name,
@@ -507,6 +657,12 @@ internal sealed record UpsertScriptRequest(
     string? UpdateReason);
 
 internal sealed record ScriptLockRequest(string? Username);
+
+internal sealed record SearchProfileUpsertRequest(
+    Guid? Id,
+    string Name,
+    string? Visibility,
+    string DefinitionJson);
 
 internal sealed record RenderSqlRequest(string Sql);
 
