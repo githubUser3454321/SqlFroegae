@@ -802,8 +802,24 @@ public partial class LibrarySplitViewModel : ObservableObject
     }
 }
 
-public sealed record FolderTreeOption(Guid Id, int Level, string Name)
+public sealed record FolderTreeOption
 {
+    public FolderTreeOption()
+    {
+        Name = string.Empty;
+    }
+
+    public FolderTreeOption(Guid id, int level, string name)
+    {
+        Id = id;
+        Level = level;
+        Name = name;
+    }
+
+    public Guid Id { get; set; }
+    public int Level { get; set; }
+    public string Name { get; set; }
+
     public string DisplayName => $"{new string('•', Math.Max(1, Level + 1))} {Name}";
 }
 
