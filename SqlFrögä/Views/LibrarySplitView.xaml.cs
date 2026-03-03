@@ -133,6 +133,33 @@ public sealed partial class LibrarySplitView : Page
         return result == ContentDialogResult.Primary;
     }
 
+    private async void OpenSpotlightQueryStudio_Click(object sender, RoutedEventArgs e)
+    {
+        var spotlightView = new SpotlightQueryStudioView();
+        spotlightView.InitializeFrom(VM);
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Spotlight Query Studio",
+            PrimaryButtonText = "Suche starten",
+            CloseButtonText = "Abbrechen",
+            DefaultButton = ContentDialogButton.Primary,
+            FullSizeDesired = true,
+            Content = spotlightView
+        };
+
+        dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
+        dialog.CloseButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+            return;
+
+        spotlightView.ApplyTo(VM);
+        await VM.SearchCommand.ExecuteAsync(null);
+    }
+
     public async Task SaveWorkspaceStateAsync()
     {
         var (target, scriptId) = ResolveCurrentDetailTarget();
