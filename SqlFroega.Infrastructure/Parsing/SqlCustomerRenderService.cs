@@ -61,7 +61,7 @@ public sealed class SqlCustomerRenderService : ISqlCustomerRenderService
         ct.ThrowIfCancellationRequested();
 
         var sourceSql = sql ?? string.Empty;
-        var fragment = ParseSql(sql);
+        var fragment = ParseSql(sourceSql);
         var leadingComments = ExtractLeadingComments(fragment, sourceSql);
         var options = new SqlScriptGeneratorOptions
         {
