@@ -115,8 +115,9 @@
 
                 <Grid Grid.Row="1" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.2*"/>
-                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="1.1*"/>
+                        <ColumnDefinition Width="1.8*"/>
+                        <ColumnDefinition Width="1.1*"/>
                         <ColumnDefinition Width="0.8*"/>
                     </Grid.ColumnDefinitions>
 
@@ -147,6 +148,14 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">
+                        <TextBlock Text="Folder" Opacity="0.75"/>
+                        <ComboBox ItemsSource="{Binding AvailableFolders}"
+                                  SelectedItem="{Binding SelectedFolder, Mode=TwoWay}"
+                                  DisplayMemberPath="DisplayName"
+                                  IsEnabled="{Binding IsEditingEnabled}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3">
                         <TextBlock Text="Kundenkürzel (z.B. CSA)" Opacity="0.75"/>
                         <AutoSuggestBox PlaceholderText="Kundenkürzel (z.B. CSA)"
                                         x:Name="ScriptCustomerCodeAutoSuggest"

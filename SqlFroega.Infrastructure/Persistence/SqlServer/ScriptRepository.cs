@@ -345,6 +345,7 @@ public sealed class ScriptRepository : IScriptRepository
         sql.AppendLine("  s.Module AS MainModule,");
         sql.AppendLine("  COALESCE(s.RelatedModules, N'') AS RelatedModules,");
         sql.AppendLine("  s.CustomerId,");
+        sql.AppendLine("  s.FolderId,");
         if (_opt.JoinCustomers)
             sql.AppendLine("  c.Name AS CustomerName,");
         else
@@ -377,6 +378,7 @@ public sealed class ScriptRepository : IScriptRepository
             row.MainModule,
             ParseTags(row.RelatedModules),
             row.CustomerId,
+            row.FolderId,
             row.CustomerName,
             row.Description,
             ParseTags(row.Tags)
@@ -588,6 +590,7 @@ USING (SELECT
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
+        @FolderId AS FolderId,
         @MainModule AS Module,
         @RelatedModules AS RelatedModules,
         @Description AS Description,
@@ -600,14 +603,15 @@ WHEN MATCHED THEN
         Content = src.Content,
         Scope = src.Scope,
         CustomerId = src.CustomerId,
+        FolderId = src.FolderId,
         Module = src.Module,
         RelatedModules = src.RelatedModules,
         Description = src.Description,
         Tags = src.Tags,
         IsDeleted = 0{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags, IsDeleted{changedByInsertColumn}{reasonInsertColumn})
-    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags, 0{changedByInsertValue}{reasonInsertValue});
+    INSERT (Id, Name, Content, Scope, CustomerId, FolderId, Module, RelatedModules, Description, Tags, IsDeleted{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.FolderId, src.Module, src.RelatedModules, src.Description, src.Tags, 0{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 "
@@ -621,6 +625,7 @@ USING (SELECT
         @Content AS Content,
         @Scope AS Scope,
         @CustomerId AS CustomerId,
+        @FolderId AS FolderId,
         @MainModule AS Module,
         @RelatedModules AS RelatedModules,
         @Description AS Description,
@@ -633,13 +638,14 @@ WHEN MATCHED THEN
         Content = src.Content,
         Scope = src.Scope,
         CustomerId = src.CustomerId,
+        FolderId = src.FolderId,
         Module = src.Module,
         RelatedModules = src.RelatedModules,
         Description = src.Description,
         Tags = src.Tags{changedByUpdate}{reasonUpdate}
 WHEN NOT MATCHED THEN
-    INSERT (Id, Name, Content, Scope, CustomerId, Module, RelatedModules, Description, Tags{changedByInsertColumn}{reasonInsertColumn})
-    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.Module, src.RelatedModules, src.Description, src.Tags{changedByInsertValue}{reasonInsertValue});
+    INSERT (Id, Name, Content, Scope, CustomerId, FolderId, Module, RelatedModules, Description, Tags{changedByInsertColumn}{reasonInsertColumn})
+    VALUES (src.Id, src.Name, src.Content, src.Scope, src.CustomerId, src.FolderId, src.Module, src.RelatedModules, src.Description, src.Tags{changedByInsertValue}{reasonInsertValue});
 
 SELECT @resolvedId;
 ";
@@ -653,6 +659,7 @@ SELECT @resolvedId;
             script.Content,
             script.Scope,
             script.CustomerId,
+            script.FolderId,
             MainModule = script.MainModule,
             RelatedModules = ToTagsStorage(script.RelatedModules),
             script.Description,
@@ -975,6 +982,7 @@ WHERE Module = @moduleName OR COALESCE(RelatedModules, N'') LIKE '%' + @moduleNa
         string? MainModule,
         string RelatedModules,
         Guid? CustomerId,
+        Guid? FolderId,
         string? CustomerName,
         string? Description,
         string Tags
