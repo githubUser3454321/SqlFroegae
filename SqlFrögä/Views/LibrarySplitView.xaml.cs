@@ -149,6 +149,17 @@ public sealed partial class LibrarySplitView : Page
             Content = spotlightView
         };
 
+        if (XamlRoot is not null)
+        {
+            var targetWidth = XamlRoot.Size.Width * 0.9;
+            var targetHeight = XamlRoot.Size.Height * 0.9;
+
+            dialog.MaxWidth = targetWidth;
+            dialog.MaxHeight = targetHeight;
+            dialog.MinWidth = targetWidth;
+            dialog.MinHeight = targetHeight;
+        }
+
         dialog.PrimaryButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
         dialog.CloseButtonStyle = App.Current.Resources["LightBluePrimaryDialogButton"] as Style;
 

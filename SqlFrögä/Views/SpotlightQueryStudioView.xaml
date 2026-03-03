@@ -6,10 +6,13 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <ScrollViewer MaxHeight="800"
+    <ScrollViewer
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="12">
+        <StackPanel Spacing="12"
+                    Padding="8,0,8,0">
             <TextBlock Text="Phase 1: Vollbildsuche mit Filter-Parität zur bestehenden erweiterten Suche."
                        TextWrapping="Wrap"
                        FontWeight="SemiBold"/>
