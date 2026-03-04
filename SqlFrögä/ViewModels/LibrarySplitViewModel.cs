@@ -373,6 +373,15 @@ public partial class LibrarySplitViewModel : ObservableObject
             : AvailableCollections.FirstOrDefault(x => x.Id == SelectedCollection.Id);
     }
 
+    public async Task<IReadOnlyList<ScriptFolderTreeNode>> GetFolderTreeAsync()
+    {
+        var tree = await _folderRepository.GetTreeAsync();
+        return tree
+            .OrderBy(x => x.SortOrder)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     private static void FlattenFolder(ScriptFolderTreeNode node, ICollection<FolderTreeOption> target, int level)
     {
         target.Add(new FolderTreeOption(node.Id, level, node.Name));
