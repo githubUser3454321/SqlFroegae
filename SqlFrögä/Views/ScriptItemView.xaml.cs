@@ -21,6 +21,9 @@ public sealed partial class ScriptItemView : Page
 {
     private readonly Dictionary<Button, DragPointerState> _dragPointers = new();
     private const double DragStartThreshold = 6;
+    private Guid? _folderPickerSelectionId;
+
+    private sealed record FolderTreePickerItem(Guid Id, string Name, Guid? ParentId);
 
     public ScriptItemView()
     {
@@ -602,6 +605,170 @@ public sealed partial class ScriptItemView : Page
         };
 
         await dialog.ShowAsync();
+    }
+
+    private async void OpenFolderPicker_Click(object sender, RoutedEventArgs e)
+    {
+        _folderPickerSelectionId = VM.SelectedFolder?.Id == Guid.Empty ? null : VM.SelectedFolder?.Id;
+        await LoadFolderTreePickerAsync();
+        FolderPickerOverlay.Visibility = Visibility.Visible;
+        FolderPickerOverlay.Focus(FocusState.Programmatic);
+        FolderTreePicker.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseFolderPicker_Click(object sender, RoutedEventArgs e)
+        => FolderPickerOverlay.Visibility = Visibility.Collapsed;
+
+    private void FolderPickerOverlay_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Escape)
+            return;
+
+        e.Handled = true;
+        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void FolderTreePicker_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItem is not FolderTreePickerItem item)
+            return;
+
+        _folderPickerSelectionId = item.Id;
+    }
+
+    private void FolderTreePicker_SelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
+    {
+        if (sender.SelectedNode?.Content is FolderTreePickerItem item)
+            _folderPickerSelectionId = item.Id;
+    }
+
+    private async void AddFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folderName = NewFolderNameBox.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                await ShowSimpleMessageAsync("Folder hinzufügen", "Bitte gib einen Folder-Namen ein.");
+                return;
+            }
+
+            var parentId = FolderTreePicker.SelectedNode?.Content is FolderTreePickerItem selected
+                ? selected.Id
+                : (Guid?)null;
+
+            await VM.AddFolderAsync(folderName, parentId);
+            NewFolderNameBox.Text = string.Empty;
+            await LoadFolderTreePickerAsync();
+        }
+        catch (Exception ex)
+        {
+            VM.Error = ex.Message;
+            await ShowSimpleMessageAsync("Folder hinzufügen fehlgeschlagen", ex.Message);
+        }
+    }
+
+    private async void DeleteFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (FolderTreePicker.SelectedNode?.Content is not FolderTreePickerItem selected)
+        {
+            await ShowSimpleMessageAsync("Folder löschen", "Bitte zuerst einen Folder auswählen.");
+            return;
+        }
+
+        try
+        {
+            await VM.DeleteFolderAsync(selected.Id);
+            if (_folderPickerSelectionId == selected.Id)
+                _folderPickerSelectionId = null;
+
+            await LoadFolderTreePickerAsync();
+        }
+        catch (Exception ex)
+        {
+            VM.Error = ex.Message;
+            await ShowSimpleMessageAsync("Folder löschen fehlgeschlagen", ex.Message);
+        }
+    }
+
+    private void ApplyFolderSelection_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedId = _folderPickerSelectionId;
+        if (selectedId is null)
+        {
+            VM.SelectedFolder = ScriptItemViewModel.NoFolderOption;
+            FolderPickerOverlay.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        VM.SelectedFolder = VM.AvailableFolders.FirstOrDefault(x => x.Id == selectedId.Value) ?? ScriptItemViewModel.NoFolderOption;
+        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void ClearFolderSelection_Click(object sender, RoutedEventArgs e)
+    {
+        _folderPickerSelectionId = null;
+        VM.SelectedFolder = ScriptItemViewModel.NoFolderOption;
+        FolderTreePicker.SelectedNode = null;
+        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task LoadFolderTreePickerAsync()
+    {
+        var tree = await VM.GetFolderTreeAsync();
+        FolderTreePicker.RootNodes.Clear();
+
+        foreach (var root in tree.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var rootNode = BuildTreeViewNode(root);
+            FolderTreePicker.RootNodes.Add(rootNode);
+        }
+
+        if (_folderPickerSelectionId is Guid selectedId)
+            SelectTreeNodeById(selectedId);
+    }
+
+    private TreeViewNode BuildTreeViewNode(ScriptFolderTreeNode folder)
+    {
+        var node = new TreeViewNode
+        {
+            Content = new FolderTreePickerItem(folder.Id, folder.Name, folder.ParentId),
+            IsExpanded = false
+        };
+
+        foreach (var child in folder.Children.OrderBy(x => x.SortOrder).ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+            node.Children.Add(BuildTreeViewNode(child));
+
+        return node;
+    }
+
+    private void SelectTreeNodeById(Guid folderId)
+    {
+        foreach (var root in FolderTreePicker.RootNodes)
+        {
+            if (TrySelectTreeNode(root, folderId))
+                return;
+        }
+    }
+
+    private bool TrySelectTreeNode(TreeViewNode node, Guid folderId)
+    {
+        if (node.Content is FolderTreePickerItem item && item.Id == folderId)
+        {
+            FolderTreePicker.SelectedNode = node;
+            return true;
+        }
+
+        foreach (var child in node.Children)
+        {
+            if (TrySelectTreeNode(child, folderId))
+            {
+                node.IsExpanded = true;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async void HistoryItems_ItemClick(object sender, ItemClickEventArgs e)

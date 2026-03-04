@@ -53,6 +53,10 @@ public partial class ScriptItemViewModel : ObservableObject
     [ObservableProperty] private bool _replaceDatabaseUserAndPrefix = true;
     [ObservableProperty] private FolderTreeOption? _selectedFolder = NoFolderOption;
 
+    public string SelectedFolderName => SelectedFolder?.Id == Guid.Empty
+        ? "(Kein Folder)"
+        : SelectedFolder?.Name ?? "(Kein Folder)";
+
     public event Func<string, Task>? WarningRequested;
 
     public bool IsEditingEnabled => !IsReadOnlyMode && (_id == Guid.Empty || IsEditUnlocked);
@@ -628,6 +632,30 @@ public partial class ScriptItemViewModel : ObservableObject
             : AvailableFolders.FirstOrDefault(x => x.Id == SelectedFolder.Id) ?? NoFolderOption;
     }
 
+    public Task<IReadOnlyList<ScriptFolderTreeNode>> GetFolderTreeAsync()
+        => _folderRepository.GetTreeAsync();
+
+    public async Task AddFolderAsync(string folderName, Guid? parentId)
+    {
+        await _folderRepository.UpsertAsync(new ScriptFolderUpsert(
+            Id: null,
+            Name: folderName,
+            ParentId: parentId,
+            SortOrder: 0));
+
+        await LoadFoldersAsync();
+    }
+
+    public async Task DeleteFolderAsync(Guid folderId)
+    {
+        await _folderRepository.DeleteAsync(folderId);
+
+        if (SelectedFolder?.Id == folderId)
+            SelectedFolder = NoFolderOption;
+
+        await LoadFoldersAsync();
+    }
+
     private static void FlattenFolder(ScriptFolderTreeNode node, ICollection<FolderTreeOption> target, int level)
     {
         target.Add(new FolderTreeOption(node.Id, level, node.Name));
@@ -753,6 +781,8 @@ public partial class ScriptItemViewModel : ObservableObject
     partial void OnContentChanged(string value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnDescriptionChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
     partial void OnMainModuleChanged(string? value) => _ = EnsureEditAwarenessWarningAsync();
+    partial void OnSelectedFolderChanged(FolderTreeOption? value)
+        => OnPropertyChanged(nameof(SelectedFolderName));
 
     private async Task EnsureEditAwarenessWarningAsync()
     {
