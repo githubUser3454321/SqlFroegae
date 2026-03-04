@@ -149,10 +149,18 @@
 
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Folder" Opacity="0.75"/>
-                        <ComboBox ItemsSource="{Binding AvailableFolders}"
-                                  SelectedItem="{Binding SelectedFolder, Mode=TwoWay}"
-                                  DisplayMemberPath="DisplayName"
-                                  IsEnabled="{Binding IsEditingEnabled}"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding SelectedFolderName, Mode=OneWay}"
+                                     IsReadOnly="True"/>
+                            <Button Grid.Column="1"
+                                    Content="Auswählen"
+                                    Click="OpenFolderPicker_Click"
+                                    IsEnabled="{Binding IsEditingEnabled}"/>
+                        </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="3">
@@ -260,6 +268,98 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+            </Grid>
+        </Border>
+
+
+        <Border x:Name="FolderPickerOverlay"
+                Grid.RowSpan="4"
+                Visibility="Collapsed"
+                Background="#CC0E3A67"
+                Padding="28"
+                KeyDown="FolderPickerOverlay_KeyDown"
+                IsTabStop="True">
+            <Grid RowSpacing="12"
+                  MaxWidth="1200"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" ColumnSpacing="12" Margin="8,0,8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Folder auswählen"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1"
+                            Content="Schließen"
+                            Click="CloseFolderPicker_Click"/>
+                </Grid>
+
+                <Border Grid.Row="1"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        Background="{ThemeResource AppCardBrush}"
+                        Padding="16">
+                    <Grid RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="NewFolderNameBox"
+                                     PlaceholderText="Neuen Folder-Namen eingeben"/>
+
+                            <Button Grid.Column="1"
+                                    Content="Folder hinzufügen"
+                                    Click="AddFolder_Click"/>
+
+                            <Button Grid.Column="2"
+                                    Content="Folder löschen"
+                                    Click="DeleteFolder_Click"/>
+                        </Grid>
+
+                        <TreeView x:Name="FolderTreePicker"
+                                  Grid.Row="1"
+                                  ItemInvoked="FolderTreePicker_ItemInvoked"
+                                  SelectionChanged="FolderTreePicker_SelectionChanged">
+                            <TreeView.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8">
+                    <Button Content="Ohne Folder"
+                            Click="ClearFolderSelection_Click"/>
+                    <Button Content="Abbrechen"
+                            Click="CloseFolderPicker_Click"/>
+                    <Button Content="Folder auswählen"
+                            Click="ApplyFolderSelection_Click"/>
+                </StackPanel>
             </Grid>
         </Border>
 
