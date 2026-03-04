@@ -145,7 +145,6 @@ public sealed partial class LibrarySplitView : Page
     private async void ApplySpotlightOverlay_Click(object sender, RoutedEventArgs e)
     {
         await SpotlightView.ApplyAndSearchAsync(VM);
-        HideSpotlightOverlay();
     }
 
     private void CloseSpotlightOverlay_Click(object sender, RoutedEventArgs e)

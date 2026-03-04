@@ -30,6 +30,7 @@ public sealed partial class ScriptItemView : Page
         InitializeComponent();
         RegisterDragPointerHandlers(CopyButton);
         RegisterDragPointerHandlers(CopyRenderedButton);
+        HideHistorySection = false;
     }
 
     private void RegisterDragPointerHandlers(Button button)
@@ -48,6 +49,12 @@ public sealed partial class ScriptItemView : Page
     }
 
     private ScriptItemViewModel VM => (ScriptItemViewModel)DataContext;
+
+    public bool HideHistorySection
+    {
+        get => HistorySection.Visibility == Visibility.Collapsed;
+        set => HistorySection.Visibility = value ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {

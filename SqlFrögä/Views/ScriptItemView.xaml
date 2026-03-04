@@ -224,7 +224,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="2"
+        <Border x:Name="HistorySection" Grid.Row="2"
                 CornerRadius="12"
                 BorderThickness="1"
                 BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
