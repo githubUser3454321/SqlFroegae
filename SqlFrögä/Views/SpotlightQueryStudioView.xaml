@@ -193,7 +193,9 @@
                               SelectionChanged="FolderTreePicker_SelectionChanged">
                         <TreeView.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Name}"
+                                <!-- Aktueller (bisheriger) Versuch: Name direkt binden ({Binding Name}) und Foreground fest setzen. -->
+                                <!-- Mein Versuch/Fix: TreeView arbeitet hier mit TreeViewNode; der eigentliche Foldername liegt in Content.Name. -->
+                                <TextBlock Text="{Binding Content.Name}"
                                            Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                             </DataTemplate>
                         </TreeView.ItemTemplate>
