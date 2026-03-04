@@ -6,7 +6,6 @@ using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -19,15 +18,14 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
     private readonly ISearchProfileRepository _searchProfileRepository;
     private readonly List<SearchProfile> _loadedProfiles = new();
-    private readonly ObservableCollection<string> _filteredMainModules = new();
-    private readonly ObservableCollection<string> _filteredRelatedModules = new();
-    private readonly ObservableCollection<string> _filteredTags = new();
     private LibrarySplitViewModel? _vm;
 
     public SpotlightQueryStudioView()
     {
         InitializeComponent();
         _searchProfileRepository = App.Services.GetRequiredService<ISearchProfileRepository>();
+        SpotlightDetailFrame.Navigate(typeof(ScriptSelectionPlaceholderView));
+        SpotlightDetailFrame.Navigated += SpotlightDetailFrame_Navigated;
     }
 
     public async Task InitializeFromAsync(LibrarySplitViewModel vm)
@@ -38,16 +36,12 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         CollectionCombo.ItemsSource = vm.AvailableCollections;
         SpotlightResultsList.ItemsSource = vm.Results;
 
-        MainModulesCatalogList.ItemsSource = _filteredMainModules;
-        RelatedModulesCatalogList.ItemsSource = _filteredRelatedModules;
-        TagsCatalogList.ItemsSource = _filteredTags;
-        RefreshCatalogViews();
-
         if (_sessionMemoryProfile is not null)
             ApplyDefinition(_sessionMemoryProfile);
         else
             ClearFilters();
 
+        SpotlightDetailFrame.Navigate(typeof(ScriptSelectionPlaceholderView));
         await LoadProfilesAsync();
     }
 
@@ -59,7 +53,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
 
     private SpotlightFilterGroup BuildRuleGroup() =>
         new(
-            QueryText: PrimaryQueryTextBox.Text,
+            QueryText: NormalizePrimaryQuery(PrimaryQueryTextBox.Text),
             ScopeFilterIndex: ScopeCombo.SelectedIndex < 0 ? 0 : ScopeCombo.SelectedIndex,
             MainModuleFilterText: MainModuleBox.Text,
             RelatedModuleFilterText: RelatedModuleBox.Text,
@@ -71,24 +65,14 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
-    private void RefreshCatalogViews()
+    private static string? NormalizePrimaryQuery(string? query)
     {
-        if (_vm is null)
-            return;
+        if (string.IsNullOrWhiteSpace(query))
+            return query;
 
-        var moduleSearch = ModuleCatalogSearchTextBox.Text?.Trim() ?? string.Empty;
-        var tagSearch = TagCatalogSearchTextBox.Text?.Trim() ?? string.Empty;
-
-        RebuildFiltered(_vm.AvailableMainModules, _filteredMainModules, moduleSearch);
-        RebuildFiltered(_vm.AvailableRelatedModules, _filteredRelatedModules, moduleSearch);
-        RebuildFiltered(_vm.AvailableTags, _filteredTags, tagSearch);
-    }
-
-    private static void RebuildFiltered(IEnumerable<string> source, ObservableCollection<string> target, string search)
-    {
-        target.Clear();
-        foreach (var item in source.Where(x => string.IsNullOrWhiteSpace(search) || x.Contains(search, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x))
-            target.Add(item);
+        return query.Replace("\r\n", "%", StringComparison.Ordinal)
+                    .Replace('\n', '%')
+                    .Replace('\r', '%');
     }
 
     private void ApplyDefinition(SpotlightProfileDefinition definition)
@@ -102,7 +86,6 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = definition.ReferencedObjects ?? string.Empty;
         IncludeDeletedBox.IsChecked = definition.IncludeDeleted;
         SearchHistoryBox.IsChecked = definition.SearchInHistory;
-        DisplayFolderStructureToggle.IsOn = definition.DisplayFolderStructure;
 
         FolderCombo.SelectedItem = (FolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FolderId);
         CollectionCombo.SelectedItem = (CollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.CollectionId);
@@ -119,7 +102,6 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             ReferencedObjects: ObjectsBox.Text,
             IncludeDeleted: IncludeDeletedBox.IsChecked == true,
             SearchInHistory: SearchHistoryBox.IsChecked == true,
-            DisplayFolderStructure: DisplayFolderStructureToggle.IsOn,
             FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
@@ -134,7 +116,6 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = string.Empty;
         IncludeDeletedBox.IsChecked = false;
         SearchHistoryBox.IsChecked = false;
-        DisplayFolderStructureToggle.IsOn = false;
         FolderCombo.SelectedItem = null;
         CollectionCombo.SelectedItem = null;
     }
@@ -153,48 +134,14 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         SavedProfilesCombo.ItemsSource = _loadedProfiles;
     }
 
-    private void ModuleCatalogSearchTextBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshCatalogViews();
-
-    private void TagCatalogSearchTextBox_TextChanged(object sender, TextChangedEventArgs e) => RefreshCatalogViews();
-
-    private void ApplyMainModuleFromCatalog_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Content: string module })
-            MainModuleBox.Text = module;
-    }
-
-    private void ApplyRelatedModuleFromCatalog_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Content: string module })
-            return;
-
-        var existing = (RelatedModuleBox.Text ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        existing.Add(module);
-        RelatedModuleBox.Text = string.Join(", ", existing.OrderBy(x => x));
-    }
-
-    private void ToggleTagFromCatalog_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { Content: string tag })
-            return;
-
-        var existing = (TagsBox.Text ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (!existing.Add(tag))
-            existing.Remove(tag);
-
-        TagsBox.Text = string.Join(", ", existing.OrderBy(x => x));
-    }
-
     private void SpotlightResultsList_ItemClick(object sender, ItemClickEventArgs e)
     {
         _sessionMemoryProfile = BuildDefinition();
         if (_vm is not null && e.ClickedItem is ScriptListItem item)
+        {
             _vm.Selected = item;
+            SpotlightDetailFrame.Navigate(typeof(ScriptItemView), item.Id);
+        }
 
         ResultsHintText.Text = "Session-Memory-Profil aktualisiert. Wird beim nächsten Öffnen wiederhergestellt.";
     }
@@ -287,6 +234,28 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         await LoadProfilesAsync();
         ProfileFeedbackText.Text = $"Profil '{profile.Name}' gelöscht.";
     }
+
+    private async void SearchSpotlight_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null)
+            return;
+
+        await ApplyAndSearchAsync(_vm);
+    }
+
+    private void PrimaryQueryTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var hasLineBreak = (PrimaryQueryTextBox.Text ?? string.Empty)
+            .IndexOfAny(new[] { '\r', '\n' }) >= 0;
+
+        PrimaryQueryTextBox.TextWrapping = hasLineBreak ? TextWrapping.Wrap : TextWrapping.NoWrap;
+    }
+
+    private void SpotlightDetailFrame_Navigated(object sender, Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        if (SpotlightDetailFrame.Content is ScriptItemView scriptItemView)
+            scriptItemView.HideHistorySection = true;
+    }
 }
 
 public sealed record SpotlightProfileDefinition(
@@ -299,6 +268,5 @@ public sealed record SpotlightProfileDefinition(
     string? ReferencedObjects,
     bool IncludeDeleted,
     bool SearchInHistory,
-    bool DisplayFolderStructure,
     Guid? FolderId,
     Guid? CollectionId);

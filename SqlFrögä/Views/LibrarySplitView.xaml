@@ -354,6 +354,7 @@
                 Padding="110"
                 KeyDown="SpotlightOverlay_KeyDown"
                 IsTabStop="True">
+            <!-- Spotlight-Overlay-Grösse ist bewusst abgestimmt: bitte NICHT anpassen. -->
             <Grid RowSpacing="12"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"

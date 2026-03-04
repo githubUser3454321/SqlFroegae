@@ -8,127 +8,139 @@
 
     <Grid RowSpacing="12">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="3*"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0"
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled"
-                      MaxHeight="420">
-            <StackPanel Spacing="12" Padding="8,0,8,0" MaxWidth="640">
-                <TextBlock Text="Filterkriterien" FontWeight="SemiBold" FontSize="18"/>
-                <TextBlock Text="Die Spotlight-Suche ist vom Standard-Suchformular getrennt und arbeitet nur in dieser Ansicht."
-                           TextWrapping="Wrap" Opacity="0.8"/>
+        <Border Grid.Row="0"
+                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12">
+            <StackPanel Spacing="10">
+                <TextBlock Text="Spotlight-Suche" FontWeight="SemiBold" FontSize="20"/>
 
-                <Border BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="10">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Suchprofile" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="SavedProfilesCombo"
-                                  Header="Vorhandene Profile"
-                                  DisplayMemberPath="Name"
-                                  PlaceholderText="Profil auswählen"/>
+                <TextBox x:Name="PrimaryQueryTextBox"
+                         Header="Volltextsuche"
+                         PlaceholderText="z. B. Invoice oder Kundenkürzel"
+                         TextChanged="PrimaryQueryTextBox_TextChanged"
+                         TextWrapping="NoWrap"
+                         MinHeight="44"
+                         MaxHeight="120"
+                         AcceptsReturn="True"/>
 
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                            <TextBox x:Name="ProfileNameBox" Header="Profilname" PlaceholderText="z. B. Meine Favoriten-Suche"/>
+                    <ComboBox x:Name="ScopeCombo" Grid.Column="0" SelectedIndex="0">
+                        <ComboBoxItem Content="Alle"/>
+                        <ComboBoxItem Content="Global"/>
+                        <ComboBoxItem Content="Kunde"/>
+                        <ComboBoxItem Content="Modul"/>
+                    </ComboBox>
+                    <TextBox x:Name="MainModuleBox" Grid.Column="1" Header="Main-Modul" PlaceholderText="z. B. Einkauf"/>
+                    <TextBox x:Name="RelatedModuleBox" Grid.Column="2" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
+                    <ComboBox x:Name="FolderCombo" Grid.Column="3" Header="Folder" DisplayMemberPath="DisplayName" PlaceholderText="Alle"/>
+                    <TextBox x:Name="CustomerCodeBox" Grid.Column="4" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
+                    <TextBox x:Name="TagsBox" Grid.Column="5" Header="Tags" PlaceholderText="komma-getrennt"/>
+                    <TextBox x:Name="ObjectsBox" Grid.Column="6" Header="SQL-Objekte" PlaceholderText="komma-getrennt"/>
+                    <ComboBox x:Name="CollectionCombo" Grid.Column="7" Header="Collection" DisplayMemberPath="Name" PlaceholderText="Alle"/>
 
-                            <ComboBox x:Name="ProfileVisibilityCombo" Grid.Column="1" Header="Sichtbarkeit" MinWidth="160" SelectedIndex="0">
-                                <ComboBoxItem Content="Für mich"/>
-                                <ComboBoxItem Content="Für alle"/>
-                            </ComboBox>
-
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
-                                <Button Content="Laden" Click="LoadProfile_Click"/>
-                                <Button Content="Speichern" Click="SaveProfile_Click"/>
-                                <Button Content="Löschen" Click="DeleteProfile_Click"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <TextBlock x:Name="ProfileFeedbackText" Opacity="0.75" TextWrapping="Wrap"/>
+                    <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="8">
+                        <Button Content="Suche starten" Click="SearchSpotlight_Click"/>
+                        <CheckBox x:Name="SearchHistoryBox" Content="Historie" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="IncludeDeletedBox" Content="Gelöschte" VerticalAlignment="Center"/>
                     </StackPanel>
-                </Border>
+                </Grid>
 
-                <TextBox x:Name="PrimaryQueryTextBox" Header="Regelgruppe 1: Freitext" PlaceholderText="z. B. Invoice oder Kundenkürzel"/>
-                <ComboBox x:Name="ScopeCombo" SelectedIndex="0">
-                    <ComboBoxItem Content="Bereich: Alle"/>
-                    <ComboBoxItem Content="Bereich: Global"/>
-                    <ComboBoxItem Content="Bereich: Kunde"/>
-                    <ComboBoxItem Content="Bereich: Modul"/>
-                </ComboBox>
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                <TextBox x:Name="MainModuleBox" Header="Hauptmodul" PlaceholderText="z. B. Einkauf"/>
-                <TextBox x:Name="RelatedModuleBox" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
-                <TextBox x:Name="CustomerCodeBox" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
-                <TextBox x:Name="TagsBox" Header="Tags" PlaceholderText="komma-getrennt"/>
-                <TextBox x:Name="ObjectsBox" Header="Referenzierte SQL-Objekte" PlaceholderText="komma-getrennt"/>
+                    <ComboBox x:Name="SavedProfilesCombo"
+                              Grid.Column="0"
+                              Header="Suchprofile"
+                              DisplayMemberPath="Name"
+                              PlaceholderText="Profil auswählen"/>
 
-                <CheckBox x:Name="IncludeDeletedBox" Content="Gelöschte Datensätze anzeigen (Temporal)"/>
-                <CheckBox x:Name="SearchHistoryBox" Content="Auch in Historien-Versionen suchen"/>
-                <ToggleSwitch x:Name="DisplayFolderStructureToggle" Header="Display Folder Structure"/>
+                    <TextBox x:Name="ProfileNameBox" Grid.Column="1" Header="Profilname" PlaceholderText="z. B. Meine Favoriten-Suche"/>
 
-                <ComboBox x:Name="FolderCombo" Header="Ordnerfilter" DisplayMemberPath="DisplayName" PlaceholderText="Alle Ordner"/>
-                <ComboBox x:Name="CollectionCombo" Header="Collection-Filter" DisplayMemberPath="Name" PlaceholderText="Alle Collections"/>
+                    <ComboBox x:Name="ProfileVisibilityCombo" Grid.Column="2" Header="Sichtbarkeit" SelectedIndex="0">
+                        <ComboBoxItem Content="Für mich"/>
+                        <ComboBoxItem Content="Für alle"/>
+                    </ComboBox>
 
-                <Expander Header="Tag- &amp; Modul-Katalog" IsExpanded="False">
-                    <StackPanel Spacing="8" Padding="0,8,0,0">
-                        <TextBox x:Name="ModuleCatalogSearchTextBox" Header="Module filtern" TextChanged="ModuleCatalogSearchTextBox_TextChanged"/>
-                        <TextBlock Text="Hauptmodule" Opacity="0.75"/>
-                        <ListView x:Name="MainModulesCatalogList" SelectionMode="None" MaxHeight="100">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ApplyMainModuleFromCatalog_Click"/>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
-                        <TextBlock Text="Verknüpfte Module" Opacity="0.75"/>
-                        <ListView x:Name="RelatedModulesCatalogList" SelectionMode="None" MaxHeight="100">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ApplyRelatedModuleFromCatalog_Click"/>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-
-                        <TextBox x:Name="TagCatalogSearchTextBox" Header="Tags filtern" TextChanged="TagCatalogSearchTextBox_TextChanged"/>
-                        <ListView x:Name="TagsCatalogList" SelectionMode="None" MaxHeight="120">
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Content="{Binding}" HorizontalAlignment="Stretch" Click="ToggleTagFromCatalog_Click"/>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+                        <Button Content="Laden" Click="LoadProfile_Click"/>
+                        <Button Content="Speichern" Click="SaveProfile_Click"/>
+                        <Button Content="Löschen" Click="DeleteProfile_Click"/>
                     </StackPanel>
-                </Expander>
+
+                    <TextBlock Grid.Column="4" x:Name="ProfileFeedbackText" VerticalAlignment="Bottom" Opacity="0.75" TextWrapping="Wrap"/>
+                </Grid>
             </StackPanel>
-        </ScrollViewer>
+        </Border>
 
-        <StackPanel Grid.Row="1" Spacing="8">
-            <TextBlock Text="Spotlight-Ergebnisse" FontWeight="SemiBold"/>
-            <TextBlock x:Name="ResultsHintText" Opacity="0.75" Text="Suche starten und Ergebnis anklicken, um das Session-Memory-Profil zu merken."/>
-            <ListView x:Name="SpotlightResultsList"
-                      Height="260"
-                      IsItemClickEnabled="True"
-                      ItemClick="SpotlightResultsList_ItemClick">
-                <ListView.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Spacing="2" Padding="4">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding ScopeLabel}" Opacity="0.7"/>
-                            <TextBlock Text="{Binding MainModule}" Opacity="0.7"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
-        </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="0"
+                    Background="{ThemeResource AppCardBrush}">
+                <Frame x:Name="SpotlightDetailFrame"/>
+            </Border>
+
+            <Border Grid.Column="1"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="8">
+                <Grid RowSpacing="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Gefundene Skripte" FontWeight="SemiBold" FontSize="18"/>
+                    <TextBlock Grid.Row="1" x:Name="ResultsHintText" Opacity="0.75" Text="Suche starten und Ergebnis anklicken, um das Session-Memory-Profil zu merken."/>
+                    <ListView Grid.Row="2"
+                              x:Name="SpotlightResultsList"
+                              IsItemClickEnabled="True"
+                              ItemClick="SpotlightResultsList_ItemClick">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Spacing="2" Padding="4">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding ScopeLabel}" Opacity="0.7"/>
+                                    <TextBlock Text="{Binding MainModule}" Opacity="0.7"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>
