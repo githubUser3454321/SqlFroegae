@@ -367,17 +367,12 @@
                 <Grid Grid.Row="0" ColumnSpacing="12" Margin="8,0,8,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Text="Spotlight Query Studio"
                                FontSize="22"
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
-
-                    <Button Grid.Column="1"
-                            Content="Schließen"
-                            Click="CloseSpotlightOverlay_Click"/>
                 </Grid>
 
                 <Border Grid.Row="1"

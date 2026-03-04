@@ -617,7 +617,7 @@ public sealed partial class ScriptItemView : Page
     }
 
     private void CloseFolderPicker_Click(object sender, RoutedEventArgs e)
-        => FolderPickerOverlay.Visibility = Visibility.Collapsed;
+        => HideFolderPickerOverlay();
 
     private void FolderPickerOverlay_KeyDown(object sender, KeyRoutedEventArgs e)
     {
@@ -625,7 +625,7 @@ public sealed partial class ScriptItemView : Page
             return;
 
         e.Handled = true;
-        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+        HideFolderPickerOverlay();
     }
 
     private void FolderTreePicker_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
@@ -697,12 +697,12 @@ public sealed partial class ScriptItemView : Page
         if (selectedId is null)
         {
             VM.SelectedFolder = ScriptItemViewModel.NoFolderOption;
-            FolderPickerOverlay.Visibility = Visibility.Collapsed;
+            HideFolderPickerOverlay();
             return;
         }
 
         VM.SelectedFolder = VM.AvailableFolders.FirstOrDefault(x => x.Id == selectedId.Value) ?? ScriptItemViewModel.NoFolderOption;
-        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+        HideFolderPickerOverlay();
     }
 
     private void ClearFolderSelection_Click(object sender, RoutedEventArgs e)
@@ -710,8 +710,11 @@ public sealed partial class ScriptItemView : Page
         _folderPickerSelectionId = null;
         VM.SelectedFolder = ScriptItemViewModel.NoFolderOption;
         FolderTreePicker.SelectedNode = null;
-        FolderPickerOverlay.Visibility = Visibility.Collapsed;
+        HideFolderPickerOverlay();
     }
+
+    private void HideFolderPickerOverlay()
+        => FolderPickerOverlay.Visibility = Visibility.Collapsed;
 
     private async Task LoadFolderTreePickerAsync()
     {
