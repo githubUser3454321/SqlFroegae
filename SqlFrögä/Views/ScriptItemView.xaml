@@ -338,7 +338,7 @@
                             <TreeView.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding Name}"
-                                               Foreground="Black"/>
+                                               Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                 </DataTemplate>
                             </TreeView.ItemTemplate>
                         </TreeView>

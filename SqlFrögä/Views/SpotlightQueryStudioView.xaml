@@ -52,7 +52,22 @@
                     </ComboBox>
                     <TextBox x:Name="MainModuleBox" Grid.Row="0" Grid.Column="1" Header="Main-Modul" PlaceholderText="z. B. Einkauf"/>
                     <TextBox x:Name="RelatedModuleBox" Grid.Row="0" Grid.Column="2" Header="Verknüpfte Module" PlaceholderText="komma-getrennt"/>
-                    <ComboBox x:Name="FolderCombo" Grid.Row="0" Grid.Column="3" Header="Folder" DisplayMemberPath="DisplayName" PlaceholderText="Alle"/>
+                    <StackPanel x:Name="FolderFilterPanel" Grid.Row="0" Grid.Column="3" Spacing="6">
+                        <TextBlock Text="Folder" Opacity="0.75"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock x:Name="SelectedFolderText"
+                                       VerticalAlignment="Center"
+                                       Text="Alle"
+                                       TextTrimming="CharacterEllipsis"/>
+
+                            <Button Grid.Column="1" Content="Auswählen" Click="OpenFolderPicker_Click"/>
+                        </Grid>
+                    </StackPanel>
                     <TextBox x:Name="CustomerCodeBox" Grid.Row="0" Grid.Column="4" Header="Kundenkürzel" PlaceholderText="komma-getrennt"/>
                     <TextBox x:Name="TagsBox" Grid.Row="0" Grid.Column="5" Header="Tags" PlaceholderText="komma-getrennt"/>
 
@@ -144,5 +159,59 @@
                 <Frame x:Name="SpotlightDetailFrame"/>
             </Border>
         </Grid>
+
+        <Border x:Name="FolderPickerOverlay"
+                Grid.RowSpan="2"
+                Visibility="Collapsed"
+                Background="#CC0E3A67"
+                Padding="28"
+                KeyDown="FolderPickerOverlay_KeyDown"
+                IsTabStop="True">
+            <Grid RowSpacing="12"
+                  MaxWidth="1000"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Text="Folder auswählen"
+                           FontSize="22"
+                           FontWeight="SemiBold"/>
+
+                <Border Grid.Row="1"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                        Background="{ThemeResource AppCardBrush}"
+                        Padding="16">
+                    <TreeView x:Name="FolderTreePicker"
+                              ItemInvoked="FolderTreePicker_ItemInvoked"
+                              SelectionChanged="FolderTreePicker_SelectionChanged">
+                        <TreeView.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name}"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            </DataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Border>
+
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8">
+                    <Button Content="Alle Folder"
+                            Click="ClearFolderSelection_Click"/>
+                    <Button Content="Abbrechen"
+                            Click="CloseFolderPicker_Click"/>
+                    <Button Content="Folder auswählen"
+                            Click="ApplyFolderSelection_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>
