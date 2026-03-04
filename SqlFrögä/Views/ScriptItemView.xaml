@@ -337,7 +337,7 @@
                                   SelectionChanged="FolderTreePicker_SelectionChanged">
                             <TreeView.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}"
+                                    <TextBlock Text="{Binding Content.Name}"
                                                Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
                                 </DataTemplate>
                             </TreeView.ItemTemplate>
