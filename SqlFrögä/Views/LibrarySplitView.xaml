@@ -351,31 +351,20 @@
         <Border x:Name="SpotlightOverlay"
                 Visibility="Collapsed"
                 Background="#CC0E3A67"
-                Padding="28"
+                Padding="110"
                 KeyDown="SpotlightOverlay_KeyDown"
                 IsTabStop="True">
             <Grid RowSpacing="12"
-                  MaxWidth="1200"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center">
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Stretch"
+                  MaxWidth="1800"
+                  MaxHeight="1200">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" ColumnSpacing="12" Margin="8,0,8,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Text="Spotlight Query Studio"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-                </Grid>
-
-                <Border Grid.Row="1"
+                <Border Grid.Row="0"
                         CornerRadius="12"
                         BorderThickness="1"
                         BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
@@ -383,7 +372,7 @@
                     <views:SpotlightQueryStudioView x:Name="SpotlightView"/>
                 </Border>
 
-                <StackPanel Grid.Row="2"
+                <StackPanel Grid.Row="1"
                             Orientation="Horizontal"
                             HorizontalAlignment="Right"
                             Spacing="8">
