@@ -15,10 +15,12 @@ namespace SqlFroega.Views;
 public sealed partial class SpotlightQueryStudioView : UserControl
 {
     private static SpotlightProfileDefinition? _sessionMemoryProfile;
+    private sealed record FolderTreePickerItem(Guid Id, string Name);
 
     private readonly ISearchProfileRepository _searchProfileRepository;
     private readonly List<SearchProfile> _loadedProfiles = new();
     private LibrarySplitViewModel? _vm;
+    private Guid? _folderPickerSelectionId;
 
     public SpotlightQueryStudioView()
     {
@@ -32,7 +34,6 @@ public sealed partial class SpotlightQueryStudioView : UserControl
     {
         _vm = vm;
 
-        FolderCombo.ItemsSource = vm.AvailableFolders;
         CollectionCombo.ItemsSource = vm.AvailableCollections;
         SpotlightResultsList.ItemsSource = vm.Results;
 
@@ -62,7 +63,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             ObjectFilterText: ObjectsBox.Text,
             IncludeDeleted: IncludeDeletedBox.IsChecked == true,
             SearchInHistory: SearchHistoryBox.IsChecked == true,
-            FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
+            FolderId: _folderPickerSelectionId,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
     private static string? NormalizePrimaryQuery(string? query)
@@ -87,7 +88,8 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         IncludeDeletedBox.IsChecked = definition.IncludeDeleted;
         SearchHistoryBox.IsChecked = definition.SearchInHistory;
 
-        FolderCombo.SelectedItem = (FolderCombo.ItemsSource as IEnumerable<FolderTreeOption>)?.FirstOrDefault(x => x.Id == definition.FolderId);
+        _folderPickerSelectionId = definition.FolderId;
+        UpdateSelectedFolderText();
         CollectionCombo.SelectedItem = (CollectionCombo.ItemsSource as IEnumerable<ScriptCollection>)?.FirstOrDefault(x => x.Id == definition.CollectionId);
     }
 
@@ -102,7 +104,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             ReferencedObjects: ObjectsBox.Text,
             IncludeDeleted: IncludeDeletedBox.IsChecked == true,
             SearchInHistory: SearchHistoryBox.IsChecked == true,
-            FolderId: (FolderCombo.SelectedItem as FolderTreeOption)?.Id,
+            FolderId: _folderPickerSelectionId,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
     private void ClearFilters()
@@ -116,8 +118,132 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = string.Empty;
         IncludeDeletedBox.IsChecked = false;
         SearchHistoryBox.IsChecked = false;
-        FolderCombo.SelectedItem = null;
+        _folderPickerSelectionId = null;
+        UpdateSelectedFolderText();
         CollectionCombo.SelectedItem = null;
+    }
+
+    private async void OpenFolderPicker_Click(object sender, RoutedEventArgs e)
+    {
+        await LoadFolderTreePickerAsync();
+        FolderPickerOverlay.Visibility = Visibility.Visible;
+        FolderPickerOverlay.Focus(FocusState.Programmatic);
+        FolderTreePicker.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseFolderPicker_Click(object sender, RoutedEventArgs e)
+        => HideFolderPickerOverlay();
+
+    private void FolderPickerOverlay_KeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Escape)
+            return;
+
+        e.Handled = true;
+        HideFolderPickerOverlay();
+    }
+
+    private void FolderTreePicker_ItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItem is not FolderTreePickerItem item)
+            return;
+
+        _folderPickerSelectionId = item.Id;
+    }
+
+    private void FolderTreePicker_SelectionChanged(TreeView sender, TreeViewSelectionChangedEventArgs args)
+    {
+        if (sender.SelectedNode?.Content is FolderTreePickerItem item)
+            _folderPickerSelectionId = item.Id;
+    }
+
+    private void ApplyFolderSelection_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateSelectedFolderText();
+        HideFolderPickerOverlay();
+    }
+
+    private void ClearFolderSelection_Click(object sender, RoutedEventArgs e)
+    {
+        _folderPickerSelectionId = null;
+        FolderTreePicker.SelectedNode = null;
+        UpdateSelectedFolderText();
+        HideFolderPickerOverlay();
+    }
+
+    private async Task LoadFolderTreePickerAsync()
+    {
+        if (_vm is null)
+            return;
+
+        var tree = await _vm.GetFolderTreeAsync();
+        FolderTreePicker.RootNodes.Clear();
+
+        foreach (var root in tree)
+            FolderTreePicker.RootNodes.Add(BuildTreeViewNode(root));
+
+        ExpandAndSelectFolder(FolderTreePicker.RootNodes, _folderPickerSelectionId);
+    }
+
+    private static TreeViewNode BuildTreeViewNode(ScriptFolderTreeNode folder)
+    {
+        var node = new TreeViewNode
+        {
+            Content = new FolderTreePickerItem(folder.Id, folder.Name),
+            IsExpanded = true
+        };
+
+        foreach (var child in folder.Children)
+            node.Children.Add(BuildTreeViewNode(child));
+
+        return node;
+    }
+
+    private void ExpandAndSelectFolder(IList<TreeViewNode> nodes, Guid? folderId)
+    {
+        if (!folderId.HasValue)
+            return;
+
+        foreach (var root in nodes)
+        {
+            if (TrySelectFolderNode(root, folderId.Value))
+                return;
+        }
+    }
+
+    private bool TrySelectFolderNode(TreeViewNode node, Guid folderId)
+    {
+        if (node.Content is FolderTreePickerItem item && item.Id == folderId)
+        {
+            FolderTreePicker.SelectedNode = node;
+            return true;
+        }
+
+        foreach (var child in node.Children)
+        {
+            if (TrySelectFolderNode(child, folderId))
+            {
+                node.IsExpanded = true;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void HideFolderPickerOverlay()
+        => FolderPickerOverlay.Visibility = Visibility.Collapsed;
+
+    private void UpdateSelectedFolderText()
+    {
+        if (_vm is null || !_folderPickerSelectionId.HasValue)
+        {
+            SelectedFolderText.Text = "Alle";
+            return;
+        }
+
+        var folder = _vm.AvailableFolders.FirstOrDefault(x => x.Id == _folderPickerSelectionId.Value);
+        SelectedFolderText.Text = folder?.DisplayName ?? "Alle";
     }
 
     private async Task LoadProfilesAsync()
