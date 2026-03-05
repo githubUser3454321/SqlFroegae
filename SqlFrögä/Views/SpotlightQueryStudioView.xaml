@@ -75,7 +75,7 @@
                     <ComboBox x:Name="CollectionCombo" Grid.Row="1" Grid.Column="2" Header="Collection" DisplayMemberPath="Name" PlaceholderText="Alle"/>
 
                     <StackPanel Grid.Row="1" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Bottom">
-                        <CheckBox x:Name="ExactFolderMatchBox" Content="Nur exakter Folder (sonst inkl. Child-Folder)" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="ExactFolderMatchBox" Content="ohne Child-Folder" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.Column="4" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="8">
