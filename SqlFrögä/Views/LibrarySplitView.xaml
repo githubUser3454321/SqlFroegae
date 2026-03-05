@@ -12,14 +12,6 @@
         <vm:LibrarySplitViewModel />
     </Page.DataContext>
 
-    <Page.KeyboardAccelerators>
-        <KeyboardAccelerator
-            Key="Space"
-            Modifiers="Control,Menu"
-            Invoked="ToggleSpotlightOverlayAccelerator_Invoked" />
-    </Page.KeyboardAccelerators>
-    
-    
 
     <Grid x:Name="PageLayoutRoot">
         <Grid x:Name="MainContentGrid" Padding="16" ColumnSpacing="12">
