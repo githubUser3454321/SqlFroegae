@@ -32,3 +32,10 @@ internal sealed record ScriptDetail(
     [property: JsonPropertyName("folderId")] Guid? FolderId,
     [property: JsonPropertyName("description")] string? Description,
     [property: JsonPropertyName("tags")] IReadOnlyList<string>? Tags);
+
+internal sealed record ScriptFolderTreeNode(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("parentId")] Guid? ParentId,
+    [property: JsonPropertyName("sortOrder")] int SortOrder,
+    [property: JsonPropertyName("children")] IReadOnlyList<ScriptFolderTreeNode>? Children);

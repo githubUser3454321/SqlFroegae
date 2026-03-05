@@ -29,15 +29,54 @@ public partial class SearchToolWindowControl : UserControl
         var workspaceManager = new WorkspaceManager(settings);
         _viewModel = new SearchToolWindowViewModel(apiClient, workspaceManager);
         DataContext = _viewModel;
+        Loaded += OnLoaded;
     }
 
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        _searchCts = RenewTokenSource(_searchCts);
+        await _viewModel.LoadFoldersAsync(_searchCts.Token);
+    }
     private async void OnSearchClick(object sender, RoutedEventArgs e)
     {
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = new CancellationTokenSource();
-
+        _searchCts = RenewTokenSource(_searchCts);
         await _viewModel.SearchAsync(_searchCts.Token);
+    }
+
+    private async void OnLoadFoldersClick(object sender, RoutedEventArgs e)
+    {
+        _searchCts = RenewTokenSource(_searchCts);
+        await _viewModel.LoadFoldersAsync(_searchCts.Token);
+    }
+
+    private async void OnLoadFolderScriptsClick(object sender, RoutedEventArgs e)
+    {
+        _searchCts = RenewTokenSource(_searchCts);
+        await _viewModel.LoadFolderScriptsAsync(_searchCts.Token);
+    }
+
+    private async void OnOpenAllClick(object sender, RoutedEventArgs e)
+    {
+        _searchCts = RenewTokenSource(_searchCts);
+        var readonlyFlag = ReadonlyCheckBox.IsChecked ?? true;
+        var openedPaths = await _viewModel.OpenAllResultsAsync(readonlyFlag, _searchCts.Token);
+
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        var dte = Package.GetGlobalService(typeof(SDTE)) as DTE;
+
+        foreach (var path in openedPaths)
+        {
+            if (dte is not null)
+            {
+                dte.ItemOperations.OpenFile(path);
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            }
+        }
     }
 
     private async void OnOpenClick(object sender, RoutedEventArgs e)
@@ -62,9 +101,7 @@ public partial class SearchToolWindowControl : UserControl
             return;
         }
 
-        _searchCts?.Cancel();
-        _searchCts?.Dispose();
-        _searchCts = new CancellationTokenSource();
+        _searchCts = RenewTokenSource(_searchCts);
 
         try
         {
@@ -85,5 +122,12 @@ public partial class SearchToolWindowControl : UserControl
         {
             // Fehlertext wird bereits im ViewModel gesetzt.
         }
+    }
+
+    private static CancellationTokenSource RenewTokenSource(CancellationTokenSource? source)
+    {
+        source?.Cancel();
+        source?.Dispose();
+        return new CancellationTokenSource();
     }
 }

@@ -4,10 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="420"
-             d:DesignWidth="700">
+             d:DesignHeight="480"
+             d:DesignWidth="820">
     <Grid Margin="12">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -20,7 +21,7 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.ColumnSpan="3" FontWeight="SemiBold" Text="SqlFroega Volltextsuche" />
+        <TextBlock Grid.ColumnSpan="3" FontWeight="SemiBold" Text="SqlFroega Suche + Folder Bulk Read" />
 
         <TextBox Grid.Row="1"
                  Margin="0,8,8,8"
@@ -39,17 +40,41 @@
 
         <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,8,0,8" VerticalAlignment="Center">
             <CheckBox x:Name="ReadonlyCheckBox" Margin="0,0,10,0" IsChecked="True" Content="Readonly" />
-            <Button Height="28" Padding="14,0" Content="Öffnen" Click="OnOpenClick" />
+            <Button Height="28" Padding="14,0" Margin="0,0,8,0" Content="Öffnen" Click="OnOpenClick" />
+            <Button Height="28" Padding="14,0" Content="Alle öffnen" Click="OnOpenAllClick" />
         </StackPanel>
 
-        <TextBlock Grid.Row="2"
+        <ComboBox Grid.Row="2"
+                  Margin="0,0,8,8"
+                  Height="28"
+                  ItemsSource="{Binding Folders}"
+                  DisplayMemberPath="DisplayName"
+                  SelectedItem="{Binding SelectedFolder}" />
+
+        <Button Grid.Row="2"
+                Grid.Column="1"
+                Margin="0,0,8,8"
+                Height="28"
+                Padding="14,0"
+                Content="Ordner laden"
+                Click="OnLoadFoldersClick" />
+
+        <Button Grid.Row="2"
+                Grid.Column="2"
+                Margin="0,0,0,8"
+                Height="28"
+                Padding="14,0"
+                Content="Bulk Read"
+                Click="OnLoadFolderScriptsClick" />
+
+        <TextBlock Grid.Row="3"
                    Grid.ColumnSpan="3"
                    Margin="0,0,0,8"
                    Foreground="IndianRed"
                    Text="{Binding ErrorMessage}" />
 
         <DataGrid x:Name="ResultsGrid"
-                  Grid.Row="3"
+                  Grid.Row="4"
                   Grid.ColumnSpan="3"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
@@ -64,7 +89,7 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <TextBlock Grid.Row="4"
+        <TextBlock Grid.Row="5"
                    Grid.ColumnSpan="3"
                    Margin="0,8,0,0"
                    Foreground="Gray"

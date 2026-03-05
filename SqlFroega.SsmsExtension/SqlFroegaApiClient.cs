@@ -29,12 +29,24 @@ internal sealed class SqlFroegaApiClient
         var uri = $"/api/v1/scripts?query={Uri.EscapeDataString(query)}&take={_settings.SearchTake}";
 
         using var request = CreateAuthenticatedRequest(HttpMethod.Get, uri);
-        using var response = await _httpClient.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
+        return await SendAndDeserializeListAsync<ScriptListItem>(request, ct);
+    }
 
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        var result = await JsonSerializer.DeserializeAsync<IReadOnlyList<ScriptListItem>>(stream, JsonOptions, ct);
-        return result ?? Array.Empty<ScriptListItem>();
+    public async Task<IReadOnlyList<ScriptListItem>> GetScriptsByFolderAsync(Guid folderId, CancellationToken ct)
+    {
+        await EnsureLoginAsync(ct);
+        var uri = $"/api/v1/scripts?folderId={folderId:D}&folderMustMatchExactly=true&take=500";
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, uri);
+        return await SendAndDeserializeListAsync<ScriptListItem>(request, ct);
+    }
+
+    public async Task<IReadOnlyList<ScriptFolderTreeNode>> GetFolderTreeAsync(CancellationToken ct)
+    {
+        await EnsureLoginAsync(ct);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, "/api/v1/folders/tree");
+        return await SendAndDeserializeListAsync<ScriptFolderTreeNode>(request, ct);
     }
 
     public async Task<ScriptDetail> GetScriptDetailAsync(Guid scriptId, CancellationToken ct)
@@ -48,6 +60,16 @@ internal sealed class SqlFroegaApiClient
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         return await JsonSerializer.DeserializeAsync<ScriptDetail>(stream, JsonOptions, ct)
             ?? throw new InvalidOperationException("Ungültige Script-Detail-Antwort von der API.");
+    }
+
+    private async Task<IReadOnlyList<T>> SendAndDeserializeListAsync<T>(HttpRequestMessage request, CancellationToken ct)
+    {
+        using var response = await _httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var result = await JsonSerializer.DeserializeAsync<IReadOnlyList<T>>(stream, JsonOptions, ct);
+        return result ?? Array.Empty<T>();
     }
 
     private HttpRequestMessage CreateAuthenticatedRequest(HttpMethod method, string path)

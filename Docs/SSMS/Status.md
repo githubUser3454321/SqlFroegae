@@ -96,10 +96,10 @@
 - /DONE/ Lokale Datei wird erzeugt (Workspace) und in Host-Editor geöffnet.
 
 ### UC-02: Folder Search und Bulk Read
-- /InProgress/ User wählt Folder.
-- /NOT DONE/ Extension lädt alle Script-IDs aus Folder.
-- /NOT DONE/ Bulk Read lädt Inhalte in einem Request/Batches.
-- /NOT DONE/ Alle Dateien werden als Tabs geöffnet.
+- /DONE/ User wählt Folder (Dropdown aus `/folders/tree`).
+- /DONE/ Extension lädt Script-IDs aus Folder via `folderId`-Filter.
+- /InProgress/ Bulk Read lädt Inhalte sequentiell (Detail-Load pro Script); Batching noch offen.
+- /InProgress/ Alle Dateien werden per „Alle öffnen“/Bulk Read im Host geöffnet (DTE; Fallback Shell).
 
 ### UC-03: Editieren und Bulk Write
 - /NOT DONE/ User ändert mehrere geöffnete Skripte.
@@ -131,10 +131,10 @@
 ## P1 – Suche
 - /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
 - /DONE/ Treffer-Rendering (DataGrid) + Single-Open (Button/DoubleClick) umgesetzt.
-- /NOT DONE/ Folder Browser + Folder-Script-Listing.
+- /DONE/ Folder Browser (Tree-Flat-List) + Folder-Script-Listing.
 
 ## P2 – Bulk Read/Bulk Write
-- /NOT DONE/ Bulk Read mit Batching + Fehlerstrategie.
+- /InProgress/ Bulk Read ohne Batching implementiert; Fehlerstrategie/Batching folgt.
 - /NOT DONE/ Bulk Write inkl. `changeReason` Pflicht.
 - /NOT DONE/ Partial-Failure Handling (einige Saves fehlgeschlagen).
 
@@ -158,5 +158,5 @@
 
 1. /InProgress/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
 2. /InProgress/ Workspace-Index um Version/ETag ergänzen und Konflikterkennung vorbereiten.
-3. /NOT DONE/ Folder Search + Bulk Read in das ToolWindow integrieren.
+3. /InProgress/ Bulk Read optimieren: Batching + Partial-Failure Handling ergänzen.
 4. /NOT DONE/ Persistente Settings (Options Page/Dialog) statt reiner Environment-Variablen ergänzen.
