@@ -98,12 +98,10 @@
 
                         <ToggleButton Grid.Column="2"
                                       ToolTipService.ToolTip="Erweiterte Suche ein-/ausblenden"
-                                      MinWidth="100"
                                       Foreground="Black"
                                       IsChecked="{Binding IsAdvancedSearchExpanded, Mode=TwoWay}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon Glyph="&#xE71C;" Foreground="Black"/>
-                                <TextBlock Text="Filter" Foreground="Black"/>
                             </StackPanel>
                         </ToggleButton>
 
