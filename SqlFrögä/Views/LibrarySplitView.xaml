@@ -60,7 +60,8 @@
 
                 <Button Grid.Column="2"
                         Content="Neu"
-                        Command="{Binding NewCommand}"/>
+                        Command="{Binding NewCommand}"
+                        KeyDown="NewButton_KeyDown"/>
 
                 <Button Grid.Column="3"
                         Content="Abmelden"

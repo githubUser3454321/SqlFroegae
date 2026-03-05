@@ -1,4 +1,5 @@
 ﻿using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -7,6 +8,7 @@ using SqlFroega.Application.Models;
 using SqlFroega.ViewModels;
 using System;
 using System.Threading.Tasks;
+using Windows.UI.Core;
 using Windows.System;
 using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 
@@ -71,6 +73,20 @@ public sealed partial class LibrarySplitView : Page
         {
             await VM.SearchCommand.ExecuteAsync(null);
         }
+    }
+
+    private async void NewButton_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Space)
+            return;
+
+        var isCtrlDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
+        var isAltDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
+        if (!isCtrlDown || !isAltDown)
+            return;
+
+        e.Handled = true;
+        await ShowSpotlightOverlayAsync();
     }
 
     private async void DeleteButton_Click(object sender, RoutedEventArgs e)
