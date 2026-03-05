@@ -11,6 +11,13 @@
     <Page.DataContext>
         <vm:LibrarySplitViewModel />
     </Page.DataContext>
+
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator
+            Key="Space"
+            Modifiers="Control,Menu"
+            Invoked="ToggleSpotlightOverlayAccelerator_Invoked" />
+    </Page.KeyboardAccelerators>
     
     
 
@@ -86,7 +93,6 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBox Grid.Column="0"
@@ -109,9 +115,6 @@
                             </StackPanel>
                         </ToggleButton>
 
-                        <Button Grid.Column="3"
-                                Content="Erweiterte Suche"
-                                Click="OpenSpotlightQueryStudio_Click"/>
                     </Grid>
 
                     <Border Grid.Row="1"

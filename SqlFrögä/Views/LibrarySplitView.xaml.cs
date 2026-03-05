@@ -135,11 +135,20 @@ public sealed partial class LibrarySplitView : Page
 
     private async void OpenSpotlightQueryStudio_Click(object sender, RoutedEventArgs e)
     {
-        await SpotlightView.InitializeFromAsync(VM);
+        await ShowSpotlightOverlayAsync();
+    }
 
-        SpotlightOverlay.Visibility = Visibility.Visible;
-        MainContentGrid.IsHitTestVisible = false;
-        SpotlightOverlay.Focus(FocusState.Programmatic);
+    private async void ToggleSpotlightOverlayAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+
+        if (SpotlightOverlay.Visibility == Visibility.Visible)
+        {
+            HideSpotlightOverlay();
+            return;
+        }
+
+        await ShowSpotlightOverlayAsync();
     }
 
     private async void ApplySpotlightOverlay_Click(object sender, RoutedEventArgs e)
@@ -165,6 +174,15 @@ public sealed partial class LibrarySplitView : Page
     {
         SpotlightOverlay.Visibility = Visibility.Collapsed;
         MainContentGrid.IsHitTestVisible = true;
+    }
+
+    private async Task ShowSpotlightOverlayAsync()
+    {
+        await SpotlightView.InitializeFromAsync(VM);
+
+        SpotlightOverlay.Visibility = Visibility.Visible;
+        MainContentGrid.IsHitTestVisible = false;
+        SpotlightOverlay.Focus(FocusState.Programmatic);
     }
 
     public async Task SaveWorkspaceStateAsync()
