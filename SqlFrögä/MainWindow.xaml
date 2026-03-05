@@ -14,7 +14,14 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid>
+    <Grid x:Name="WindowRootGrid">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator
+                Key="Space"
+                Modifiers="Control,Menu"
+                Invoked="ToggleSpotlightOverlayAccelerator_Invoked" />
+        </Grid.KeyboardAccelerators>
+
         <Frame x:Name="RootFrame" />
     </Grid>
 </Window>

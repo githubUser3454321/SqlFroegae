@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Input;
 using SqlFroega.Application.Abstractions;
 using SqlFroega.Views;
 using System;
@@ -109,5 +110,24 @@ public sealed partial class MainWindow : Window
         {
             appWindow.SetIcon(iconPath);
         }
+    }
+
+    private async void ToggleSpotlightOverlayAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        // Zentral auf Window-Ebene behandeln, damit die Tastenkombination auch dann
+        // zuverlässig funktioniert, wenn der Fokus kurzzeitig im Fenster-Header liegt.
+        args.Handled = true;
+
+        if (App.CurrentUser is null)
+        {
+            return;
+        }
+
+        if (RootFrame.Content is not LibrarySplitView librarySplitView)
+        {
+            return;
+        }
+
+        await librarySplitView.ToggleSpotlightOverlayAsync();
     }
 }

@@ -138,10 +138,8 @@ public sealed partial class LibrarySplitView : Page
         await ShowSpotlightOverlayAsync();
     }
 
-    private async void ToggleSpotlightOverlayAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    public async Task ToggleSpotlightOverlayAsync()
     {
-        args.Handled = true;
-
         if (SpotlightOverlay.Visibility == Visibility.Visible)
         {
             HideSpotlightOverlay();
