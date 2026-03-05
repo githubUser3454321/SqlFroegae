@@ -62,7 +62,7 @@
 
 - /InProgress/ `SqlFroega.SsmsExtension` (neu, VSIX/Package-Host)
 - /InProgress/ `SearchPanel` (Tool Window) für Volltext + Folder Search
-- /NOT DONE/ `WorkspaceManager` (lokales Dateisystem + Index)
+- /InProgress/ `WorkspaceManager` (lokales Dateisystem + Index)
 - /InProgress/ `SqlFroegaApiClient` (HTTP + Auth + Retries)
 - /NOT DONE/ `SaveInterceptor` (Save-Hook + Reason-Dialog + Conflict Handling)
 
@@ -92,8 +92,8 @@
 ### UC-01: Volltextsuche und einzelnes Script öffnen
 - /InProgress/ User gibt Suchtext ein.
 - /InProgress/ Trefferliste mit Metadaten (Name, Scope, Modul, Beschreibung) im ToolWindow.
-- /NOT DONE/ „Open Readonly“ oder „Open Edit“.
-- /NOT DONE/ Lokale Datei wird erzeugt und in SSMS-Editor geöffnet.
+- /InProgress/ „Open Readonly“ oder „Open Edit“ (Readonly-Flag + Open-Button/DoubleClick vorhanden).
+- /InProgress/ Lokale Datei wird erzeugt (Workspace) und in Host-Editor geöffnet.
 
 ### UC-02: Folder Search und Bulk Read
 - /InProgress/ User wählt Folder.
@@ -126,11 +126,11 @@
 - /DONE/ Initiales SSMS-Extension-Projekt erstellt.
 - /DONE/ VSIX Manifest ergänzt.
 - /InProgress/ Settings (API URL/Auth via Environment Variablen) implementieren.
-- /NOT DONE/ Workspace-Index (`workspace-index.json`) implementieren.
+- /InProgress/ Workspace-Index (`workspace-index.json`) implementiert (Basis-Mapping beim Öffnen).
 
 ## P1 – Suche
 - /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
-- /InProgress/ Treffer-Rendering (DataGrid) umgesetzt, Single-Open noch ausstehend.
+- /DONE/ Treffer-Rendering (DataGrid) + Single-Open (Button/DoubleClick) umgesetzt.
 - /NOT DONE/ Folder Browser + Folder-Script-Listing.
 
 ## P2 – Bulk Read/Bulk Write
@@ -156,7 +156,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ Double-Click auf Suchtreffer: Script-Detail laden und in SSMS-Editor öffnen.
-2. /NOT DONE/ Lokales Datei-Mapping (`scriptId` ↔ Pfad) + Workspace-Index implementieren.
-3. /NOT DONE/ Persistente Settings (Dialog/Options Page) statt reiner Environment-Variablen ergänzen.
+1. /InProgress/ Open-Modus finalisieren: echtes readonly/edit-Verhalten + Editor-State-Tracking.
+2. /InProgress/ Workspace-Index erweitern (Version, LastSynced, Konfliktinfos) und robustes Remapping.
+3. /NOT DONE/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
 4. /NOT DONE/ Folder Search + Bulk Read in das ToolWindow integrieren.

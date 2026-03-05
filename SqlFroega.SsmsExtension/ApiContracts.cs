@@ -19,3 +19,8 @@ internal sealed record ScriptListItem(
     [property: JsonPropertyName("scopeLabel")] string ScopeLabel,
     [property: JsonPropertyName("mainModule")] string? MainModule,
     [property: JsonPropertyName("description")] string? Description);
+
+internal sealed record ScriptDetail(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("content")] string Content);

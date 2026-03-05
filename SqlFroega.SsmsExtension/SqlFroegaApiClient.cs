@@ -28,7 +28,31 @@ internal sealed class SqlFroegaApiClient
         await EnsureLoginAsync(ct);
         var uri = $"/api/v1/scripts?query={Uri.EscapeDataString(query)}&take={_settings.SearchTake}";
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, uri);
+        using var response = await _httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var result = await JsonSerializer.DeserializeAsync<IReadOnlyList<ScriptListItem>>(stream, JsonOptions, ct);
+        return result ?? Array.Empty<ScriptListItem>();
+    }
+
+    public async Task<ScriptDetail> GetScriptDetailAsync(Guid scriptId, CancellationToken ct)
+    {
+        await EnsureLoginAsync(ct);
+
+        using var request = CreateAuthenticatedRequest(HttpMethod.Get, $"/api/v1/scripts/{scriptId}");
+        using var response = await _httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        return await JsonSerializer.DeserializeAsync<ScriptDetail>(stream, JsonOptions, ct)
+            ?? throw new InvalidOperationException("Ungültige Script-Detail-Antwort von der API.");
+    }
+
+    private HttpRequestMessage CreateAuthenticatedRequest(HttpMethod method, string path)
+    {
+        var request = new HttpRequestMessage(method, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
         request.Headers.TryAddWithoutValidation("X-Correlation-Id", $"ssms-{Guid.NewGuid():N}");
 
@@ -37,12 +61,7 @@ internal sealed class SqlFroegaApiClient
             request.Headers.TryAddWithoutValidation("X-Tenant-Context", _settings.TenantContext.Trim());
         }
 
-        using var response = await _httpClient.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
-
-        await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        var result = await JsonSerializer.DeserializeAsync<IReadOnlyList<ScriptListItem>>(stream, JsonOptions, ct);
-        return result ?? Array.Empty<ScriptListItem>();
+        return request;
     }
 
     private async Task EnsureLoginAsync(CancellationToken ct)

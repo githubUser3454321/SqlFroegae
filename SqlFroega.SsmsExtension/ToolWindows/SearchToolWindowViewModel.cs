@@ -11,13 +11,16 @@ namespace SqlFroega.SsmsExtension.ToolWindows;
 internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
 {
     private readonly SqlFroegaApiClient _apiClient;
+    private readonly WorkspaceManager _workspaceManager;
     private string _searchTerm = string.Empty;
     private bool _isLoading;
     private string? _errorMessage;
+    private string _statusMessage = "Bereit";
 
-    public SearchToolWindowViewModel(SqlFroegaApiClient apiClient)
+    public SearchToolWindowViewModel(SqlFroegaApiClient apiClient, WorkspaceManager workspaceManager)
     {
         _apiClient = apiClient;
+        _workspaceManager = workspaceManager;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -69,13 +72,30 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         }
     }
 
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set
+        {
+            if (_statusMessage == value)
+            {
+                return;
+            }
+
+            _statusMessage = value;
+            OnPropertyChanged();
+        }
+    }
+
     public async Task SearchAsync(CancellationToken ct)
     {
         ErrorMessage = null;
+        StatusMessage = "Suche läuft...";
 
         if (string.IsNullOrWhiteSpace(SearchTerm))
         {
             Results.Clear();
+            StatusMessage = "Bitte Suchbegriff eingeben.";
             return;
         }
 
@@ -84,6 +104,7 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         {
             var rows = await _apiClient.SearchScriptsAsync(SearchTerm.Trim(), ct);
             var mapped = rows.Select(x => new SearchResultItem(
+                x.Id,
                 x.Name,
                 x.NumberId,
                 x.ScopeLabel,
@@ -95,11 +116,39 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
             {
                 Results.Add(row);
             }
+
+            StatusMessage = $"{Results.Count} Treffer geladen.";
         }
         catch (Exception ex)
         {
             Results.Clear();
             ErrorMessage = ex.Message;
+            StatusMessage = "Suche fehlgeschlagen.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task<string> OpenSelectedAsync(SearchResultItem selected, bool openReadonly, CancellationToken ct)
+    {
+        ErrorMessage = null;
+        IsLoading = true;
+        StatusMessage = "Lade Script-Detail...";
+
+        try
+        {
+            var detail = await _apiClient.GetScriptDetailAsync(selected.Id, ct);
+            var path = _workspaceManager.SaveScript(detail, openReadonly);
+            StatusMessage = $"Script gespeichert: {path}";
+            return path;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            StatusMessage = "Öffnen fehlgeschlagen.";
+            throw;
         }
         finally
         {

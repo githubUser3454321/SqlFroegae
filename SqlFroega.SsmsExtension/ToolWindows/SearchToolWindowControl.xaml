@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="360"
-             d:DesignWidth="580">
+             d:DesignHeight="420"
+             d:DesignWidth="700">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -17,9 +17,10 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.ColumnSpan="2" FontWeight="SemiBold" Text="SqlFroega Volltextsuche" />
+        <TextBlock Grid.ColumnSpan="3" FontWeight="SemiBold" Text="SqlFroega Volltextsuche" />
 
         <TextBox Grid.Row="1"
                  Margin="0,8,8,8"
@@ -30,22 +31,30 @@
 
         <Button Grid.Row="1"
                 Grid.Column="1"
+                Margin="0,8,8,8"
                 Height="28"
                 Padding="14,0"
                 Content="Suchen"
                 Click="OnSearchClick" />
 
+        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,8,0,8" VerticalAlignment="Center">
+            <CheckBox x:Name="ReadonlyCheckBox" Margin="0,0,10,0" IsChecked="True" Content="Readonly" />
+            <Button Height="28" Padding="14,0" Content="Öffnen" Click="OnOpenClick" />
+        </StackPanel>
+
         <TextBlock Grid.Row="2"
-                   Grid.ColumnSpan="2"
+                   Grid.ColumnSpan="3"
                    Margin="0,0,0,8"
                    Foreground="IndianRed"
                    Text="{Binding ErrorMessage}" />
 
-        <DataGrid Grid.Row="3"
-                  Grid.ColumnSpan="2"
+        <DataGrid x:Name="ResultsGrid"
+                  Grid.Row="3"
+                  Grid.ColumnSpan="3"
                   AutoGenerateColumns="False"
                   IsReadOnly="True"
-                  ItemsSource="{Binding Results}">
+                  ItemsSource="{Binding Results}"
+                  MouseDoubleClick="OnResultsDoubleClick">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="#" Binding="{Binding NumberId}" Width="70" />
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
@@ -56,9 +65,9 @@
         </DataGrid>
 
         <TextBlock Grid.Row="4"
-                   Grid.ColumnSpan="2"
+                   Grid.ColumnSpan="3"
                    Margin="0,8,0,0"
                    Foreground="Gray"
-                   Text="{Binding IsLoading, StringFormat=Loading: {0}}" />
+                   Text="{Binding StatusMessage}" />
     </Grid>
 </UserControl>
