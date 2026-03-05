@@ -77,16 +77,30 @@ public sealed partial class LibrarySplitView : Page
 
     private async void NewButton_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key != VirtualKey.Space)
-            return;
-
-        var isCtrlDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
-        var isAltDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
-        if (!isCtrlDown || !isAltDown)
+        if (!IsCtrlAltSpace(e))
             return;
 
         e.Handled = true;
         await ShowSpotlightOverlayAsync();
+    }
+
+    private async void AdminButton_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (!IsCtrlAltSpace(e))
+            return;
+
+        e.Handled = true;
+        await ShowSpotlightOverlayAsync();
+    }
+
+    private static bool IsCtrlAltSpace(KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Space)
+            return false;
+
+        var isCtrlDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control).HasFlag(CoreVirtualKeyStates.Down);
+        var isAltDown = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Menu).HasFlag(CoreVirtualKeyStates.Down);
+        return isCtrlDown && isAltDown;
     }
 
     private async void DeleteButton_Click(object sender, RoutedEventArgs e)

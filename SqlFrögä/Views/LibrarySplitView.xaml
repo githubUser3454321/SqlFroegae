@@ -45,7 +45,10 @@
                     <TextBlock Text="SqlFrögä" FontSize="22" FontWeight="SemiBold"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" Content="Admin" Visibility="{Binding AdminButtonVisibility}">
+                <Button Grid.Column="1"
+                        Content="Admin"
+                        Visibility="{Binding AdminButtonVisibility}"
+                        KeyDown="AdminButton_KeyDown">
                     <Button.Flyout>
                         <MenuFlyout>
                             <MenuFlyoutItem Text="Kunden-Mapping Verwaltung"
