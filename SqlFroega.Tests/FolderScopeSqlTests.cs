@@ -1,3 +1,4 @@
+using System;
 using SqlFroega.Application.Models;
 using SqlFroega.Infrastructure.Persistence.SqlServer;
 using Xunit;
@@ -63,7 +64,35 @@ public sealed class FolderScopeSqlTests
     public void BuildFolderPredicate_SubtreeMode_UsesFolderScopeInClause(string alias)
     {
         var predicate = FolderScopeSql.BuildFolderPredicate(alias, folderMustMatchExactly: false);
-        Assert.Equal($"{alias}.FolderId IN (SELECT Id FROM folder_scope)", predicate);
+        Assert.Equal($"{alias}.FolderId IS NOT NULL AND {alias}.FolderId IN (SELECT Id FROM folder_scope)", predicate);
+    }
+
+
+    [Fact]
+    public void BuildFolderPredicate_SubtreeMode_ExplicitlyExcludesScriptsWithoutFolder()
+    {
+        var predicate = FolderScopeSql.BuildFolderPredicate("s", folderMustMatchExactly: false);
+        Assert.Contains("s.FolderId IS NOT NULL", predicate);
+    }
+
+    [Fact]
+    public void BuildFolderFilterDebugMessage_SubtreeMode_ExplainsChildFolderBehavior()
+    {
+        var folderId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var message = FolderScopeSql.BuildFolderFilterDebugMessage(folderId, folderMustMatchExactly: false);
+
+        Assert.Contains("Subtree-Match", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Child-Folder werden eingeschlossen", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BuildFolderFilterDebugMessage_ExactMode_ExplainsChildFolderExclusion()
+    {
+        var folderId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var message = FolderScopeSql.BuildFolderFilterDebugMessage(folderId, folderMustMatchExactly: true);
+
+        Assert.Contains("Exakter Match", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Child-Folder werden ausgeschlossen", message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
