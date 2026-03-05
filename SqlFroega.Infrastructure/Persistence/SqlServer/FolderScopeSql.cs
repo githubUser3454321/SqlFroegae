@@ -7,6 +7,11 @@ public static class FolderScopeSql
     public static bool ShouldUseFolderScopeCte(ScriptSearchFilters filters)
         => filters.FolderId is not null && !filters.FolderMustMatchExactly;
 
+    public static string BuildFolderFilterDebugMessage(Guid folderId, bool folderMustMatchExactly)
+        => folderMustMatchExactly
+            ? $"Folder-Filter aktiv: Exakter Match auf FolderId '{folderId}'. Child-Folder werden ausgeschlossen."
+            : $"Folder-Filter aktiv: Subtree-Match auf FolderId '{folderId}'. Child-Folder werden eingeschlossen.";
+
     public static string BuildFolderScopeCte()
         => "folder_scope AS (\n"
            + "    SELECT Id\n"
@@ -21,5 +26,5 @@ public static class FolderScopeSql
     public static string BuildFolderPredicate(string alias, bool folderMustMatchExactly)
         => folderMustMatchExactly
             ? $"{alias}.FolderId = @folderId"
-            : $"{alias}.FolderId IN (SELECT Id FROM folder_scope)";
+            : $"{alias}.FolderId IS NOT NULL AND {alias}.FolderId IN (SELECT Id FROM folder_scope)";
 }

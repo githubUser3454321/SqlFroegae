@@ -6,6 +6,7 @@ using SqlFroega.Domain;
 using SqlFroega.Infrastructure.Parsing;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -97,6 +98,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (filters.FolderId is not null)
         {
+            Debug.WriteLine(FolderScopeSql.BuildFolderFilterDebugMessage(filters.FolderId.Value, filters.FolderMustMatchExactly));
             sb.AppendLine($"AND {FolderScopeSql.BuildFolderPredicate("s", filters.FolderMustMatchExactly)}");
             p.Add("@folderId", filters.FolderId.Value);
         }
@@ -228,6 +230,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (filters.FolderId is not null)
         {
+            Debug.WriteLine(FolderScopeSql.BuildFolderFilterDebugMessage(filters.FolderId.Value, filters.FolderMustMatchExactly));
             sb.AppendLine($"      AND {FolderScopeSql.BuildFolderPredicate("s", filters.FolderMustMatchExactly)}");
             p.Add("@folderId", filters.FolderId.Value);
         }
