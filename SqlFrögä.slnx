@@ -11,6 +11,7 @@
     <Build Solution="Debug|*" Project="false" />
   </Project>
   <Project Path="SqlFroega.Infrastructure/SqlFroega.Infrastructure.csproj" />
+  <Project Path="SqlFroega.SsmsExtension/SqlFroega.SsmsExtension.csproj" />
   <Project Path="SqlFroega.Tests/SqlFroega.Tests.csproj" Id="57aa5650-8635-49ee-a5b6-3590f8dbb713" />
   <Project Path="SqlFrögä/SqlFroega.csproj">
     <Platform Solution="*|ARM64" Project="ARM64" />

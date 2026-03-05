@@ -61,9 +61,9 @@
 ### 4.1 Komponenten
 
 - /InProgress/ `SqlFroega.SsmsExtension` (neu, VSIX/Package-Host)
-- /NOT DONE/ `SearchPanel` (Tool Window) für Volltext + Folder Search
-- /NOT DONE/ `WorkspaceManager` (lokales Dateisystem + Index)
-- /NOT DONE/ `SqlFroegaApiClient` (HTTP + Auth + Retries)
+- /InProgress/ `SearchPanel` (Tool Window) für Volltext + Folder Search
+- /InProgress/ `WorkspaceManager` (lokales Dateisystem + Index)
+- /InProgress/ `SqlFroegaApiClient` (HTTP + Auth + Retries)
 - /NOT DONE/ `SaveInterceptor` (Save-Hook + Reason-Dialog + Conflict Handling)
 
 ### 4.2 API-Nutzung (gegen bestehendes Backend)
@@ -81,9 +81,9 @@
 - /DONE/ Initiales Projektfile `SqlFroega.SsmsExtension.csproj` angelegt (net472 + VS SDK BuildTools Referenzen).
 - /DONE/ `ExtensionPackage.cs` (Bootstrap `AsyncPackage`) angelegt.
 - /DONE/ `README.md` mit Next Steps angelegt.
-- /NOT DONE/ In `SqlFrögä.slnx` aufgenommen.
-- /NOT DONE/ VSIX Manifest (`source.extension.vsixmanifest`) angelegt.
-- /NOT DONE/ Command-Definition (`.vsct`) und erstes Menü/Command angelegt.
+- /DONE/ In `SqlFrögä.slnx` aufgenommen.
+- /DONE/ VSIX Manifest (`source.extension.vsixmanifest`) angelegt.
+- /DONE/ Command-Definition (`.vsct`) und erstes Menü/Command angelegt.
 
 ---
 
@@ -91,15 +91,15 @@
 
 ### UC-01: Volltextsuche und einzelnes Script öffnen
 - /InProgress/ User gibt Suchtext ein.
-- /NOT DONE/ Trefferliste mit Relevanz und Metadaten.
-- /NOT DONE/ „Open Readonly“ oder „Open Edit“.
-- /NOT DONE/ Lokale Datei wird erzeugt und in SSMS-Editor geöffnet.
+- /InProgress/ Trefferliste mit Metadaten (Name, Scope, Modul, Beschreibung) im ToolWindow.
+- /DONE/ „Open Readonly“ oder „Open Edit“ (Readonly/Edit-Modus setzt Datei-Attribute und Open-Flow).
+- /DONE/ Lokale Datei wird erzeugt (Workspace) und in Host-Editor geöffnet.
 
 ### UC-02: Folder Search und Bulk Read
-- /InProgress/ User wählt Folder.
-- /NOT DONE/ Extension lädt alle Script-IDs aus Folder.
-- /NOT DONE/ Bulk Read lädt Inhalte in einem Request/Batches.
-- /NOT DONE/ Alle Dateien werden als Tabs geöffnet.
+- /DONE/ User wählt Folder (Dropdown aus `/folders/tree`).
+- /DONE/ Extension lädt Script-IDs aus Folder via `folderId`-Filter.
+- /InProgress/ Bulk Read lädt Inhalte sequentiell (Detail-Load pro Script); Batching noch offen.
+- /InProgress/ Alle Dateien werden per „Alle öffnen“/Bulk Read im Host geöffnet (DTE; Fallback Shell).
 
 ### UC-03: Editieren und Bulk Write
 - /NOT DONE/ User ändert mehrere geöffnete Skripte.
@@ -124,17 +124,17 @@
 ## P0 – Fundament
 - /DONE/ Status-Dokument + initiale Zielarchitektur erstellt.
 - /DONE/ Initiales SSMS-Extension-Projekt erstellt.
-- /NOT DONE/ VSIX Manifest ergänzen.
-- /NOT DONE/ Settings (API URL, Auth, CustomerShortcode) implementieren.
-- /NOT DONE/ Workspace-Index (`workspace-index.json`) implementieren.
+- /DONE/ VSIX Manifest ergänzt.
+- /InProgress/ Settings (API URL/Auth via Environment Variablen) implementieren.
+- /DONE/ Workspace-Index (`workspace-index.json`) implementiert (Mapping + OpenMode + LastSynced beim Öffnen).
 
 ## P1 – Suche
-- /NOT DONE/ ToolWindow für Volltextsuche.
-- /NOT DONE/ Treffer-Rendering und Single-Open.
-- /NOT DONE/ Folder Browser + Folder-Script-Listing.
+- /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
+- /DONE/ Treffer-Rendering (DataGrid) + Single-Open (Button/DoubleClick) umgesetzt.
+- /DONE/ Folder Browser (Tree-Flat-List) + Folder-Script-Listing.
 
 ## P2 – Bulk Read/Bulk Write
-- /NOT DONE/ Bulk Read mit Batching + Fehlerstrategie.
+- /InProgress/ Bulk Read ohne Batching implementiert; Fehlerstrategie/Batching folgt.
 - /NOT DONE/ Bulk Write inkl. `changeReason` Pflicht.
 - /NOT DONE/ Partial-Failure Handling (einige Saves fehlgeschlagen).
 
@@ -156,8 +156,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ VSIX-Manifest + erstes Menü-Command für „SqlFroega Search“ hinzufügen.
-2. /InProgress/ Einfachen API-Client (nur Volltextsuche) verdrahten.
-3. /NOT DONE/ Erstes ToolWindow mit Search Box + Ergebnisliste.
-4. /NOT DONE/ Open-in-SSMS Editor (readonly/edit) und lokales Datei-Mapping.
-
+1. /InProgress/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
+2. /InProgress/ Workspace-Index um Version/ETag ergänzen und Konflikterkennung vorbereiten.
+3. /InProgress/ Bulk Read optimieren: Batching + Partial-Failure Handling ergänzen.
+4. /NOT DONE/ Persistente Settings (Options Page/Dialog) statt reiner Environment-Variablen ergänzen.

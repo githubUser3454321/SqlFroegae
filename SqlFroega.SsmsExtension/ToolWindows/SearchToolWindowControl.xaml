@@ -1,0 +1,98 @@
+<UserControl x:Class="SqlFroega.SsmsExtension.ToolWindows.SearchToolWindowControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="480"
+             d:DesignWidth="820">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.ColumnSpan="3" FontWeight="SemiBold" Text="SqlFroega Suche + Folder Bulk Read" />
+
+        <TextBox Grid.Row="1"
+                 Margin="0,8,8,8"
+                 Height="28"
+                 VerticalContentAlignment="Center"
+                 ToolTip="Suchbegriff eingeben"
+                 Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
+
+        <Button Grid.Row="1"
+                Grid.Column="1"
+                Margin="0,8,8,8"
+                Height="28"
+                Padding="14,0"
+                Content="Suchen"
+                Click="OnSearchClick" />
+
+        <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal" Margin="0,8,0,8" VerticalAlignment="Center">
+            <CheckBox x:Name="ReadonlyCheckBox" Margin="0,0,10,0" IsChecked="True" Content="Readonly" />
+            <Button Height="28" Padding="14,0" Margin="0,0,8,0" Content="Öffnen" Click="OnOpenClick" />
+            <Button Height="28" Padding="14,0" Content="Alle öffnen" Click="OnOpenAllClick" />
+        </StackPanel>
+
+        <ComboBox Grid.Row="2"
+                  Margin="0,0,8,8"
+                  Height="28"
+                  ItemsSource="{Binding Folders}"
+                  DisplayMemberPath="DisplayName"
+                  SelectedItem="{Binding SelectedFolder}" />
+
+        <Button Grid.Row="2"
+                Grid.Column="1"
+                Margin="0,0,8,8"
+                Height="28"
+                Padding="14,0"
+                Content="Ordner laden"
+                Click="OnLoadFoldersClick" />
+
+        <Button Grid.Row="2"
+                Grid.Column="2"
+                Margin="0,0,0,8"
+                Height="28"
+                Padding="14,0"
+                Content="Bulk Read"
+                Click="OnLoadFolderScriptsClick" />
+
+        <TextBlock Grid.Row="3"
+                   Grid.ColumnSpan="3"
+                   Margin="0,0,0,8"
+                   Foreground="IndianRed"
+                   Text="{Binding ErrorMessage}" />
+
+        <DataGrid x:Name="ResultsGrid"
+                  Grid.Row="4"
+                  Grid.ColumnSpan="3"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  ItemsSource="{Binding Results}"
+                  MouseDoubleClick="OnResultsDoubleClick">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="#" Binding="{Binding NumberId}" Width="70" />
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Scope" Binding="{Binding Scope}" Width="120" />
+                <DataGridTextColumn Header="MainModule" Binding="{Binding MainModule}" Width="140" />
+                <DataGridTextColumn Header="Beschreibung" Binding="{Binding Description}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="5"
+                   Grid.ColumnSpan="3"
+                   Margin="0,8,0,0"
+                   Foreground="Gray"
+                   Text="{Binding StatusMessage}" />
+    </Grid>
+</UserControl>
