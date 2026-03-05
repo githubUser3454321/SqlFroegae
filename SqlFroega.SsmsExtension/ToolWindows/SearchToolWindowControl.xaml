@@ -4,26 +4,61 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
-             d:DesignHeight="320"
-             d:DesignWidth="420">
+             d:DesignHeight="360"
+             d:DesignWidth="580">
     <Grid Margin="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
 
-        <TextBlock FontWeight="SemiBold" Text="SqlFroega Volltextsuche" />
+        <TextBlock Grid.ColumnSpan="2" FontWeight="SemiBold" Text="SqlFroega Volltextsuche" />
 
         <TextBox Grid.Row="1"
-                 Margin="0,8,0,12"
+                 Margin="0,8,8,8"
                  Height="28"
                  VerticalContentAlignment="Center"
                  ToolTip="Suchbegriff eingeben"
-                 Text="" />
+                 Text="{Binding SearchTerm, UpdateSourceTrigger=PropertyChanged}" />
 
-        <ListView Grid.Row="2">
-            <ListViewItem Content="(Platzhalter) Treffer erscheinen hier" />
-        </ListView>
+        <Button Grid.Row="1"
+                Grid.Column="1"
+                Height="28"
+                Padding="14,0"
+                Content="Suchen"
+                Click="OnSearchClick" />
+
+        <TextBlock Grid.Row="2"
+                   Grid.ColumnSpan="2"
+                   Margin="0,0,0,8"
+                   Foreground="IndianRed"
+                   Text="{Binding ErrorMessage}" />
+
+        <DataGrid Grid.Row="3"
+                  Grid.ColumnSpan="2"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  ItemsSource="{Binding Results}">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="#" Binding="{Binding NumberId}" Width="70" />
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" />
+                <DataGridTextColumn Header="Scope" Binding="{Binding Scope}" Width="120" />
+                <DataGridTextColumn Header="MainModule" Binding="{Binding MainModule}" Width="140" />
+                <DataGridTextColumn Header="Beschreibung" Binding="{Binding Description}" Width="2*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <TextBlock Grid.Row="4"
+                   Grid.ColumnSpan="2"
+                   Margin="0,8,0,0"
+                   Foreground="Gray"
+                   Text="{Binding IsLoading, StringFormat=Loading: {0}}" />
     </Grid>
 </UserControl>

@@ -61,9 +61,9 @@
 ### 4.1 Komponenten
 
 - /InProgress/ `SqlFroega.SsmsExtension` (neu, VSIX/Package-Host)
-- /NOT DONE/ `SearchPanel` (Tool Window) für Volltext + Folder Search
+- /InProgress/ `SearchPanel` (Tool Window) für Volltext + Folder Search
 - /NOT DONE/ `WorkspaceManager` (lokales Dateisystem + Index)
-- /NOT DONE/ `SqlFroegaApiClient` (HTTP + Auth + Retries)
+- /InProgress/ `SqlFroegaApiClient` (HTTP + Auth + Retries)
 - /NOT DONE/ `SaveInterceptor` (Save-Hook + Reason-Dialog + Conflict Handling)
 
 ### 4.2 API-Nutzung (gegen bestehendes Backend)
@@ -91,7 +91,7 @@
 
 ### UC-01: Volltextsuche und einzelnes Script öffnen
 - /InProgress/ User gibt Suchtext ein.
-- /NOT DONE/ Trefferliste mit Relevanz und Metadaten.
+- /InProgress/ Trefferliste mit Metadaten (Name, Scope, Modul, Beschreibung) im ToolWindow.
 - /NOT DONE/ „Open Readonly“ oder „Open Edit“.
 - /NOT DONE/ Lokale Datei wird erzeugt und in SSMS-Editor geöffnet.
 
@@ -124,13 +124,13 @@
 ## P0 – Fundament
 - /DONE/ Status-Dokument + initiale Zielarchitektur erstellt.
 - /DONE/ Initiales SSMS-Extension-Projekt erstellt.
-- /NOT DONE/ VSIX Manifest ergänzen.
-- /NOT DONE/ Settings (API URL, Auth, CustomerShortcode) implementieren.
+- /DONE/ VSIX Manifest ergänzt.
+- /InProgress/ Settings (API URL/Auth via Environment Variablen) implementieren.
 - /NOT DONE/ Workspace-Index (`workspace-index.json`) implementieren.
 
 ## P1 – Suche
 - /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
-- /NOT DONE/ Treffer-Rendering und Single-Open.
+- /InProgress/ Treffer-Rendering (DataGrid) umgesetzt, Single-Open noch ausstehend.
 - /NOT DONE/ Folder Browser + Folder-Script-Listing.
 
 ## P2 – Bulk Read/Bulk Write
@@ -156,7 +156,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ Einfachen API-Client (nur Volltextsuche) verdrahten.
-2. /NOT DONE/ Search-Button + Async-Loading im ToolWindow implementieren.
-3. /NOT DONE/ Ergebnisliste mit Metadaten + Double-Click-Open vorbereiten.
-4. /NOT DONE/ Open-in-SSMS Editor (readonly/edit) und lokales Datei-Mapping.
+1. /InProgress/ Double-Click auf Suchtreffer: Script-Detail laden und in SSMS-Editor öffnen.
+2. /NOT DONE/ Lokales Datei-Mapping (`scriptId` ↔ Pfad) + Workspace-Index implementieren.
+3. /NOT DONE/ Persistente Settings (Dialog/Options Page) statt reiner Environment-Variablen ergänzen.
+4. /NOT DONE/ Folder Search + Bulk Read in das ToolWindow integrieren.
