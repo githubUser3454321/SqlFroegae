@@ -39,7 +39,7 @@ public sealed class FolderScopeSqlTests
     public void BuildFolderScopeCte_ContainsRecursiveJoin()
     {
         var cte = FolderScopeSql.BuildFolderScopeCte();
-        Assert.Contains("INNER JOIN folder_scope parent ON child.ParentId = parent.Id", cte);
+        Assert.Contains("INNER JOIN folder_scope parent ON parent.ParentId = child.Id", cte);
     }
 
     [Fact]
