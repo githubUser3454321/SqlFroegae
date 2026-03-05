@@ -27,4 +27,9 @@ public static class FolderScopeSql
         => folderMustMatchExactly
             ? $"{alias}.FolderId = @folderId"
             : $"{alias}.FolderId IS NOT NULL AND {alias}.FolderId IN (SELECT Id FROM folder_scope)";
+
+    public static string BuildPagingClause(bool useFolderScopeCte)
+        => useFolderScopeCte
+            ? "OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY OPTION (MAXRECURSION 32767);"
+            : "OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;";
 }

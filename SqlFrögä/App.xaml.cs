@@ -173,6 +173,8 @@ public partial class App : Microsoft.UI.Xaml.Application
             cfg.ModulesTable = sqlOptions.ModulesTable;
             cfg.JoinCustomers = sqlOptions.JoinCustomers;
             cfg.EnableSoftDelete = sqlOptions.EnableSoftDelete;
+            cfg.SqlDebugger = sqlOptions.SqlDebugger;
+            cfg.SqlDebuggerPathFilename = sqlOptions.SqlDebuggerPathFilename;
         });
 
         services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();

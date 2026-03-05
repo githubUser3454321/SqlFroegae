@@ -27,6 +27,25 @@ internal static class IniSqlServerOptionsLoader
             throw new InvalidDataException("Der Schlüssel 'ConnectionString' fehlt oder ist leer (Sektion [SqlServer]).");
         }
 
+        var sqlDebugger = GetBool(values, "SQLDEBUGGER", false);
+        var sqlDebuggerPath = GetNullableString(values, "SQLDEBUGGER_PATH_FILENAME");
+        if (sqlDebugger)
+        {
+            if (string.IsNullOrWhiteSpace(sqlDebuggerPath))
+                throw new InvalidDataException("Der Schlüssel 'SQLDEBUGGER_PATH_FILENAME' muss gesetzt sein, wenn 'SQLDEBUGGER=true' ist.");
+
+            if (!Path.IsPathRooted(sqlDebuggerPath))
+                throw new InvalidDataException("'SQLDEBUGGER_PATH_FILENAME' muss ein voller (absoluter) Dateipfad sein.");
+
+            var directory = Path.GetDirectoryName(sqlDebuggerPath);
+            if (string.IsNullOrWhiteSpace(directory))
+                throw new InvalidDataException("'SQLDEBUGGER_PATH_FILENAME' enthält kein gültiges Verzeichnis.");
+
+            Directory.CreateDirectory(directory);
+            if (!File.Exists(sqlDebuggerPath))
+                using (File.Create(sqlDebuggerPath)) { }
+        }
+
         return new SqlServerOptions
         {
             ConnectionString = connectionString,
@@ -36,7 +55,9 @@ internal static class IniSqlServerOptionsLoader
             ModulesTable = GetString(values, "ModulesTable", "dbo.Modules"),
             UseFullTextSearch = GetBool(values, "UseFullTextSearch", false),
             JoinCustomers = GetBool(values, "JoinCustomers", true),
-            EnableSoftDelete = GetBool(values, "EnableSoftDelete", true)
+            EnableSoftDelete = GetBool(values, "EnableSoftDelete", true),
+            SqlDebugger = sqlDebugger,
+            SqlDebuggerPathFilename = sqlDebuggerPath
         };
     }
 
@@ -86,6 +107,11 @@ internal static class IniSqlServerOptionsLoader
             ? value
             : fallback;
     }
+
+    private static string? GetNullableString(Dictionary<string, string> values, string key)
+        => values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
 
     private static bool GetBool(Dictionary<string, string> values, string key, bool fallback)
     {
