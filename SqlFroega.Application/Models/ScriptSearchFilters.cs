@@ -16,5 +16,6 @@ public sealed record ScriptSearchFilters(
     Guid? FolderId = null,
     Guid? CollectionId = null,
     bool IncludeDeleted = false,
-    bool SearchHistory = false
+    bool SearchHistory = false,
+    bool FolderMustMatchExactly = false
 );

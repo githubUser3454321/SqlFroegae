@@ -63,6 +63,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             ObjectFilterText: ObjectsBox.Text,
             IncludeDeleted: IncludeDeletedBox.IsChecked == true,
             SearchInHistory: SearchHistoryBox.IsChecked == true,
+            FolderMustMatchExactly: ExactFolderMatchBox.IsChecked == true,
             FolderId: _folderPickerSelectionId,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
@@ -87,6 +88,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = definition.ReferencedObjects ?? string.Empty;
         IncludeDeletedBox.IsChecked = definition.IncludeDeleted;
         SearchHistoryBox.IsChecked = definition.SearchInHistory;
+        ExactFolderMatchBox.IsChecked = definition.FolderMustMatchExactly;
 
         _folderPickerSelectionId = definition.FolderId;
         UpdateSelectedFolderText();
@@ -104,6 +106,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
             ReferencedObjects: ObjectsBox.Text,
             IncludeDeleted: IncludeDeletedBox.IsChecked == true,
             SearchInHistory: SearchHistoryBox.IsChecked == true,
+            FolderMustMatchExactly: ExactFolderMatchBox.IsChecked == true,
             FolderId: _folderPickerSelectionId,
             CollectionId: (CollectionCombo.SelectedItem as ScriptCollection)?.Id);
 
@@ -118,6 +121,7 @@ public sealed partial class SpotlightQueryStudioView : UserControl
         ObjectsBox.Text = string.Empty;
         IncludeDeletedBox.IsChecked = false;
         SearchHistoryBox.IsChecked = false;
+        ExactFolderMatchBox.IsChecked = false;
         _folderPickerSelectionId = null;
         UpdateSelectedFolderText();
         CollectionCombo.SelectedItem = null;
@@ -394,5 +398,6 @@ public sealed record SpotlightProfileDefinition(
     string? ReferencedObjects,
     bool IncludeDeleted,
     bool SearchInHistory,
+    bool FolderMustMatchExactly,
     Guid? FolderId,
     Guid? CollectionId);

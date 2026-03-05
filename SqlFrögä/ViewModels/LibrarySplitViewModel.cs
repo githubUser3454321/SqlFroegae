@@ -528,6 +528,7 @@ public partial class LibrarySplitViewModel : ObservableObject
                     group.ObjectFilterText,
                     group.IncludeDeleted,
                     group.SearchInHistory,
+                    group.FolderMustMatchExactly,
                     group.FolderId,
                     group.CollectionId,
                     customerId);
@@ -692,6 +693,7 @@ public partial class LibrarySplitViewModel : ObservableObject
             ObjectFilterText,
             IncludeDeleted,
             SearchInHistory,
+            folderMustMatchExactly: false,
             SelectedFolder?.Id,
             SelectedCollection?.Id,
             customerId);
@@ -731,6 +733,7 @@ public partial class LibrarySplitViewModel : ObservableObject
         string? objectFilterText,
         bool includeDeleted,
         bool searchInHistory,
+        bool folderMustMatchExactly,
         Guid? selectedFolderId,
         Guid? selectedCollectionId,
         Guid? customerId)
@@ -758,7 +761,8 @@ public partial class LibrarySplitViewModel : ObservableObject
             FolderId: selectedFolderId,
             CollectionId: selectedCollectionId,
             IncludeDeleted: includeDeleted,
-            SearchHistory: searchInHistory);
+            SearchHistory: searchInHistory,
+            FolderMustMatchExactly: folderMustMatchExactly);
     }
 
     private static IReadOnlyList<ScriptListItem> CombineSpotlightGroups(IReadOnlyList<IReadOnlyList<ScriptListItem>> groupedResults, bool combineWithAnd)
@@ -843,5 +847,6 @@ public sealed record SpotlightFilterGroup(
     string? ObjectFilterText,
     bool IncludeDeleted,
     bool SearchInHistory,
+    bool FolderMustMatchExactly,
     Guid? FolderId,
     Guid? CollectionId);
