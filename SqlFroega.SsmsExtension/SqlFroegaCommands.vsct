@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+
+  <Commands package="guidSqlFroegaPackage">
+    <Groups>
+      <Group guid="guidSqlFroegaCommandSet" id="SqlFroegaMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidSqlFroegaCommandSet" id="cmdidOpenSearchWindow" priority="0x0100" type="Button">
+        <Parent guid="guidSqlFroegaCommandSet" id="SqlFroegaMenuGroup" />
+        <Strings>
+          <ButtonText>SqlFroega Search</ButtonText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="guidSqlFroegaPackage" value="{7f5953d2-8d73-4ad4-8fb0-ca1876f4a905}" />
+
+    <GuidSymbol name="guidSqlFroegaCommandSet" value="{33bf928f-7b84-4f47-9764-ec2ec44f80c6}">
+      <IDSymbol name="SqlFroegaMenuGroup" value="0x1020" />
+      <IDSymbol name="cmdidOpenSearchWindow" value="0x0100" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

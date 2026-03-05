@@ -81,9 +81,9 @@
 - /DONE/ Initiales Projektfile `SqlFroega.SsmsExtension.csproj` angelegt (net472 + VS SDK BuildTools Referenzen).
 - /DONE/ `ExtensionPackage.cs` (Bootstrap `AsyncPackage`) angelegt.
 - /DONE/ `README.md` mit Next Steps angelegt.
-- /NOT DONE/ In `SqlFrögä.slnx` aufgenommen.
-- /NOT DONE/ VSIX Manifest (`source.extension.vsixmanifest`) angelegt.
-- /NOT DONE/ Command-Definition (`.vsct`) und erstes Menü/Command angelegt.
+- /DONE/ In `SqlFrögä.slnx` aufgenommen.
+- /DONE/ VSIX Manifest (`source.extension.vsixmanifest`) angelegt.
+- /DONE/ Command-Definition (`.vsct`) und erstes Menü/Command angelegt.
 
 ---
 
@@ -129,7 +129,7 @@
 - /NOT DONE/ Workspace-Index (`workspace-index.json`) implementieren.
 
 ## P1 – Suche
-- /NOT DONE/ ToolWindow für Volltextsuche.
+- /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
 - /NOT DONE/ Treffer-Rendering und Single-Open.
 - /NOT DONE/ Folder Browser + Folder-Script-Listing.
 
@@ -156,8 +156,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ VSIX-Manifest + erstes Menü-Command für „SqlFroega Search“ hinzufügen.
-2. /InProgress/ Einfachen API-Client (nur Volltextsuche) verdrahten.
-3. /NOT DONE/ Erstes ToolWindow mit Search Box + Ergebnisliste.
+1. /InProgress/ Einfachen API-Client (nur Volltextsuche) verdrahten.
+2. /NOT DONE/ Search-Button + Async-Loading im ToolWindow implementieren.
+3. /NOT DONE/ Ergebnisliste mit Metadaten + Double-Click-Open vorbereiten.
 4. /NOT DONE/ Open-in-SSMS Editor (readonly/edit) und lokales Datei-Mapping.
-

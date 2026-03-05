@@ -1,19 +1,15 @@
-# SqlFroega.SsmsExtension (Initial Setup)
+# SqlFroega.SsmsExtension (Bootstrap + erster UI-Flow)
 
-Dieses Verzeichnis ist ein initiales Bootstrap für eine SSMS/VSIX-Extension.
+Dieses Verzeichnis enthält jetzt ein lauffähiges SSMS/VSIX-Grundgerüst mit erstem Command und ToolWindow.
 
-## Ziel im ersten Schritt
-- VSIX-fähiges C#-Projekt mit `AsyncPackage` bereitstellen.
-- Platzhalter für Commands/ToolWindows/API-Integration schaffen.
-- Implementierungsschritte zentral in `Docs/SSMS/Status.md` tracken.
+## Bereits umgesetzt
+- VSIX-Manifest (`source.extension.vsixmanifest`) ist vorhanden.
+- CommandTable (`SqlFroegaCommands.vsct`) registriert den Menüpunkt **Tools → SqlFroega Search**.
+- `AsyncPackage` initialisiert den Command beim Laden.
+- `SearchToolWindow` + einfache WPF-UI als Platzhalter für die Volltextsuche.
 
 ## Nächste technische Schritte
-1. VSIX-Manifest (`source.extension.vsixmanifest`) anlegen.
-2. CommandTable (`.vsct`) ergänzen und Such-Command integrieren.
-3. API-Client gegen `SqlFroega.Api` für:
-   - Full-Text-Suche
-   - Folder-Search
-   - Bulk-Read
-   - Bulk-Write
-4. Workspace-Manager (lokale Dateien + Index) implementieren.
-5. Save-Intercept + Pflichtfeld „Änderungsgrund“ implementieren.
+1. API-Client gegen `SqlFroega.Api` für Volltextsuche verdrahten.
+2. Trefferliste im ToolWindow mit echten Daten/Metadaten füllen.
+3. Öffnen eines Treffers in SSMS-Editor (readonly/edit) implementieren.
+4. Settings (API URL, Auth, CustomerShortcode) nachziehen.
