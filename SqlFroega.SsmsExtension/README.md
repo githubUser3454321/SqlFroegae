@@ -1,6 +1,6 @@
 # SqlFroega.SsmsExtension (Search + Open-Flow)
 
-Dieses Verzeichnis enthält ein SSMS/VSIX-Grundgerüst mit Search-Flow und erstem Open-in-Editor-Pfad.
+Dieses Verzeichnis enthält ein SSMS/VSIX-Grundgerüst mit Search-Flow und Open-in-Editor-Pfad.
 
 ## Bereits umgesetzt
 - VSIX-Manifest (`source.extension.vsixmanifest`) ist vorhanden.
@@ -8,7 +8,7 @@ Dieses Verzeichnis enthält ein SSMS/VSIX-Grundgerüst mit Search-Flow und erste
 - `AsyncPackage` initialisiert den Command beim Laden.
 - `SearchToolWindow` + WPF-UI mit Suchfeld, Such-Button, Ergebnisliste und Open-Aktion.
 - `SqlFroegaApiClient` unterstützt Login, Volltextsuche und Script-Detail-Load.
-- `WorkspaceManager` speichert geöffnete Skripte lokal und pflegt `workspace-index.json`.
+- `WorkspaceManager` speichert geöffnete Skripte lokal, setzt readonly/edit Dateiattribute und pflegt `workspace-index.json` mit `scriptId`, `numberId`, `localPath`, `lastOpenedUtc`, `lastSyncedUtc`, `openMode`.
 - Double-Click oder Open-Button lädt Script-Detail und öffnet die lokale Datei im Host-Editor.
 
 ## Runtime-Settings via Umgebungsvariablen
@@ -17,9 +17,10 @@ Dieses Verzeichnis enthält ein SSMS/VSIX-Grundgerüst mit Search-Flow und erste
 - `SQLFROEGA_PASSWORD`
 - `SQLFROEGA_TENANT_CONTEXT`
 - `SQLFROEGA_SEARCH_TAKE`
+- `SQLFROEGA_WORKSPACE_ROOT`
 
 ## Nächste technische Schritte
-1. Open-Modus sauber trennen (readonly/edit inkl. Änderungsüberwachung).
-2. Save-Intercept und Pflichtfeld `changeReason` ergänzen.
+1. Save-Intercept und Pflichtfeld `changeReason` ergänzen.
+2. Workspace-Index um Version/ETag für Konflikterkennung erweitern.
 3. Folder Search + Bulk Read auf ToolWindow-Ebene integrieren.
 4. Persistente Settings-UI statt reiner Environment-Konfiguration ergänzen.

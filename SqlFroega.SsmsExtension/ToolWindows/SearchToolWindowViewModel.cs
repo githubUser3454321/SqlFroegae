@@ -131,7 +131,7 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task<string> OpenSelectedAsync(SearchResultItem selected, bool openReadonly, CancellationToken ct)
+    public async Task<WorkspaceOpenResult> OpenSelectedAsync(SearchResultItem selected, bool openReadonly, CancellationToken ct)
     {
         ErrorMessage = null;
         IsLoading = true;
@@ -140,9 +140,9 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         try
         {
             var detail = await _apiClient.GetScriptDetailAsync(selected.Id, ct);
-            var path = _workspaceManager.SaveScript(detail, openReadonly);
-            StatusMessage = $"Script gespeichert: {path}";
-            return path;
+            var openResult = _workspaceManager.SaveScript(detail, openReadonly);
+            StatusMessage = $"{selected.Name} geöffnet ({openResult.OpenMode}) → {openResult.LocalPath}";
+            return openResult;
         }
         catch (Exception ex)
         {

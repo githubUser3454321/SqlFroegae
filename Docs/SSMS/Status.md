@@ -92,8 +92,8 @@
 ### UC-01: Volltextsuche und einzelnes Script öffnen
 - /InProgress/ User gibt Suchtext ein.
 - /InProgress/ Trefferliste mit Metadaten (Name, Scope, Modul, Beschreibung) im ToolWindow.
-- /InProgress/ „Open Readonly“ oder „Open Edit“ (Readonly-Flag + Open-Button/DoubleClick vorhanden).
-- /InProgress/ Lokale Datei wird erzeugt (Workspace) und in Host-Editor geöffnet.
+- /DONE/ „Open Readonly“ oder „Open Edit“ (Readonly/Edit-Modus setzt Datei-Attribute und Open-Flow).
+- /DONE/ Lokale Datei wird erzeugt (Workspace) und in Host-Editor geöffnet.
 
 ### UC-02: Folder Search und Bulk Read
 - /InProgress/ User wählt Folder.
@@ -126,7 +126,7 @@
 - /DONE/ Initiales SSMS-Extension-Projekt erstellt.
 - /DONE/ VSIX Manifest ergänzt.
 - /InProgress/ Settings (API URL/Auth via Environment Variablen) implementieren.
-- /InProgress/ Workspace-Index (`workspace-index.json`) implementiert (Basis-Mapping beim Öffnen).
+- /DONE/ Workspace-Index (`workspace-index.json`) implementiert (Mapping + OpenMode + LastSynced beim Öffnen).
 
 ## P1 – Suche
 - /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
@@ -156,7 +156,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ Open-Modus finalisieren: echtes readonly/edit-Verhalten + Editor-State-Tracking.
-2. /InProgress/ Workspace-Index erweitern (Version, LastSynced, Konfliktinfos) und robustes Remapping.
-3. /NOT DONE/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
-4. /NOT DONE/ Folder Search + Bulk Read in das ToolWindow integrieren.
+1. /InProgress/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
+2. /InProgress/ Workspace-Index um Version/ETag ergänzen und Konflikterkennung vorbereiten.
+3. /NOT DONE/ Folder Search + Bulk Read in das ToolWindow integrieren.
+4. /NOT DONE/ Persistente Settings (Options Page/Dialog) statt reiner Environment-Variablen ergänzen.

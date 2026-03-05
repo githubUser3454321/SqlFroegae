@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SqlFroega.SsmsExtension;
@@ -23,4 +24,11 @@ internal sealed record ScriptListItem(
 internal sealed record ScriptDetail(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("name")] string Name,
-    [property: JsonPropertyName("content")] string Content);
+    [property: JsonPropertyName("numberId")] int NumberId,
+    [property: JsonPropertyName("content")] string Content,
+    [property: JsonPropertyName("scopeLabel")] string ScopeLabel,
+    [property: JsonPropertyName("mainModule")] string? MainModule,
+    [property: JsonPropertyName("relatedModules")] IReadOnlyList<string>? RelatedModules,
+    [property: JsonPropertyName("folderId")] Guid? FolderId,
+    [property: JsonPropertyName("description")] string? Description,
+    [property: JsonPropertyName("tags")] IReadOnlyList<string>? Tags);

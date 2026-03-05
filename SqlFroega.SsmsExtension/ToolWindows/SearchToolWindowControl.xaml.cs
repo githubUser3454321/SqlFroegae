@@ -26,7 +26,7 @@ public partial class SearchToolWindowControl : UserControl
         };
 
         var apiClient = new SqlFroegaApiClient(httpClient, settings);
-        var workspaceManager = new WorkspaceManager();
+        var workspaceManager = new WorkspaceManager(settings);
         _viewModel = new SearchToolWindowViewModel(apiClient, workspaceManager);
         DataContext = _viewModel;
     }
@@ -68,7 +68,8 @@ public partial class SearchToolWindowControl : UserControl
 
         try
         {
-            var path = await _viewModel.OpenSelectedAsync(selected, ReadonlyCheckBox.IsChecked ?? true, _searchCts.Token);
+            var openResult = await _viewModel.OpenSelectedAsync(selected, ReadonlyCheckBox.IsChecked ?? true, _searchCts.Token);
+            var path = openResult.LocalPath;
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
 
             var dte = Package.GetGlobalService(typeof(SDTE)) as DTE;

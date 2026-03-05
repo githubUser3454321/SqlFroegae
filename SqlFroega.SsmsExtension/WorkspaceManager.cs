@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -14,30 +13,72 @@ internal sealed class WorkspaceManager
     private readonly string _workspaceRoot;
     private readonly string _indexPath;
 
-    public WorkspaceManager()
+    public WorkspaceManager(SsmsExtensionSettings settings)
     {
-        _workspaceRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlFroega", "SsmsWorkspace");
+        _workspaceRoot = settings.WorkspaceRoot;
         _indexPath = Path.Combine(_workspaceRoot, "workspace-index.json");
         Directory.CreateDirectory(_workspaceRoot);
     }
 
-    public string SaveScript(ScriptDetail detail, bool openReadonly)
+    public WorkspaceOpenResult SaveScript(ScriptDetail detail, bool openReadonly)
     {
+        var index = LoadIndex();
+        var existingEntry = index.TryGetValue(detail.Id, out var found) ? found : null;
+
+        var filePath = ResolveFilePath(detail, existingEntry);
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+
+        File.WriteAllText(filePath, detail.Content);
+        ApplyReadonlyAttribute(filePath, openReadonly);
+
+        var now = DateTimeOffset.UtcNow;
+        index[detail.Id] = new WorkspaceIndexEntry(
+            ScriptId: detail.Id,
+            NumberId: detail.NumberId,
+            Name: detail.Name,
+            LocalPath: filePath,
+            LastOpenedUtc: now,
+            LastSyncedUtc: now,
+            OpenMode: openReadonly ? "readonly" : "edit");
+
+        SaveIndex(index);
+        return new WorkspaceOpenResult(filePath, openReadonly ? "readonly" : "edit", now, index.Count);
+    }
+
+    private string ResolveFilePath(ScriptDetail detail, WorkspaceIndexEntry? existingEntry)
+    {
+        if (existingEntry is not null && !string.IsNullOrWhiteSpace(existingEntry.LocalPath))
+        {
+            var existing = existingEntry.LocalPath;
+            if (File.Exists(existing) || !Path.IsPathRooted(existing))
+            {
+                return Path.IsPathRooted(existing) ? existing : Path.GetFullPath(Path.Combine(_workspaceRoot, existing));
+            }
+        }
+
         var safeName = Regex.Replace(detail.Name, "[^a-zA-Z0-9_-]", "_");
         var fileName = $"{safeName}_{detail.Id:N}.sql";
-        var filePath = Path.Combine(_workspaceRoot, fileName);
+        return Path.Combine(_workspaceRoot, fileName);
+    }
 
-        var content = openReadonly
-            ? $"-- Opened as readonly snapshot at {DateTimeOffset.UtcNow:u}{Environment.NewLine}{detail.Content}"
-            : detail.Content;
+    private static void ApplyReadonlyAttribute(string filePath, bool openReadonly)
+    {
+        var attributes = File.GetAttributes(filePath);
 
-        File.WriteAllText(filePath, content);
+        if (openReadonly)
+        {
+            if ((attributes & FileAttributes.ReadOnly) == 0)
+            {
+                File.SetAttributes(filePath, attributes | FileAttributes.ReadOnly);
+            }
 
-        var index = LoadIndex();
-        index[detail.Id] = new WorkspaceIndexEntry(filePath, DateTimeOffset.UtcNow);
-        File.WriteAllText(_indexPath, JsonSerializer.Serialize(index, JsonOptions));
+            return;
+        }
 
-        return filePath;
+        if ((attributes & FileAttributes.ReadOnly) != 0)
+        {
+            File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
+        }
     }
 
     private Dictionary<Guid, WorkspaceIndexEntry> LoadIndex()
@@ -52,5 +93,23 @@ internal sealed class WorkspaceManager
         return parsed ?? new Dictionary<Guid, WorkspaceIndexEntry>();
     }
 
-    private sealed record WorkspaceIndexEntry(string Path, DateTimeOffset LastOpenedUtc);
+    private void SaveIndex(Dictionary<Guid, WorkspaceIndexEntry> index)
+    {
+        File.WriteAllText(_indexPath, JsonSerializer.Serialize(index, JsonOptions));
+    }
 }
+
+internal sealed record WorkspaceOpenResult(
+    string LocalPath,
+    string OpenMode,
+    DateTimeOffset LastOpenedUtc,
+    int IndexedScriptCount);
+
+internal sealed record WorkspaceIndexEntry(
+    Guid ScriptId,
+    int NumberId,
+    string Name,
+    string LocalPath,
+    DateTimeOffset LastOpenedUtc,
+    DateTimeOffset LastSyncedUtc,
+    string OpenMode);
