@@ -20,7 +20,7 @@ public static class FolderScopeSql
            + "    UNION ALL\n"
            + "    SELECT child.Id\n"
            + "    FROM dbo.ScriptFolders child\n"
-           + "    INNER JOIN folder_scope parent ON parent.ParentId = child.Id\n"
+           + "    INNER JOIN folder_scope parent ON child.ParentId = parent.Id\n"
            + ")";
 
     public static string BuildFolderPredicate(string alias, bool folderMustMatchExactly)
