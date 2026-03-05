@@ -152,9 +152,7 @@ public sealed class ScriptRepository : IScriptRepository
         AppendReferencedObjectFilters(sb, p, ResolveReferencedObjectFilters(filters), "", "s");
 
         sb.AppendLine("ORDER BY s.Name ASC");
-        sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
-        if (useFolderScopeCte)
-            sb.AppendLine("OPTION (MAXRECURSION 32767);");
+        sb.AppendLine(FolderScopeSql.BuildPagingClause(useFolderScopeCte));
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
@@ -324,9 +322,7 @@ public sealed class ScriptRepository : IScriptRepository
         if (!filters.IncludeDeleted)
             sb.AppendLine("  AND vr.ValidTo >= @openEndedValidTo");
         sb.AppendLine("ORDER BY vr.Name ASC");
-        sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
-        if (useFolderScopeCte)
-            sb.AppendLine("OPTION (MAXRECURSION 32767);");
+        sb.AppendLine(FolderScopeSql.BuildPagingClause(useFolderScopeCte));
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);

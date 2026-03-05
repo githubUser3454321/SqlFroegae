@@ -15,6 +15,8 @@ public sealed class SqlConnectionFactory : ISqlConnectionFactory
         _options = options.Value;
         if (string.IsNullOrWhiteSpace(_options.ConnectionString))
             throw new ArgumentException("SqlServerOptions.ConnectionString is required.");
+
+        SqlCommandDebugging.Initialize(_options);
     }
 
     public async Task<SqlConnection> OpenAsync(CancellationToken ct = default)

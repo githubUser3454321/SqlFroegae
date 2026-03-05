@@ -111,6 +111,24 @@ public sealed class FolderScopeSqlTests
         Assert.DoesNotContain("folder_scope", predicate);
     }
 
+    [Fact]
+    public void BuildPagingClause_WithFolderScopeCte_UsesSingleStatementOptionClause()
+    {
+        var clause = FolderScopeSql.BuildPagingClause(useFolderScopeCte: true);
+
+        Assert.Contains("FETCH NEXT @take ROWS ONLY OPTION (MAXRECURSION 32767);", clause);
+        Assert.DoesNotContain("ONLY; OPTION", clause, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildPagingClause_WithoutFolderScopeCte_DoesNotContainOptionHint()
+    {
+        var clause = FolderScopeSql.BuildPagingClause(useFolderScopeCte: false);
+
+        Assert.Equal("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;", clause);
+        Assert.DoesNotContain("MAXRECURSION", clause, StringComparison.Ordinal);
+    }
+
     private static ScriptSearchFilters CreateFilters(Guid? folderId, bool exact)
         => new(
             Scope: null,
