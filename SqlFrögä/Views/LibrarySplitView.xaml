@@ -169,21 +169,6 @@
                                               IsChecked="{Binding SearchInHistory, Mode=TwoWay}"/>
 
                                     <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Spacing="8">
-                                        <ToggleSwitch Header="Display Folder Structure"
-                                                      IsOn="{Binding DisplayFolderStructure, Mode=TwoWay}"/>
-
-                                        <StackPanel Spacing="8"
-                                                    Visibility="{Binding DisplayFolderStructure, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <ComboBox Header="Ordnerfilter"
-                                                      ItemsSource="{Binding AvailableFolders}"
-                                                      SelectedItem="{Binding SelectedFolder, Mode=TwoWay}"
-                                                      DisplayMemberPath="DisplayName"
-                                                      PlaceholderText="Alle Ordner"/>
-                                            <Button Content="Ordnerfilter zurücksetzen"
-                                                    Command="{Binding ClearFolderCommand}"
-                                                    HorizontalAlignment="Left"/>
-                                        </StackPanel>
-
                                         <ComboBox Header="Collection-Filter"
                                                   ItemsSource="{Binding AvailableCollections}"
                                                   SelectedItem="{Binding SelectedCollection, Mode=TwoWay}"
