@@ -51,7 +51,14 @@ public sealed class ScriptRepository : IScriptRepository
         if (temporalInfo is not null)
             return await SearchFromTemporalAsync(queryText, filters, temporalInfo.Value, p, ct);
 
+        var useFolderScopeCte = FolderScopeSql.ShouldUseFolderScopeCte(filters);
+
         var sb = new StringBuilder();
+        if (useFolderScopeCte)
+        {
+            sb.AppendLine(";WITH " + FolderScopeSql.BuildFolderScopeCte());
+        }
+
         sb.AppendLine("SELECT");
         sb.AppendLine("  s.Id,");
         sb.AppendLine("  s.Name,");
@@ -90,7 +97,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (filters.FolderId is not null)
         {
-            sb.AppendLine("AND s.FolderId = @folderId");
+            sb.AppendLine($"AND {FolderScopeSql.BuildFolderPredicate("s", filters.FolderMustMatchExactly)}");
             p.Add("@folderId", filters.FolderId.Value);
         }
 
@@ -144,6 +151,8 @@ public sealed class ScriptRepository : IScriptRepository
 
         sb.AppendLine("ORDER BY s.Name ASC");
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
+        if (useFolderScopeCte)
+            sb.AppendLine("OPTION (MAXRECURSION 32767);");
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);
@@ -181,8 +190,12 @@ public sealed class ScriptRepository : IScriptRepository
 
         p.Add("@openEndedValidTo", DateTime.MaxValue);
 
+        var useFolderScopeCte = FolderScopeSql.ShouldUseFolderScopeCte(filters);
+
         var sb = new StringBuilder();
-        sb.AppendLine("WITH version_rows AS (");
+        sb.AppendLine(useFolderScopeCte
+            ? "WITH " + FolderScopeSql.BuildFolderScopeCte() + ", version_rows AS ("
+            : "WITH version_rows AS (");
         sb.AppendLine("    SELECT");
         sb.AppendLine("      s.Id,");
         sb.AppendLine("      s.Name,");
@@ -215,7 +228,7 @@ public sealed class ScriptRepository : IScriptRepository
 
         if (filters.FolderId is not null)
         {
-            sb.AppendLine("      AND s.FolderId = @folderId");
+            sb.AppendLine($"      AND {FolderScopeSql.BuildFolderPredicate("s", filters.FolderMustMatchExactly)}");
             p.Add("@folderId", filters.FolderId.Value);
         }
 
@@ -309,6 +322,8 @@ public sealed class ScriptRepository : IScriptRepository
             sb.AppendLine("  AND vr.ValidTo >= @openEndedValidTo");
         sb.AppendLine("ORDER BY vr.Name ASC");
         sb.AppendLine("OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY;");
+        if (useFolderScopeCte)
+            sb.AppendLine("OPTION (MAXRECURSION 32767);");
 
         await using var conn = await _connFactory.OpenAsync(ct);
         await EnsureModuleSchemaAsync(conn, ct);

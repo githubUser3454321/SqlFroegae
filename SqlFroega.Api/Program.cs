@@ -223,7 +223,8 @@ api.MapGet("/scripts", async (
         query.FolderId,
         query.CollectionId,
         query.IncludeDeleted,
-        query.SearchHistory);
+        query.SearchHistory,
+        query.FolderMustMatchExactly);
 
     var scripts = await scriptRepository.SearchAsync(query.Query, filters, query.Take, query.Skip, ct);
     return Results.Ok(scripts);
@@ -258,7 +259,8 @@ api.MapPost("/scripts/spotlight-search", async (
             group.FolderId,
             group.CollectionId,
             group.IncludeDeleted,
-            group.SearchHistory);
+            group.SearchHistory,
+            group.FolderMustMatchExactly);
 
         var rows = await scriptRepository.SearchAsync(group.Query, filters, 500, 0, ct);
         groupResults.Add(rows);
@@ -824,6 +826,7 @@ internal sealed record ScriptSearchQuery(
     Guid? CollectionId,
     bool IncludeDeleted = false,
     bool SearchHistory = false,
+    bool FolderMustMatchExactly = false,
     int Take = 200,
     int Skip = 0);
 
@@ -847,7 +850,8 @@ internal sealed record SpotlightRuleGroupRequest(
     Guid? FolderId,
     Guid? CollectionId,
     bool IncludeDeleted = false,
-    bool SearchHistory = false);
+    bool SearchHistory = false,
+    bool FolderMustMatchExactly = false);
 
 internal sealed record UpsertScriptRequest(
     Guid? Id,
