@@ -33,6 +33,11 @@ internal sealed record ScriptDetail(
     [property: JsonPropertyName("description")] string? Description,
     [property: JsonPropertyName("tags")] IReadOnlyList<string>? Tags);
 
+
+internal sealed record ScriptDetailResponse(
+    ScriptDetail Detail,
+    string? VersionToken);
+
 internal sealed record ScriptFolderTreeNode(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("name")] string Name,

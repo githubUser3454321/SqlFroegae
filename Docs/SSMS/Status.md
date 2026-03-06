@@ -98,7 +98,7 @@
 ### UC-02: Folder Search und Bulk Read
 - /DONE/ User wählt Folder (Dropdown aus `/folders/tree`).
 - /DONE/ Extension lädt Script-IDs aus Folder via `folderId`-Filter.
-- /InProgress/ Bulk Read lädt Inhalte sequentiell (Detail-Load pro Script); Batching noch offen.
+- /DONE/ Bulk Read lädt Inhalte in konfigurierbaren Batches (parallel pro Batch) und sammelt Teilfehler ohne Komplettabbruch.
 - /InProgress/ Alle Dateien werden per „Alle öffnen“/Bulk Read im Host geöffnet (DTE; Fallback Shell).
 
 ### UC-03: Editieren und Bulk Write
@@ -127,6 +127,7 @@
 - /DONE/ VSIX Manifest ergänzt.
 - /InProgress/ Settings (API URL/Auth via Environment Variablen) implementieren.
 - /DONE/ Workspace-Index (`workspace-index.json`) implementiert (Mapping + OpenMode + LastSynced beim Öffnen).
+- /DONE/ Workspace-Index um `versionToken` (ETag), Content-Hashes und Marker `hasUnsyncedLocalChanges` erweitert (Konflikterkennung vorbereitet).
 
 ## P1 – Suche
 - /DONE/ ToolWindow für Volltextsuche (UI-Placeholder) angelegt.
@@ -134,13 +135,13 @@
 - /DONE/ Folder Browser (Tree-Flat-List) + Folder-Script-Listing.
 
 ## P2 – Bulk Read/Bulk Write
-- /InProgress/ Bulk Read ohne Batching implementiert; Fehlerstrategie/Batching folgt.
+- /DONE/ Bulk Read mit Batching (`SQLFROEGA_BULKREAD_BATCHSIZE`) und Partial-Failure Handling umgesetzt.
 - /NOT DONE/ Bulk Write inkl. `changeReason` Pflicht.
 - /NOT DONE/ Partial-Failure Handling (einige Saves fehlgeschlagen).
 
 ## P3 – Qualität & Betrieb
 - /NOT DONE/ Logging/Telemetry.
-- /NOT DONE/ Retry/Timeout/Circuit-Breaker Verhalten.
+- /DONE/ Retry/Timeout/Circuit-Breaker Verhalten (konfigurierbar via Environment Variablen) im API-Client umgesetzt.
 - /NOT DONE/ Paketierung + Installationsleitfaden + Rollout.
 
 ---
@@ -156,7 +157,7 @@
 
 ## 9) Nächster Schritt (direkt umsetzbar)
 
-1. /InProgress/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen.
-2. /InProgress/ Workspace-Index um Version/ETag ergänzen und Konflikterkennung vorbereiten.
-3. /InProgress/ Bulk Read optimieren: Batching + Partial-Failure Handling ergänzen.
-4. /NOT DONE/ Persistente Settings (Options Page/Dialog) statt reiner Environment-Variablen ergänzen.
+1. /InProgress/ Save-Intercept inkl. Pflichtfeld `changeReason` und Konflikt-Dialog umsetzen (jetzt auf Basis von `versionToken` + `hasUnsyncedLocalChanges`).
+2. /NOT DONE/ Persistente Settings (Options Page/Dialog) statt reiner Environment-Variablen ergänzen.
+3. /NOT DONE/ Logging/Telemetry für Bulk-Operationen + Retry/Circuit-Breaker-Ereignisse ergänzen.
+4. /NOT DONE/ Serverseitige Concurrency (`If-Match`/409-Flow) im API-Vertrag für Bulk Write finalisieren.
