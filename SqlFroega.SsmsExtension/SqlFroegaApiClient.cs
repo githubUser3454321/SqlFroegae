@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -15,7 +16,10 @@ internal sealed class SqlFroegaApiClient
 
     private readonly HttpClient _httpClient;
     private readonly SsmsExtensionSettings _settings;
+    private readonly object _circuitGate = new();
     private string? _accessToken;
+    private int _consecutiveFailures;
+    private DateTimeOffset _circuitOpenUntilUtc;
 
     public SqlFroegaApiClient(HttpClient httpClient, SsmsExtensionSettings settings)
     {
@@ -28,8 +32,7 @@ internal sealed class SqlFroegaApiClient
         await EnsureLoginAsync(ct);
         var uri = $"/api/v1/scripts?query={Uri.EscapeDataString(query)}&take={_settings.SearchTake}";
 
-        using var request = CreateAuthenticatedRequest(HttpMethod.Get, uri);
-        return await SendAndDeserializeListAsync<ScriptListItem>(request, ct);
+        return await SendAndDeserializeListAsync<ScriptListItem>(() => CreateAuthenticatedRequest(HttpMethod.Get, uri), ct);
     }
 
     public async Task<IReadOnlyList<ScriptListItem>> GetScriptsByFolderAsync(Guid folderId, CancellationToken ct)
@@ -37,39 +40,160 @@ internal sealed class SqlFroegaApiClient
         await EnsureLoginAsync(ct);
         var uri = $"/api/v1/scripts?folderId={folderId:D}&folderMustMatchExactly=true&take=500";
 
-        using var request = CreateAuthenticatedRequest(HttpMethod.Get, uri);
-        return await SendAndDeserializeListAsync<ScriptListItem>(request, ct);
+        return await SendAndDeserializeListAsync<ScriptListItem>(() => CreateAuthenticatedRequest(HttpMethod.Get, uri), ct);
     }
 
     public async Task<IReadOnlyList<ScriptFolderTreeNode>> GetFolderTreeAsync(CancellationToken ct)
     {
         await EnsureLoginAsync(ct);
-
-        using var request = CreateAuthenticatedRequest(HttpMethod.Get, "/api/v1/folders/tree");
-        return await SendAndDeserializeListAsync<ScriptFolderTreeNode>(request, ct);
+        return await SendAndDeserializeListAsync<ScriptFolderTreeNode>(() => CreateAuthenticatedRequest(HttpMethod.Get, "/api/v1/folders/tree"), ct);
     }
 
     public async Task<ScriptDetail> GetScriptDetailAsync(Guid scriptId, CancellationToken ct)
     {
+        var response = await GetScriptDetailWithMetadataAsync(scriptId, ct);
+        return response.Detail;
+    }
+
+    public async Task<ScriptDetailResponse> GetScriptDetailWithMetadataAsync(Guid scriptId, CancellationToken ct)
+    {
         await EnsureLoginAsync(ct);
 
-        using var request = CreateAuthenticatedRequest(HttpMethod.Get, $"/api/v1/scripts/{scriptId}");
-        using var response = await _httpClient.SendAsync(request, ct);
+        using var response = await SendWithPolicyAsync(() => CreateAuthenticatedRequest(HttpMethod.Get, $"/api/v1/scripts/{scriptId}"), ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync<ScriptDetail>(stream, JsonOptions, ct)
+        var detail = await JsonSerializer.DeserializeAsync<ScriptDetail>(stream, JsonOptions, ct)
             ?? throw new InvalidOperationException("Ungültige Script-Detail-Antwort von der API.");
+
+        return new ScriptDetailResponse(detail, response.Headers.ETag?.Tag);
     }
 
-    private async Task<IReadOnlyList<T>> SendAndDeserializeListAsync<T>(HttpRequestMessage request, CancellationToken ct)
+    private async Task<IReadOnlyList<T>> SendAndDeserializeListAsync<T>(Func<HttpRequestMessage> requestFactory, CancellationToken ct)
     {
-        using var response = await _httpClient.SendAsync(request, ct);
+        using var response = await SendWithPolicyAsync(requestFactory, ct);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         var result = await JsonSerializer.DeserializeAsync<IReadOnlyList<T>>(stream, JsonOptions, ct);
         return result ?? Array.Empty<T>();
+    }
+
+    private async Task<HttpResponseMessage> SendWithPolicyAsync(Func<HttpRequestMessage> requestFactory, CancellationToken ct)
+    {
+        ThrowIfCircuitOpen();
+
+        HttpResponseMessage? lastResponse = null;
+        Exception? lastException = null;
+
+        for (var attempt = 0; attempt <= _settings.HttpRetryCount; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                using var request = requestFactory();
+                var response = await _httpClient.SendAsync(request, ct);
+
+                if (!ShouldRetry(response.StatusCode) || attempt >= _settings.HttpRetryCount)
+                {
+                    if (response.IsSuccessStatusCode)
+                    {
+                        ResetCircuit();
+                    }
+                    else
+                    {
+                        RegisterFailure();
+                    }
+
+                    return response;
+                }
+
+                lastResponse?.Dispose();
+                lastResponse = response;
+                RegisterFailure();
+                await DelayForRetryAsync(attempt, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (HttpRequestException ex)
+            {
+                lastException = ex;
+                RegisterFailure();
+
+                if (attempt >= _settings.HttpRetryCount)
+                {
+                    throw;
+                }
+
+                await DelayForRetryAsync(attempt, ct);
+            }
+        }
+
+        lastResponse?.Dispose();
+        if (lastException is not null)
+        {
+            throw new InvalidOperationException("API-Aufruf ist nach mehreren Wiederholungen fehlgeschlagen.", lastException);
+        }
+
+        throw new InvalidOperationException("API-Aufruf ist nach mehreren Wiederholungen fehlgeschlagen.");
+    }
+
+    private static bool ShouldRetry(HttpStatusCode statusCode)
+    {
+        var numeric = (int)statusCode;
+        return statusCode == HttpStatusCode.RequestTimeout
+            || statusCode == HttpStatusCode.TooManyRequests
+            || numeric >= 500;
+    }
+
+    private async Task DelayForRetryAsync(int attempt, CancellationToken ct)
+    {
+        var factor = attempt + 1;
+        var delay = TimeSpan.FromMilliseconds(_settings.HttpRetryDelayMs * factor);
+        await Task.Delay(delay, ct);
+    }
+
+    private void ThrowIfCircuitOpen()
+    {
+        lock (_circuitGate)
+        {
+            if (_circuitOpenUntilUtc > DateTimeOffset.UtcNow)
+            {
+                var retryIn = (_circuitOpenUntilUtc - DateTimeOffset.UtcNow).TotalSeconds;
+                throw new InvalidOperationException($"API-Circuit-Breaker aktiv. Nächster Versuch in ca. {Math.Ceiling(retryIn)}s.");
+            }
+
+            if (_circuitOpenUntilUtc != default)
+            {
+                _circuitOpenUntilUtc = default;
+                _consecutiveFailures = 0;
+            }
+        }
+    }
+
+    private void RegisterFailure()
+    {
+        lock (_circuitGate)
+        {
+            _consecutiveFailures++;
+            if (_consecutiveFailures >= _settings.CircuitBreakerFailureThreshold)
+            {
+                _circuitOpenUntilUtc = DateTimeOffset.UtcNow.AddSeconds(_settings.CircuitBreakerBreakSeconds);
+                _consecutiveFailures = 0;
+            }
+        }
+    }
+
+    private void ResetCircuit()
+    {
+        lock (_circuitGate)
+        {
+            _consecutiveFailures = 0;
+            _circuitOpenUntilUtc = default;
+        }
     }
 
     private HttpRequestMessage CreateAuthenticatedRequest(HttpMethod method, string path)
@@ -116,5 +240,6 @@ internal sealed class SqlFroegaApiClient
             ?? throw new InvalidOperationException("Ungültige Login-Antwort von der API.");
 
         _accessToken = loginResponse.AccessToken;
+        ResetCircuit();
     }
 }

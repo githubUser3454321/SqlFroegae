@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
@@ -22,12 +23,13 @@ public partial class SearchToolWindowControl : UserControl
         var settings = SsmsExtensionSettings.LoadFromEnvironment();
         var httpClient = new HttpClient
         {
-            BaseAddress = new Uri(settings.ApiBaseUrl)
+            BaseAddress = new Uri(settings.ApiBaseUrl),
+            Timeout = TimeSpan.FromSeconds(settings.HttpTimeoutSeconds)
         };
 
         var apiClient = new SqlFroegaApiClient(httpClient, settings);
         var workspaceManager = new WorkspaceManager(settings);
-        _viewModel = new SearchToolWindowViewModel(apiClient, workspaceManager);
+        _viewModel = new SearchToolWindowViewModel(apiClient, workspaceManager, settings.BulkReadBatchSize);
         DataContext = _viewModel;
         Loaded += OnLoaded;
     }
@@ -61,7 +63,16 @@ public partial class SearchToolWindowControl : UserControl
     {
         _searchCts = RenewTokenSource(_searchCts);
         var readonlyFlag = ReadonlyCheckBox.IsChecked ?? true;
-        var openedPaths = await _viewModel.OpenAllResultsAsync(readonlyFlag, _searchCts.Token);
+        IReadOnlyList<string> openedPaths;
+
+        try
+        {
+            openedPaths = await _viewModel.OpenAllResultsAsync(readonlyFlag, _searchCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
 
         await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
         var dte = Package.GetGlobalService(typeof(SDTE)) as DTE;

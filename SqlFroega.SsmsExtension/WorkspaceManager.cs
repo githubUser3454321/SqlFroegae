@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -20,7 +22,7 @@ internal sealed class WorkspaceManager
         Directory.CreateDirectory(_workspaceRoot);
     }
 
-    public WorkspaceOpenResult SaveScript(ScriptDetail detail, bool openReadonly)
+    public WorkspaceOpenResult SaveScript(ScriptDetail detail, bool openReadonly, string? versionToken)
     {
         var index = LoadIndex();
         var existingEntry = index.TryGetValue(detail.Id, out var found) ? found : null;
@@ -28,8 +30,16 @@ internal sealed class WorkspaceManager
         var filePath = ResolveFilePath(detail, existingEntry);
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
-        File.WriteAllText(filePath, detail.Content);
-        ApplyReadonlyAttribute(filePath, openReadonly);
+        var localHashBeforeOpen = File.Exists(filePath) ? ComputeContentHash(File.ReadAllText(filePath)) : null;
+        var hasUnsyncedLocalChanges = HasUnsyncedLocalChanges(existingEntry, localHashBeforeOpen);
+        var serverContentHash = ComputeContentHash(detail.Content);
+
+        if (!hasUnsyncedLocalChanges)
+        {
+            File.WriteAllText(filePath, detail.Content);
+            ApplyReadonlyAttribute(filePath, openReadonly);
+            localHashBeforeOpen = serverContentHash;
+        }
 
         var now = DateTimeOffset.UtcNow;
         index[detail.Id] = new WorkspaceIndexEntry(
@@ -38,11 +48,42 @@ internal sealed class WorkspaceManager
             Name: detail.Name,
             LocalPath: filePath,
             LastOpenedUtc: now,
-            LastSyncedUtc: now,
-            OpenMode: openReadonly ? "readonly" : "edit");
+            LastSyncedUtc: hasUnsyncedLocalChanges ? existingEntry?.LastSyncedUtc ?? now : now,
+            OpenMode: openReadonly ? "readonly" : "edit",
+            VersionToken: string.IsNullOrWhiteSpace(versionToken) ? existingEntry?.VersionToken : versionToken,
+            LastSyncedContentHash: serverContentHash,
+            LastKnownLocalContentHash: localHashBeforeOpen ?? serverContentHash,
+            HasUnsyncedLocalChanges: hasUnsyncedLocalChanges);
 
         SaveIndex(index);
-        return new WorkspaceOpenResult(filePath, openReadonly ? "readonly" : "edit", now, index.Count);
+        return new WorkspaceOpenResult(
+            filePath,
+            openReadonly ? "readonly" : "edit",
+            now,
+            index.Count,
+            hasUnsyncedLocalChanges,
+            string.IsNullOrWhiteSpace(versionToken) ? existingEntry?.VersionToken : versionToken);
+    }
+
+    private static bool HasUnsyncedLocalChanges(WorkspaceIndexEntry? existingEntry, string? localHash)
+    {
+        if (existingEntry is null)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(existingEntry.LastKnownLocalContentHash) || string.IsNullOrWhiteSpace(localHash))
+        {
+            return false;
+        }
+
+        return !string.Equals(existingEntry.LastKnownLocalContentHash, localHash, StringComparison.Ordinal);
+    }
+
+    private static string ComputeContentHash(string content)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(bytes);
     }
 
     private string ResolveFilePath(ScriptDetail detail, WorkspaceIndexEntry? existingEntry)
@@ -103,7 +144,9 @@ internal sealed record WorkspaceOpenResult(
     string LocalPath,
     string OpenMode,
     DateTimeOffset LastOpenedUtc,
-    int IndexedScriptCount);
+    int IndexedScriptCount,
+    bool HasUnsyncedLocalChanges,
+    string? VersionToken);
 
 internal sealed record WorkspaceIndexEntry(
     Guid ScriptId,
@@ -112,4 +155,8 @@ internal sealed record WorkspaceIndexEntry(
     string LocalPath,
     DateTimeOffset LastOpenedUtc,
     DateTimeOffset LastSyncedUtc,
-    string OpenMode);
+    string OpenMode,
+    string? VersionToken,
+    string LastSyncedContentHash,
+    string LastKnownLocalContentHash,
+    bool HasUnsyncedLocalChanges);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -13,16 +14,18 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
 {
     private readonly SqlFroegaApiClient _apiClient;
     private readonly WorkspaceManager _workspaceManager;
+    private readonly int _bulkReadBatchSize;
     private string _searchTerm = string.Empty;
     private bool _isLoading;
     private string? _errorMessage;
     private string _statusMessage = "Bereit";
     private FolderOptionItem? _selectedFolder;
 
-    public SearchToolWindowViewModel(SqlFroegaApiClient apiClient, WorkspaceManager workspaceManager)
+    public SearchToolWindowViewModel(SqlFroegaApiClient apiClient, WorkspaceManager workspaceManager, int bulkReadBatchSize)
     {
         _apiClient = apiClient;
         _workspaceManager = workspaceManager;
+        _bulkReadBatchSize = Math.Max(1, bulkReadBatchSize);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -213,24 +216,68 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         IsLoading = true;
         StatusMessage = $"Öffne {Results.Count} Skripte...";
 
-        var openedPaths = new List<string>();
+        var openedPaths = new ConcurrentBag<string>();
+        var failedScripts = new ConcurrentBag<string>();
+        var conflicts = 0;
+
         try
         {
-            foreach (var result in Results)
+            var batches = Results
+                .Select((item, index) => new { item, index })
+                .GroupBy(x => x.index / _bulkReadBatchSize, x => x.item)
+                .ToList();
+
+            foreach (var batch in batches)
             {
                 ct.ThrowIfCancellationRequested();
-                var opened = await OpenSelectedAsync(result, openReadonly, ct);
-                openedPaths.Add(opened.LocalPath);
+                var tasks = batch.Select(result => OpenSingleResultCoreAsync(result, openReadonly, ct));
+                var batchResults = await Task.WhenAll(tasks);
+
+                foreach (var batchResult in batchResults)
+                {
+                    if (batchResult.IsSuccess)
+                    {
+                        openedPaths.Add(batchResult.LocalPath!);
+                        if (batchResult.HasUnsyncedLocalChanges)
+                        {
+                            conflicts++;
+                        }
+
+                        continue;
+                    }
+
+                    failedScripts.Add(batchResult.ScriptName);
+                }
             }
 
-            StatusMessage = $"Bulk Read abgeschlossen: {openedPaths.Count} Skripte lokal geöffnet.";
-            return openedPaths;
+            if (failedScripts.IsEmpty)
+            {
+                StatusMessage = conflicts > 0
+                    ? $"Bulk Read abgeschlossen: {openedPaths.Count} Skripte geöffnet, {conflicts} lokale Konflikt(e) erkannt."
+                    : $"Bulk Read abgeschlossen: {openedPaths.Count} Skripte lokal geöffnet.";
+            }
+            else
+            {
+                var failedPreview = string.Join(", ", failedScripts.Take(3));
+                var moreSuffix = failedScripts.Count > 3 ? " ..." : string.Empty;
+                ErrorMessage = $"{failedScripts.Count} Skript(e) konnten nicht geladen werden: {failedPreview}{moreSuffix}";
+                StatusMessage = conflicts > 0
+                    ? $"Bulk Read mit Teilfehlern: {openedPaths.Count} geöffnet, {failedScripts.Count} fehlgeschlagen, {conflicts} lokale Konflikt(e)."
+                    : $"Bulk Read mit Teilfehlern: {openedPaths.Count} geöffnet, {failedScripts.Count} fehlgeschlagen.";
+            }
+
+            return openedPaths.ToList();
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = $"Bulk Read abgebrochen nach {openedPaths.Count} Skripten.";
+            throw;
         }
         catch (Exception ex)
         {
             ErrorMessage = ex.Message;
-            StatusMessage = $"Bulk Read abgebrochen nach {openedPaths.Count} Skripten.";
-            return openedPaths;
+            StatusMessage = $"Bulk Read unerwartet fehlgeschlagen nach {openedPaths.Count} Skripten.";
+            return openedPaths.ToList();
         }
         finally
         {
@@ -246,9 +293,16 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
 
         try
         {
-            var detail = await _apiClient.GetScriptDetailAsync(selected.Id, ct);
-            var openResult = _workspaceManager.SaveScript(detail, openReadonly);
-            StatusMessage = $"{selected.Name} geöffnet ({openResult.OpenMode}) → {openResult.LocalPath}";
+            var detailResponse = await _apiClient.GetScriptDetailWithMetadataAsync(selected.Id, ct);
+            var openResult = _workspaceManager.SaveScript(detailResponse.Detail, openReadonly, detailResponse.VersionToken);
+            if (openResult.HasUnsyncedLocalChanges)
+            {
+                StatusMessage = $"{selected.Name} mit lokalem Konflikt geöffnet (lokale Datei beibehalten) → {openResult.LocalPath}";
+            }
+            else
+            {
+                StatusMessage = $"{selected.Name} geöffnet ({openResult.OpenMode}) → {openResult.LocalPath}";
+            }
             return openResult;
         }
         catch (Exception ex)
@@ -261,6 +315,26 @@ internal sealed class SearchToolWindowViewModel : INotifyPropertyChanged
         {
             IsLoading = false;
         }
+    }
+
+    private async Task<OpenSingleResult> OpenSingleResultCoreAsync(SearchResultItem selected, bool openReadonly, CancellationToken ct)
+    {
+        try
+        {
+            var detailResponse = await _apiClient.GetScriptDetailWithMetadataAsync(selected.Id, ct);
+            var openResult = _workspaceManager.SaveScript(detailResponse.Detail, openReadonly, detailResponse.VersionToken);
+            return OpenSingleResult.Success(selected.Name, openResult.LocalPath, openResult.HasUnsyncedLocalChanges);
+        }
+        catch
+        {
+            return OpenSingleResult.Failure(selected.Name);
+        }
+    }
+
+    private readonly record struct OpenSingleResult(string ScriptName, string? LocalPath, bool IsSuccess, bool HasUnsyncedLocalChanges)
+    {
+        public static OpenSingleResult Success(string scriptName, string localPath, bool hasUnsyncedLocalChanges) => new(scriptName, localPath, true, hasUnsyncedLocalChanges);
+        public static OpenSingleResult Failure(string scriptName) => new(scriptName, null, false, false);
     }
 
     private void SetResults(IReadOnlyList<ScriptListItem> rows)
